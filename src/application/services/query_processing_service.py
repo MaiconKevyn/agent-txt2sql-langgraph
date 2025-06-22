@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import time
 import re
+import logging
 
 from .llm_communication_service import ILLMCommunicationService, LLMResponse
 from .database_connection_service import IDatabaseConnectionService
@@ -88,8 +89,25 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._error_service = error_service
         self._query_history: List[QueryResult] = []
         
+        # Setup logging for development
+        self._setup_logging()
+        
         # Initialize LangChain components
         self._setup_langchain_agent()
+    
+    def _setup_logging(self) -> None:
+        """Setup logging for development visibility"""
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        
+        # Only add handler if it doesn't exist to avoid duplicates
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
     
     def _setup_langchain_agent(self) -> None:
         """Setup LangChain SQL agent"""
@@ -128,33 +146,45 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         start_time = time.time()
         
         try:
+            self.logger.info(f"🔍 Processing query: {request.user_query}")
+            
             # Get schema context
             schema_context = self._schema_service.get_schema_context()
+            self.logger.info("📊 Retrieved schema context")
             
             # Create enhanced prompt with schema context
             enhanced_prompt = self._create_enhanced_prompt(request.user_query, schema_context)
+            self.logger.info("✨ Created enhanced prompt")
             
             # Process with LangChain agent
+            self.logger.info("🤖 Calling LangChain agent...")
             agent_response = self._agent.run(enhanced_prompt)
+            self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
             
             # Extract SQL query from response (if available)
             sql_query = self._extract_sql_from_response(agent_response)
+            self.logger.info(f"🔧 Extracted SQL: {sql_query[:100]}...")
             
             # Fix case sensitivity issues in SQL query
             sql_query = self._fix_case_sensitivity_issues(sql_query)
+            self.logger.info("🛠️ Applied case sensitivity fixes")
             
             # Parse results from agent response
             results, row_count = self._parse_agent_results(agent_response)
+            self.logger.info(f"📊 Parsed results: {row_count} rows")
             
             # If the query was fixed for case sensitivity, re-execute the corrected query
             original_sql = self._extract_sql_from_response(agent_response)
             if sql_query != original_sql:
+                self.logger.info("🔄 Re-executing corrected query")
                 corrected_result = self.execute_sql_query(sql_query)
                 if corrected_result.success:
                     results = corrected_result.results
                     row_count = corrected_result.row_count
+                    self.logger.info("✅ Corrected query executed successfully")
             
             execution_time = time.time() - start_time
+            self.logger.info(f"⏱️ Query completed in {execution_time:.2f}s")
             
             query_result = QueryResult(
                 sql_query=sql_query,
@@ -174,6 +204,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             
         except Exception as e:
             execution_time = time.time() - start_time
+            self.logger.error(f"❌ Query processing failed: {str(e)}")
             error_info = self._error_service.handle_error(e, ErrorCategory.QUERY_PROCESSING)
             
             query_result = QueryResult(
@@ -237,8 +268,11 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         start_time = time.time()
         
         try:
+            self.logger.info(f"⚡ Executing SQL: {sql_query[:100]}...")
+            
             # Validate query first
             validation = self.validate_sql_query(sql_query)
+            self.logger.info(f"🔒 Query validation: safe={validation.is_safe}")
             
             if not validation.is_safe:
                 raise ValueError(f"Query blocked for safety: {', '.join(validation.blocked_reasons)}")
@@ -247,6 +281,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             conn = self._db_service.get_raw_connection()
             cursor = conn.cursor()
             cursor.execute(sql_query)
+            self.logger.info("📊 SQL executed successfully")
             
             # Fetch results
             results = cursor.fetchall()
@@ -256,6 +291,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             result_dicts = [dict(zip(column_names, row)) for row in results]
             
             execution_time = time.time() - start_time
+            self.logger.info(f"✅ Query returned {len(result_dicts)} rows in {execution_time:.2f}s")
             
             return QueryResult(
                 sql_query=sql_query,
@@ -271,6 +307,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             
         except Exception as e:
             execution_time = time.time() - start_time
+            self.logger.error(f"❌ SQL execution failed: {str(e)}")
             error_info = self._error_service.handle_error(e, ErrorCategory.DATABASE)
             
             return QueryResult(
@@ -385,13 +422,128 @@ IMPORTANTE - Regras para filtros demográficos:
             if final_answer_start != -1:
                 final_answer_part = response[final_answer_start + len("Final Answer:"):].strip()
                 
-                # Try to extract the numerical result from the entire final answer section
-                # Look for patterns like "is: 308" or "answer is 308"
+                # Check if this is a complex query with multiple results (e.g., top 5 cities)
+                # Look for patterns like "1. City - Number, 2. City - Number"
+                complex_pattern = r'\d+\. ([\w\s]+) - (\d+)'
+                complex_matches = re.findall(complex_pattern, final_answer_part)
+                
+                if complex_matches:
+                    # Complex query with multiple rows - pass complete structured data
+                    structured_results = []
+                    for rank, (city, count) in enumerate(complex_matches, 1):
+                        structured_results.append({
+                            "rank": rank,
+                            "city": city.strip(),
+                            "count": int(count),
+                            "full_text": f"{rank}. {city.strip()} - {count}"
+                        })
+                    
+                    # Add the complete final answer text for conversational LLM
+                    structured_results.append({
+                        "final_answer_text": final_answer_part,
+                        "response_type": "complex_query",
+                        "total_results": len(complex_matches)
+                    })
+                    
+                    return structured_results, len(complex_matches)
+                
+                # Check for patterns like "top 5 cities...are City1, City2, City3, City4, and City5"
+                # This handles the actual format returned by LangChain
+                if "top" in final_answer_part.lower() and "cities" in final_answer_part.lower():
+                    # Look for city names in the text
+                    cities_pattern = r'are ([^.]+)\.'  # Extract text after "are" and before "."
+                    cities_match = re.search(cities_pattern, final_answer_part)
+                    
+                    if cities_match:
+                        cities_text = cities_match.group(1)
+                        # Split by commas and "and" to get individual cities
+                        cities = re.split(r',\s*(?:and\s+)?', cities_text)
+                        cities = [city.strip() for city in cities if city.strip()]
+                        
+                        # Now extract the actual counts from the agent response
+                        # Look for the SQL result pattern in the full response (corrected pattern)
+                        sql_result_pattern = r'\[(\([^)]+\)(?:,\s*\([^)]+\))*)\]'
+                        sql_match = re.search(sql_result_pattern, response)
+                        
+                        if sql_match and cities:
+                            # Parse the SQL results
+                            sql_results_text = sql_match.group(1)
+                            # Pattern like ('Uruguaiana', 20), ('Ijuí', 18), etc.
+                            city_count_pattern = r"\('([^']+)',\s*(\d+)\)"
+                            city_count_matches = re.findall(city_count_pattern, sql_results_text)
+                            
+                            if city_count_matches:
+                                structured_results = []
+                                for rank, (city, count) in enumerate(city_count_matches, 1):
+                                    structured_results.append({
+                                        "rank": rank,
+                                        "city": city.strip(),
+                                        "count": int(count),
+                                        "full_text": f"{rank}. {city.strip()} - {count}"
+                                    })
+                                
+                                # Add the complete final answer text for conversational LLM
+                                structured_results.append({
+                                    "final_answer_text": final_answer_part,
+                                    "response_type": "complex_query",
+                                    "total_results": len(city_count_matches),
+                                    "sql_results": city_count_matches
+                                })
+                                
+                                return structured_results, len(city_count_matches)
+                
+                # Simple single number result
                 numbers = re.findall(r'\d+', final_answer_part)
                 if numbers:
-                    # Get the last/most specific number mentioned (usually the answer)
                     result_value = int(numbers[-1])
-                    return [{"result": result_value}], result_value
+                    # Include the final answer text for conversational LLM
+                    return [
+                        {"result": result_value},
+                        {"final_answer_text": final_answer_part, "response_type": "simple_query"}
+                    ], result_value
+        
+        # NEW: Handle case where we get just the clean final answer without "Final Answer:" prefix
+        # This is what LangChain returns when using .run() method
+        
+        # First, check if it's a complex multi-line response (e.g., top 5 cities)
+        lines = response.strip().split('\n')
+        if len(lines) > 1:
+            # Look for patterns like "1. City - Number" across multiple lines
+            complex_pattern = r'\d+\. ([\w\s]+) - (\d+)'
+            all_matches = []
+            for line in lines:
+                matches = re.findall(complex_pattern, line)
+                all_matches.extend(matches)
+            
+            if all_matches:
+                # Complex query with multiple rows - pass complete structured data
+                structured_results = []
+                for rank, (city, count) in enumerate(all_matches, 1):
+                    structured_results.append({
+                        "rank": rank,
+                        "city": city.strip(),
+                        "count": int(count),
+                        "full_text": f"{rank}. {city.strip()} - {count}"
+                    })
+                
+                # Add the complete response text for conversational LLM
+                structured_results.append({
+                    "final_answer_text": response.strip(),
+                    "response_type": "complex_query",
+                    "total_results": len(all_matches)
+                })
+                
+                return structured_results, len(all_matches)
+        
+        # Simple single number extraction
+        numbers = re.findall(r'\d+', response)
+        if numbers:
+            result_value = int(numbers[-1])
+            # Include the complete response text for conversational LLM
+            return [
+                {"result": result_value},
+                {"final_answer_text": response.strip(), "response_type": "simple_query"}
+            ], result_value
         
         # Look for "final answer" without colon
         if "final answer" in response.lower():
@@ -399,7 +551,10 @@ IMPORTANTE - Regras para filtros demográficos:
             final_answer_match = re.search(r'final answer[^0-9]*(\d+)', response, re.IGNORECASE)
             if final_answer_match:
                 result_value = int(final_answer_match.group(1))
-                return [{"result": result_value}], result_value
+                return [
+                    {"result": result_value},
+                    {"final_answer_text": response.strip(), "response_type": "simple_query"}
+                ], result_value
         
         # Look for patterns like "result was 308" or just a number at the start
         if "result was" in response.lower():
@@ -407,13 +562,19 @@ IMPORTANTE - Regras para filtros demográficos:
             match = re.search(r'result was (\d+)', response, re.IGNORECASE)
             if match:
                 result_value = int(match.group(1))
-                return [{"result": result_value}], result_value
+                return [
+                    {"result": result_value},
+                    {"final_answer_text": response.strip(), "response_type": "simple_query"}
+                ], result_value
         
         # Look for a number at the beginning of the response (simple case)
         first_line = response.strip().split('\n')[0].strip()
         if first_line.isdigit():
             result_value = int(first_line)
-            return [{"result": result_value}], result_value
+            return [
+                {"result": result_value},
+                {"final_answer_text": response.strip(), "response_type": "simple_query"}
+            ], result_value
         
         # Look for structured results in Observation (fallback)
         if "Observation:" in response:
@@ -427,10 +588,15 @@ IMPORTANTE - Regras para filtros demográficos:
                 if numbers:
                     # Simple case: single number result
                     result_value = int(numbers[0])
-                    return [{"result": result_value}], result_value
+                    return [
+                        {"result": result_value},
+                        {"final_answer_text": response.strip(), "response_type": "observation_query"}
+                    ], result_value
         
-        # Fallback: return empty results
-        return [], 0
+        # Fallback: return complete response text for conversational LLM to interpret
+        return [
+            {"final_answer_text": response.strip(), "response_type": "fallback_query"}
+        ], 0
     
     def get_query_statistics(self) -> Dict[str, Any]:
         """Get query processing statistics"""
