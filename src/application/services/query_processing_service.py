@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import time
 import re
+import logging
 
 from .llm_communication_service import ILLMCommunicationService, LLMResponse
 from .database_connection_service import IDatabaseConnectionService
@@ -88,8 +89,25 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._error_service = error_service
         self._query_history: List[QueryResult] = []
         
+        # Setup logging for development
+        self._setup_logging()
+        
         # Initialize LangChain components
         self._setup_langchain_agent()
+    
+    def _setup_logging(self) -> None:
+        """Setup logging for development visibility"""
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        
+        # Only add handler if it doesn't exist to avoid duplicates
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
     
     def _setup_langchain_agent(self) -> None:
         """Setup LangChain SQL agent"""
@@ -128,33 +146,45 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         start_time = time.time()
         
         try:
+            self.logger.info(f"🔍 Processing query: {request.user_query}")
+            
             # Get schema context
             schema_context = self._schema_service.get_schema_context()
+            self.logger.info("📊 Retrieved schema context")
             
             # Create enhanced prompt with schema context
             enhanced_prompt = self._create_enhanced_prompt(request.user_query, schema_context)
+            self.logger.info("✨ Created enhanced prompt")
             
             # Process with LangChain agent
+            self.logger.info("🤖 Calling LangChain agent...")
             agent_response = self._agent.run(enhanced_prompt)
+            self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
             
             # Extract SQL query from response (if available)
             sql_query = self._extract_sql_from_response(agent_response)
+            self.logger.info(f"🔧 Extracted SQL: {sql_query[:100]}...")
             
             # Fix case sensitivity issues in SQL query
             sql_query = self._fix_case_sensitivity_issues(sql_query)
+            self.logger.info("🛠️ Applied case sensitivity fixes")
             
             # Parse results from agent response
             results, row_count = self._parse_agent_results(agent_response)
+            self.logger.info(f"📊 Parsed results: {row_count} rows")
             
             # If the query was fixed for case sensitivity, re-execute the corrected query
             original_sql = self._extract_sql_from_response(agent_response)
             if sql_query != original_sql:
+                self.logger.info("🔄 Re-executing corrected query")
                 corrected_result = self.execute_sql_query(sql_query)
                 if corrected_result.success:
                     results = corrected_result.results
                     row_count = corrected_result.row_count
+                    self.logger.info("✅ Corrected query executed successfully")
             
             execution_time = time.time() - start_time
+            self.logger.info(f"⏱️ Query completed in {execution_time:.2f}s")
             
             query_result = QueryResult(
                 sql_query=sql_query,
@@ -174,6 +204,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             
         except Exception as e:
             execution_time = time.time() - start_time
+            self.logger.error(f"❌ Query processing failed: {str(e)}")
             error_info = self._error_service.handle_error(e, ErrorCategory.QUERY_PROCESSING)
             
             query_result = QueryResult(
@@ -237,8 +268,11 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         start_time = time.time()
         
         try:
+            self.logger.info(f"⚡ Executing SQL: {sql_query[:100]}...")
+            
             # Validate query first
             validation = self.validate_sql_query(sql_query)
+            self.logger.info(f"🔒 Query validation: safe={validation.is_safe}")
             
             if not validation.is_safe:
                 raise ValueError(f"Query blocked for safety: {', '.join(validation.blocked_reasons)}")
@@ -247,6 +281,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             conn = self._db_service.get_raw_connection()
             cursor = conn.cursor()
             cursor.execute(sql_query)
+            self.logger.info("📊 SQL executed successfully")
             
             # Fetch results
             results = cursor.fetchall()
@@ -256,6 +291,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             result_dicts = [dict(zip(column_names, row)) for row in results]
             
             execution_time = time.time() - start_time
+            self.logger.info(f"✅ Query returned {len(result_dicts)} rows in {execution_time:.2f}s")
             
             return QueryResult(
                 sql_query=sql_query,
@@ -271,6 +307,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             
         except Exception as e:
             execution_time = time.time() - start_time
+            self.logger.error(f"❌ SQL execution failed: {str(e)}")
             error_info = self._error_service.handle_error(e, ErrorCategory.DATABASE)
             
             return QueryResult(
