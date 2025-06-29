@@ -1,34 +1,160 @@
 import pandas as pd
 import sqlite3
 from pathlib import Path
+from typing import Optional, List, Tuple
+
+def create_cid_capitulos_table(conn: sqlite3.Connection) -> int:
+    """Create CID chapters table and import data from CSV"""
+    
+    # Read CID chapters CSV
+    cid_csv_path = Path("data/CID-10-CAPITULOS_clean.csv")
+    
+    if not cid_csv_path.exists():
+        print(f"Warning: CID CSV file not found at {cid_csv_path}")
+        return 0
+    
+    # Read CSV with proper encoding
+    df_cid = pd.read_csv(cid_csv_path, encoding='utf-8', delimiter=';')
+    
+    # Clean column names (remove any BOM or extra spaces)
+    df_cid.columns = df_cid.columns.str.strip().str.replace('\ufeff', '')
+    
+    # Create CID chapters table with proper schema
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cid_capitulos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero_capitulo INTEGER NOT NULL,
+            codigo_inicio TEXT NOT NULL,
+            codigo_fim TEXT NOT NULL,
+            descricao TEXT NOT NULL,
+            descricao_abrev TEXT,
+            categoria_geral TEXT,
+            UNIQUE(numero_capitulo, codigo_inicio, codigo_fim)
+        )
+    """)
+    
+    # Insert data from DataFrame
+    records_inserted = 0
+    for _, row in df_cid.iterrows():
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO cid_capitulos 
+                (numero_capitulo, codigo_inicio, codigo_fim, descricao, descricao_abrev, categoria_geral)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                int(row['NUMCAP']),
+                row['CATINIC'].strip(),
+                row['CATFIM'].strip(), 
+                row['DESCRICAO'].strip(),
+                row.get('DESCRABREV', '').strip() if pd.notna(row.get('DESCRABREV')) else '',
+                row.get('CID_GERAL', '').strip() if pd.notna(row.get('CID_GERAL')) else ''
+            ))
+            records_inserted += 1
+        except Exception as e:
+            print(f"Error inserting CID record {row.get('NUMCAP', 'unknown')}: {e}")
+    
+    conn.commit()
+    print(f"CID chapters table created with {records_inserted} records")
+    return records_inserted
 
 def create_database_from_csv():
-    """Create SQLite database from CSV file"""
+    """Create SQLite database with SUS data and CID chapters"""
     
-    # Read CSV file
+    # Read SUS CSV file
     csv_path = Path("data/dados_sus3.csv")
+    if not csv_path.exists():
+        raise FileNotFoundError(f"SUS data file not found at {csv_path}")
+    
     df = pd.read_csv(csv_path)
     
     # Connect to SQLite database
     db_path = "sus_database.db"
     conn = sqlite3.connect(db_path)
     
-    # Create table from DataFrame
-    df.to_sql('sus_data', conn, if_exists='replace', index=False)
+    try:
+        # Create SUS data table
+        df.to_sql('sus_data', conn, if_exists='replace', index=False)
+        print(f"SUS data table created with {len(df)} records")
+        
+        # Create CID chapters table
+        cid_records = create_cid_capitulos_table(conn)
+        
+        # Get table info for both tables
+        tables = ['sus_data', 'cid_capitulos']
+        for table in tables:
+            cursor = conn.cursor()
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = cursor.fetchall()
+            
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            record_count = cursor.fetchone()[0]
+            
+            print(f"\nTable '{table}' ({record_count} records):")
+            print("Columns:")
+            for col in columns:
+                print(f"  - {col[1]} ({col[2]})")
+        
+        # Create helpful view for CID mapping
+        cursor.execute("""
+            CREATE VIEW IF NOT EXISTS sus_data_with_cid AS
+            SELECT 
+                s.*,
+                c.descricao as capitulo_cid,
+                c.descricao_abrev as capitulo_abrev,
+                c.numero_capitulo
+            FROM sus_data s
+            LEFT JOIN cid_capitulos c ON 
+                s.DIAG_PRINC >= c.codigo_inicio AND 
+                s.DIAG_PRINC <= c.codigo_fim
+        """)
+        
+        print(f"\nDatabase created successfully at {db_path}")
+        print(f"Created view 'sus_data_with_cid' for easy CID mapping")
+        
+    except Exception as e:
+        print(f"Error creating database: {e}")
+        raise
+    finally:
+        conn.close()
     
-    # Get table info
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA table_info(sus_data)")
-    columns = cursor.fetchall()
-    
-    print(f"Database created successfully at {db_path}")
-    print(f"Table 'sus_data' has {len(df)} records")
-    print("Columns:")
-    for col in columns:
-        print(f"  - {col[1]} ({col[2]})")
-    
-    conn.close()
     return db_path
+
+def get_database_info(db_path: str = "sus_database.db") -> dict:
+    """Get comprehensive database information"""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    info = {
+        'tables': {},
+        'views': {},
+        'total_records': 0
+    }
+    
+    try:
+        # Get all tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        
+        for (table_name,) in tables:
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            info['tables'][table_name] = count
+            info['total_records'] += count
+        
+        # Get all views  
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='view'")
+        views = cursor.fetchall()
+        
+        for (view_name,) in views:
+            info['views'][view_name] = 'view'
+            
+    except Exception as e:
+        print(f"Error getting database info: {e}")
+    finally:
+        conn.close()
+    
+    return info
 
 if __name__ == "__main__":
     create_database_from_csv()

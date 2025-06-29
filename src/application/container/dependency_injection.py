@@ -32,6 +32,11 @@ from ..services.query_processing_service import (
     QueryProcessingFactory
 )
 
+# Import CID-related services
+from ...domain.repositories.cid_repository import ICIDRepository
+from ...domain.services.cid_semantic_search_service import ICIDSemanticSearchService, CIDSemanticSearchService
+from ...infrastructure.repositories.sqlite_cid_repository import SQLiteCIDRepository
+
 T = TypeVar('T')
 
 
@@ -62,6 +67,10 @@ class ServiceConfig:
     
     # Query processing configuration
     query_processing_type: str = "comprehensive"
+    
+    # CID configuration
+    cid_repository_type: str = "sqlite"
+    enable_cid_semantic_search: bool = True
 
 
 class DependencyContainer:
@@ -89,6 +98,8 @@ class DependencyContainer:
             self._initialize_database_service()
             self._initialize_error_handling_service()
             self._initialize_llm_service()
+            self._initialize_cid_repository()
+            self._initialize_cid_semantic_search_service()
             self._initialize_schema_service()
             self._initialize_query_processing_service()
             self._initialize_ui_service()
@@ -201,6 +212,24 @@ class DependencyContainer:
         )
         self.register_service(IUserInterfaceService, ui_service)
     
+    def _initialize_cid_repository(self) -> None:
+        """Initialize CID repository"""
+        if self._config.cid_repository_type == "sqlite":
+            cid_repository = SQLiteCIDRepository(self._config.database_path)
+        else:
+            raise ValueError(f"Unsupported CID repository type: {self._config.cid_repository_type}")
+        
+        self.register_service(ICIDRepository, cid_repository)
+    
+    def _initialize_cid_semantic_search_service(self) -> None:
+        """Initialize CID semantic search service"""
+        if not self._config.enable_cid_semantic_search:
+            return
+        
+        cid_repository = self._get_registered_service(ICIDRepository)
+        cid_semantic_service = CIDSemanticSearchService(cid_repository)
+        self.register_service(ICIDSemanticSearchService, cid_semantic_service)
+    
     def get_configuration(self) -> ServiceConfig:
         """Get current service configuration"""
         return self._config
@@ -244,6 +273,15 @@ class DependencyContainer:
             health_status["services"]["error_handling"] = {
                 "healthy": self.get_service(IErrorHandlingService) is not None
             }
+            
+            # Check CID services if enabled
+            if self._config.enable_cid_semantic_search:
+                health_status["services"]["cid_repository"] = {
+                    "healthy": self.get_service(ICIDRepository) is not None
+                }
+                health_status["services"]["cid_semantic_search"] = {
+                    "healthy": self.get_service(ICIDSemanticSearchService) is not None
+                }
             
             # Determine overall health
             all_healthy = all(

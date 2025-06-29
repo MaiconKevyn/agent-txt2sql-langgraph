@@ -120,20 +120,39 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
         if self._cached_context:
             return self._cached_context
         
-        # Get table information
+        # Get table information - check for both tables
+        tables = []
         sus_table = self.get_table_info("sus_data")
+        tables.append(sus_table)
         
-        # Define important notes specific to SUS data
+        # Check if CID chapters table exists
+        try:
+            cid_table = self.get_table_info("cid_capitulos")
+            tables.append(cid_table)
+        except Exception:
+            # CID table doesn't exist, continue with just SUS data
+            pass
+        
+        # Define important notes specific to SUS data with multi-table support
         important_notes = [
             "IMPORTANTE: Para consultas baseadas em cidade, use a coluna CIDADE_RESIDENCIA_PACIENTE",
             "A coluna MUNIC_RES contém códigos numéricos de município, NÃO nomes de cidades",
             "Use MORTE = 1 para consultas sobre óbitos/mortes",
             "Códigos de sexo: 1=Masculino, 3=Feminino (padrão SUS)",
-            "Códigos CID-10 estão na coluna DIAG_PRINC",
+            "Códigos CID-10 estão na coluna DIAG_PRINC da tabela sus_data",
             "Datas estão no formato AAAAMMDD (DT_INTER, DT_SAIDA)"
         ]
         
-        # Define query examples
+        # Add CID-specific notes if CID table exists
+        if len(tables) > 1:
+            important_notes.extend([
+                "TABELA cid_capitulos: Contém informações sobre capítulos CID-10",
+                "Para consultas sobre categorias de diagnóstico, use JOIN entre sus_data e cid_capitulos",
+                "JOIN CONDITION: s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim",
+                "Use a view 'sus_data_with_cid' para consultas simples com dados CID integrados"
+            ])
+        
+        # Define query examples based on available tables
         query_examples = [
             "-- Mortes em Porto Alegre",
             "SELECT COUNT(*) FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Porto Alegre' AND MORTE = 1",
@@ -148,12 +167,44 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
             "SELECT UF_RESIDENCIA_PACIENTE, SUM(VAL_TOT) as custo_total FROM sus_data GROUP BY UF_RESIDENCIA_PACIENTE"
         ]
         
-        # Format complete context
-        formatted_context = self._format_context(sus_table, important_notes, query_examples)
+        # Add CID-specific query examples if CID table exists
+        if len(tables) > 1:
+            cid_examples = [
+                "",
+                "-- CONSULTAS COM CID (MULTI-TABELA):",
+                "",
+                "-- Contar tabelas no banco",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+                "",
+                "-- Listar todas as tabelas",
+                "SELECT name FROM sqlite_master WHERE type='table'",
+                "",
+                "-- Pacientes por capítulo CID-10",
+                "SELECT c.descricao, COUNT(*) as total_pacientes FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim GROUP BY c.descricao ORDER BY total_pacientes DESC",
+                "",
+                "-- Mortes por categoria CID",
+                "SELECT c.descricao as categoria_cid, COUNT(*) as mortes FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim WHERE s.MORTE = 1 GROUP BY c.descricao ORDER BY mortes DESC",
+                "",
+                "-- View com dados integrados",
+                "SELECT * FROM sus_data_with_cid WHERE capitulo_cid IS NOT NULL LIMIT 5",
+                "",
+                "-- Capítulos CID disponíveis",
+                "SELECT numero_capitulo, descricao, codigo_inicio, codigo_fim FROM cid_capitulos ORDER BY numero_capitulo"
+            ]
+            query_examples.extend(cid_examples)
+        
+        # Format complete context for all tables
+        formatted_context = self._format_context_multi_table(tables, important_notes, query_examples)
+        
+        # Determine database description based on available tables
+        if len(tables) > 1:
+            db_info = "Sistema Único de Saúde (SUS) - Dados de Hospitalização com Classificação CID-10"
+        else:
+            db_info = "Sistema Único de Saúde (SUS) - Dados de Hospitalização"
         
         self._cached_context = SchemaContext(
-            database_info="Sistema Único de Saúde (SUS) - Dados de Hospitalização",
-            tables=[sus_table],
+            database_info=db_info,
+            tables=tables,
             query_examples=query_examples,
             important_notes=important_notes,
             formatted_context=formatted_context
@@ -202,6 +253,80 @@ COLUNAS DISPONÍVEIS:
         for col in table.columns:
             description = column_descriptions.get(col.name, "")
             context += f"- {col.name} ({col.type}): {description}\n"
+        
+        context += "\nNOTAS IMPORTANTES:\n"
+        for note in notes:
+            context += f"- {note}\n"
+        
+        context += "\nEXEMPLOS DE CONSULTAS:\n"
+        context += "\n".join(examples)
+        
+        return context
+    
+    def _format_context_multi_table(
+        self, 
+        tables: List[TableInfo], 
+        notes: List[str], 
+        examples: List[str]
+    ) -> str:
+        """Format complete context for multiple tables"""
+        context = f"""
+CONTEXTO DO BANCO DE DADOS - SISTEMA ÚNICO DE SAÚDE (SUS)
+========================================================
+
+INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
+"""
+        
+        # Add information for each table
+        for table in tables:
+            context += f"\n\nTABELA: {table.name}\n"
+            context += f"Total de registros: {table.row_count:,}\n"
+            context += "COLUNAS DISPONÍVEIS:\n"
+            
+            # Column descriptions for each table
+            if table.name == "sus_data":
+                column_descriptions = {
+                    "DIAG_PRINC": "Código do diagnóstico principal (CID-10)",
+                    "MUNIC_RES": "Código numérico do município de residência (IBGE)",
+                    "MUNIC_MOV": "Código numérico do município de internação",
+                    "PROC_REA": "Código do procedimento realizado (SUS)",
+                    "IDADE": "Idade do paciente em anos",
+                    "SEXO": "Sexo do paciente (1=Masculino, 3=Feminino)",
+                    "CID_MORTE": "Código da causa da morte (CID-10)",
+                    "MORTE": "Indicador de óbito (0=Não, 1=Sim)",
+                    "CNES": "Código Nacional de Estabelecimento de Saúde",
+                    "VAL_TOT": "Valor total do procedimento em Reais",
+                    "UTI_MES_TO": "Total de dias em UTI",
+                    "DT_INTER": "Data de internação (formato AAAAMMDD)",
+                    "DT_SAIDA": "Data de saída (formato AAAAMMDD)",
+                    "UF_RESIDENCIA_PACIENTE": "Estado de residência do paciente",
+                    "CIDADE_RESIDENCIA_PACIENTE": "Cidade de residência do paciente",
+                    "LATI_CIDADE_RES": "Latitude da cidade de residência",
+                    "LONG_CIDADE_RES": "Longitude da cidade de residência"
+                }
+            elif table.name == "cid_capitulos":
+                column_descriptions = {
+                    "id": "Identificador único do capítulo",
+                    "numero_capitulo": "Número do capítulo CID-10 (1-22)",
+                    "codigo_inicio": "Código CID-10 inicial do capítulo",
+                    "codigo_fim": "Código CID-10 final do capítulo",
+                    "descricao": "Descrição completa do capítulo",
+                    "descricao_abrev": "Descrição abreviada do capítulo",
+                    "categoria_geral": "Categoria geral (letra) do capítulo"
+                }
+            else:
+                column_descriptions = {}
+            
+            for col in table.columns:
+                description = column_descriptions.get(col.name, "")
+                context += f"- {col.name} ({col.type}): {description}\n"
+        
+        # Add relationship information if multiple tables
+        if len(tables) > 1:
+            context += "\n\nRELACIONAMENTOS ENTRE TABELAS:\n"
+            context += "- sus_data.DIAG_PRINC relaciona com cid_capitulos via range de códigos\n"
+            context += "- JOIN: s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim\n"
+            context += "- VIEW DISPONÍVEL: sus_data_with_cid (dados integrados)\n"
         
         context += "\nNOTAS IMPORTANTES:\n"
         for note in notes:
