@@ -342,6 +342,39 @@ IMPORTANTE - Regras para filtros demográficos:
 - MORTE = 0 significa que o paciente não morreu
 - Quando perguntarem sobre "homens" use SEXO = 1
 - Quando perguntarem sobre "mulheres" use SEXO = 3
+
+IMPORTANTE - Regras para consultas por categoria de doença CID-10:
+- SEMPRE use a tabela cid_capitulos para consultas sobre categorias de doenças
+- Use o campo categoria_geral para identificar códigos CID de forma precisa
+- Para doenças respiratórias: JOIN sus_data com cid_capitulos WHERE c.categoria_geral = 'J'
+- Para neoplasias/tumores: JOIN sus_data com cid_capitulos WHERE c.categoria_geral = 'C'
+- Para doenças infecciosas: JOIN sus_data com cid_capitulos WHERE c.categoria_geral = 'A'
+- Para doenças circulatórias: JOIN sus_data com cid_capitulos WHERE c.categoria_geral = 'I'
+- Para doenças digestivas: JOIN sus_data com cid_capitulos WHERE c.categoria_geral = 'K'
+- Para qualquer categoria CID: use SEMPRE o padrão:
+  SELECT COUNT(*) FROM sus_data s 
+  JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim 
+  WHERE c.categoria_geral = 'LETRA_DO_CID'
+- MAPEAMENTO CID-10:
+  * J = Doenças respiratórias
+  * C = Neoplasias/tumores
+  * A = Doenças infecciosas
+  * I = Doenças circulatórias
+  * K = Doenças digestivas
+  * F = Transtornos mentais
+  * G = Doenças do sistema nervoso
+- VANTAGEM: Usa campo específico categoria_geral, mais preciso que busca textual
+- Quando perguntarem sobre TOTAL de casos, NÃO adicione filtros MORTE = 0 a menos que especificamente solicitado
+- Quando perguntarem sobre MORTES ou ÓBITOS, SEMPRE adicione AND s.MORTE = 1 na query
+- Palavras-chave para mortes: "mortes", "óbitos", "morreram", "faleceram", "deaths"
+- Exemplo: "quantas mortes por doenças respiratórias?" → adicionar AND s.MORTE = 1
+
+IMPORTANTE - Regras para queries COUNT:
+- NUNCA adicione LIMIT em queries COUNT(*) - COUNT sempre retorna 1 linha
+- Para contar totais: SELECT COUNT(*) FROM... (SEM LIMIT)
+- Para listar registros: SELECT * FROM... LIMIT 10 (COM LIMIT)
+- Exemplo CORRETO: SELECT COUNT(*) FROM sus_data WHERE...
+- Exemplo INCORRETO: SELECT COUNT(*) FROM sus_data WHERE... LIMIT 10
 """
     
     def _extract_sql_from_response(self, response: str) -> str:

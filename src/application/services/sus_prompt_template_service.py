@@ -16,6 +16,8 @@ class PromptType(Enum):
     GEOGRAPHIC_ANALYSIS = "geographic_analysis"
     ERROR_EXPLANATION = "error_explanation"
     SUGGESTION_RESPONSE = "suggestion_response"
+    CID_SEMANTIC_ANALYSIS = "cid_semantic_analysis"
+    MULTI_TABLE_ANALYSIS = "multi_table_analysis"
 
 
 @dataclass
@@ -95,6 +97,22 @@ class SUSPromptTemplateService:
                 user_template=self._get_suggestion_template(),
                 response_format="suggestive",
                 specialized_knowledge=["analise_avancada", "insights_saude"]
+            ),
+            
+            PromptType.CID_SEMANTIC_ANALYSIS: PromptTemplate(
+                name="Análise Semântica CID-10",
+                system_prompt=self._get_cid_semantic_system_prompt(),
+                user_template=self._get_cid_semantic_template(),
+                response_format="semantic_medical",
+                specialized_knowledge=["cid_10_classification", "medical_terminology", "epidemiologia"]
+            ),
+            
+            PromptType.MULTI_TABLE_ANALYSIS: PromptTemplate(
+                name="Análise Multi-Tabela SUS-CID",
+                system_prompt=self._get_multi_table_system_prompt(),
+                user_template=self._get_multi_table_template(),
+                response_format="integrated_analysis",
+                specialized_knowledge=["cid_10_classification", "sus_integration", "diagnostic_patterns"]
             )
         }
 
@@ -142,6 +160,62 @@ class SUSPromptTemplateService:
             - Mais de 5.500 municípios
             - Regiões de Saúde para planejamento
             - Macrorregiões e microrregiões de saúde
+            """,
+            
+            "cid_10_classification": """
+            CLASSIFICAÇÃO CID-10:
+            - Capítulo I (A00-B99): Doenças infecciosas e parasitárias
+            - Capítulo II (C00-D48): Neoplasias [tumores]
+            - Capítulo III (D50-D89): Doenças do sangue e órgãos hematopoéticos
+            - Capítulo IV (E00-E90): Doenças endócrinas, nutricionais e metabólicas
+            - Capítulo V (F00-F99): Transtornos mentais e comportamentais
+            - Capítulo VI (G00-G99): Doenças do sistema nervoso
+            - Capítulo VII-VIII (H00-H95): Doenças do olho/ouvido
+            - Capítulo IX (I00-I99): Doenças do aparelho circulatório
+            - Capítulo X (J00-J99): Doenças do aparelho respiratório
+            - Capítulo XI (K00-K93): Doenças do aparelho digestivo
+            - Capítulo XII (L00-L99): Doenças da pele e tecido subcutâneo
+            - Capítulo XIII (M00-M99): Doenças osteomusculares
+            - Capítulo XIV (N00-N99): Doenças do aparelho geniturinário
+            - Capítulo XV (O00-O99): Gravidez, parto e puerpério
+            - Capítulo XVI (P00-P96): Afecções período perinatal
+            - Capítulo XVII (Q00-Q99): Malformações congênitas
+            - Capítulo XVIII (R00-R99): Sintomas e sinais anormais
+            - Capítulo XIX (S00-T98): Lesões e envenenamentos
+            - Capítulo XX (V01-Y98): Causas externas
+            - Capítulo XXI (Z00-Z99): Fatores de saúde e contato com serviços
+            - Capítulo XXII (U04-U99): Códigos para propósitos especiais
+            """,
+            
+            "medical_terminology": """
+            TERMINOLOGIA MÉDICA CID-10:
+            - Diagnóstico principal: Condição que motivou a internação
+            - Diagnósticos secundários: Comorbidades identificadas
+            - Mortalidade por causas: Análise baseada em CID da causa de morte
+            - Morbidade: Padrões de doenças na população
+            - Epidemiologia: Estudo da distribuição de doenças
+            - Incidência: Novos casos em determinado período
+            - Prevalência: Total de casos existentes
+            """,
+            
+            "sus_integration": """
+            INTEGRAÇÃO SUS-CID:
+            - Tabela sus_data: Dados individuais de pacientes com DIAG_PRINC
+            - Tabela cid_capitulos: Classificação por capítulos CID-10
+            - JOIN por range: DIAG_PRINC BETWEEN codigo_inicio AND codigo_fim
+            - View sus_data_with_cid: Dados integrados prontos para análise
+            - Análises por categoria: Agrupamento por capítulos CID
+            - Análises epidemiológicas: Padrões de morbidade e mortalidade
+            """,
+            
+            "diagnostic_patterns": """
+            PADRÕES DIAGNÓSTICOS RELEVANTES:
+            - Doenças crônicas: Capítulos C, E, I, J (requerem seguimento)
+            - Emergências: Capítulos I, S, T (atendimento urgente)
+            - Saúde materno-infantil: Capítulos O, P (políticas específicas)
+            - Saúde mental: Capítulo F (rede especializada)
+            - Causas externas: Capítulo V, W, X, Y (prevenção de acidentes)
+            - Doenças transmissíveis: Capítulos A, B (vigilância epidemiológica)
             """
         }
 
@@ -342,6 +416,62 @@ class SUSPromptTemplateService:
         - Próximos passos analíticos
         """
 
+    def _get_cid_semantic_system_prompt(self) -> str:
+        """Prompt para análise semântica CID-10."""
+        return self._get_base_sus_system_prompt() + """
+        
+        ESPECIALIZAÇÃO EM ANÁLISE CID-10:
+        - Interprete códigos CID-10 no contexto clínico
+        - Classifique diagnósticos por capítulos e categorias
+        - Analise padrões epidemiológicos por grupos diagnósticos
+        - Identifique comorbidades e fatores de risco
+        - Forneça contexto médico para códigos diagnósticos
+        - Relacione diagnósticos com políticas de saúde pública
+        """
+
+    def _get_cid_semantic_template(self) -> str:
+        """Template para análise semântica CID."""
+        return """
+        CONSULTA SOBRE CID-10: {user_query}
+        DADOS CID OBTIDOS: {sql_results}
+        
+        Realize análise semântica dos códigos CID-10:
+        - Interpretação clínica dos diagnósticos
+        - Classificação por capítulos e severidade
+        - Padrões epidemiológicos identificados
+        - Implicações para saúde pública
+        - Contexto médico e relevância clínica
+        - Recomendações baseadas nos padrões diagnósticos
+        """
+
+    def _get_multi_table_system_prompt(self) -> str:
+        """Prompt para análise multi-tabela SUS-CID."""
+        return self._get_base_sus_system_prompt() + """
+        
+        ESPECIALIZAÇÃO EM ANÁLISE INTEGRADA SUS-CID:
+        - Integre dados de pacientes com classificação CID-10
+        - Analise padrões de morbidade por capítulos diagnósticos
+        - Compare distribuições entre regiões e categorias diagnósticas
+        - Identifique tendências por grupos de doenças
+        - Calcule indicadores epidemiológicos específicos
+        - Forneça insights para gestão em saúde baseada em evidências
+        """
+
+    def _get_multi_table_template(self) -> str:
+        """Template para análise multi-tabela."""
+        return """
+        ANÁLISE INTEGRADA SOLICITADA: {user_query}
+        DADOS MULTI-TABELA: {sql_results}
+        
+        Realize análise integrada SUS-CID:
+        - Síntese dos dados de múltiplas tabelas
+        - Padrões diagnósticos por região/característica
+        - Distribuição por capítulos CID-10
+        - Indicadores epidemiológicos calculados
+        - Insights para gestão em saúde
+        - Recomendações baseadas na análise integrada
+        """
+
     def get_prompt(
         self,
         prompt_type: PromptType,
@@ -448,8 +578,19 @@ class SUSPromptTemplateService:
         comparative_keywords = ['comparar', 'versus', 'diferença', 'maior', 'menor', 'ranking']
         trend_keywords = ['tendência', 'evolução', 'histórico', 'tempo', 'crescimento', 'ano']
         geographic_keywords = ['estado', 'município', 'região', 'cidade', 'geografia', 'mapa']
+        cid_keywords = ['cid', 'diagnóstico', 'doença', 'capítulo', 'categoria', 'classificação']
+        multi_table_keywords = ['tabelas', 'join', 'relacionamento', 'integrada', 'combinada']
         
-        if any(keyword in query_lower for keyword in statistical_keywords):
+        # Verificar se é análise CID-specific
+        if any(keyword in query_lower for keyword in cid_keywords):
+            # Se também tem múltiplas tabelas, usar multi-table
+            if any(keyword in query_lower for keyword in multi_table_keywords):
+                return PromptType.MULTI_TABLE_ANALYSIS
+            else:
+                return PromptType.CID_SEMANTIC_ANALYSIS
+        elif any(keyword in query_lower for keyword in multi_table_keywords):
+            return PromptType.MULTI_TABLE_ANALYSIS
+        elif any(keyword in query_lower for keyword in statistical_keywords):
             return PromptType.STATISTICAL_ANALYSIS
         elif any(keyword in query_lower for keyword in comparative_keywords):
             return PromptType.COMPARATIVE_ANALYSIS

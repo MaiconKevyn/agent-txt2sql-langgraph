@@ -235,11 +235,17 @@ Melhorias sobre versão anterior:
             result = orchestrator.process_single_query(args.query)
             
             if result.success:
-                print(f"✅ Resultado: {result.row_count} registros encontrados")
-                if result.results:
-                    if len(result.results) == 1 and len(result.results[0]) == 1:
-                        value = list(result.results[0].values())[0]
+                # Check if this is a COUNT query (single result with single value)
+                if result.results and len(result.results) == 1 and len(result.results[0]) == 1:
+                    value = list(result.results[0].values())[0]
+                    # For COUNT queries, show the actual count value, not row count
+                    if "COUNT(" in result.sql_query.upper():
+                        print(f"✅ Resultado: {value} registros encontrados")
+                    else:
+                        print(f"✅ Resultado: {result.row_count} registros encontrados")
                         print(f"📊 Valor: {value}")
+                else:
+                    print(f"✅ Resultado: {result.row_count} registros encontrados")
                 print(f"⏱️ Tempo de execução: {result.execution_time:.2f}s")
                 print(f"🔧 SQL: {result.sql_query}")
             else:
