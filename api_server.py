@@ -45,7 +45,7 @@ app = FastAPI(
 )
 
 # CORS middleware for web frontend
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://0.0.0.0:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -67,6 +67,7 @@ class QueryResponse(BaseModel):
     row_count: Optional[int] = None
     execution_time: Optional[float] = None
     error_message: Optional[str] = None
+    response: Optional[str] = None  # Conversational response
     timestamp: str
 
 class HealthResponse(BaseModel):
@@ -252,17 +253,19 @@ async def query_database(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty")
     
     try:
-        result = agent.process_single_query(request.question)
+        result = agent.process_conversational_query(request.question)
         
+        # process_conversational_query returns a dict, not QueryResult object
         return QueryResponse(
-            success=result.success,
+            success=result["success"],
             question=request.question,
-            sql_query=result.sql_query if result.success else None,
-            results=result.results if result.success else None,
-            row_count=result.row_count if result.success else None,
-            execution_time=result.execution_time if result.success else None,
-            error_message=result.error_message if not result.success else None,
-            timestamp=datetime.now().isoformat()
+            sql_query=None,  # Conversational response doesn't expose SQL
+            results=None,    # Conversational response doesn't expose raw results
+            row_count=None,  # Conversational response doesn't expose row count
+            execution_time=result.get("execution_time"),
+            error_message=result.get("error_message") if not result["success"] else None,
+            timestamp=result.get("timestamp", datetime.now().isoformat()),
+            response=result.get("response")  # Add the conversational response
         )
     except Exception as e:
         return QueryResponse(

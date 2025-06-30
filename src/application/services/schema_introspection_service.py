@@ -220,28 +220,28 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
     ) -> str:
         """Format complete context for LLM"""
         context = f"""
-CONTEXTO DO BANCO DE DADOS - SISTEMA ÚNICO DE SAÚDE (SUS)
-========================================================
-
-INFORMAÇÕES DA TABELA: {table.name}
-Total de registros: {table.row_count:,}
-
-COLUNAS DISPONÍVEIS:
-"""
+        CONTEXTO DO BANCO DE DADOS - SISTEMA ÚNICO DE SAÚDE (SUS)
+        ========================================================
+        
+        INFORMAÇÕES DA TABELA: {table.name}
+        Total de registros: {table.row_count:,}
+        
+        COLUNAS DISPONÍVEIS:
+        """
         
         # Add column descriptions
         column_descriptions = {
             "DIAG_PRINC": "Código do diagnóstico principal (CID-10)",
-            "MUNIC_RES": "Código numérico do município de residência (IBGE)",
-            "MUNIC_MOV": "Código numérico do município de internação",
+            "MUNIC_RES": "Código numérico do município de residência do paciente",
+            "MUNIC_MOV": "Código numérico do município do estabelecimento da internação",
             "PROC_REA": "Código do procedimento realizado (SUS)",
             "IDADE": "Idade do paciente em anos",
             "SEXO": "Sexo do paciente (1=Masculino, 3=Feminino)",
             "CID_MORTE": "Código da causa da morte (CID-10)",
             "MORTE": "Indicador de óbito (0=Não, 1=Sim)",
-            "CNES": "Código Nacional de Estabelecimento de Saúde",
+            "CNES": "Código Nacional de Estabelecimento de Saúde do hospital",
             "VAL_TOT": "Valor total do procedimento em Reais",
-            "UTI_MES_TO": "Total de dias em UTI",
+            "UTI_MES_TO": "Quantidade de dias de UTI no mês (NÃO é tempo total de internação)",
             "DT_INTER": "Data de internação (formato AAAAMMDD)",
             "DT_SAIDA": "Data de saída (formato AAAAMMDD)",
             "UF_RESIDENCIA_PACIENTE": "Estado de residência do paciente",
@@ -296,7 +296,7 @@ INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
                     "MORTE": "Indicador de óbito (0=Não, 1=Sim)",
                     "CNES": "Código Nacional de Estabelecimento de Saúde",
                     "VAL_TOT": "Valor total do procedimento em Reais",
-                    "UTI_MES_TO": "Total de dias em UTI",
+                    "UTI_MES_TO": "Total de dias em UTI (NÃO é tempo total de internação)",
                     "DT_INTER": "Data de internação (formato AAAAMMDD)",
                     "DT_SAIDA": "Data de saída (formato AAAAMMDD)",
                     "UF_RESIDENCIA_PACIENTE": "Estado de residência do paciente",
