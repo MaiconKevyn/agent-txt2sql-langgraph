@@ -142,15 +142,42 @@ DICAS:
     def _display_interactive_response(self, response: FormattedResponse) -> None:
         """Display interactive response format with emojis"""
         if response.success:
+            # Show routing information if available
+            if response.metadata and response.metadata.get("routing_applied"):
+                query_type = response.metadata.get("query_classification", "unknown")
+                confidence = response.metadata.get("classification_confidence", 0.0)
+                
+                if query_type == "conversational_query":
+                    print(f"\n💬 Pergunta conversacional identificada (confiança: {confidence:.2f})")
+                elif query_type == "database_query":
+                    print(f"\n🔍 Consulta de banco de dados identificada (confiança: {confidence:.2f})")
+                else:
+                    print(f"\n🤔 Tipo de consulta: {query_type} (confiança: {confidence:.2f})")
+            
             print(f"\n✅ Resultado da consulta:")
             print(f"📊 {response.content}")
+            
             if response.execution_time:
                 print(f"⏱️ Tempo: {response.execution_time:.2f}s")
+            
+            # Show routing method if available
             if response.metadata:
-                print(f"📈 Detalhes: {response.metadata}")
+                routing_method = response.metadata.get("routing_method")
+                if routing_method:
+                    if routing_method == "direct_conversational":
+                        print(f"🎯 Processamento: Resposta conversacional direta")
+                    elif routing_method == "sql_processing":
+                        print(f"🎯 Processamento: Análise de banco de dados")
+                    elif "fallback" in routing_method:
+                        print(f"⚠️ Processamento: {routing_method}")
         else:
             print(f"\n❌ Erro na consulta:")
             print(f"💬 {response.content}")
+            
+            # Show routing info even for errors
+            if response.metadata and response.metadata.get("routing_applied"):
+                query_type = response.metadata.get("query_classification", "unknown")
+                print(f"🔍 Tipo detectado: {query_type}")
     
     def _display_verbose_response(self, response: FormattedResponse) -> None:
         """Display verbose response format"""
