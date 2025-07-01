@@ -18,6 +18,7 @@ class PromptType(Enum):
     SUGGESTION_RESPONSE = "suggestion_response"
     CID_SEMANTIC_ANALYSIS = "cid_semantic_analysis"
     MULTI_TABLE_ANALYSIS = "multi_table_analysis"
+    DIRECT_CONVERSATIONAL = "direct_conversational"
 
 
 @dataclass
@@ -113,6 +114,14 @@ class SUSPromptTemplateService:
                 user_template=self._get_multi_table_template(),
                 response_format="integrated_analysis",
                 specialized_knowledge=["cid_10_classification", "sus_integration", "diagnostic_patterns"]
+            ),
+            
+            PromptType.DIRECT_CONVERSATIONAL: PromptTemplate(
+                name="Conversação Direta SUS",
+                system_prompt=self._get_base_sus_system_prompt(),
+                user_template=self._get_direct_conversational_template(),
+                response_format="educational",
+                specialized_knowledge=["terminologia_sus", "cid_10_classification", "medical_terminology"]
             )
         }
 
@@ -470,6 +479,32 @@ class SUSPromptTemplateService:
         - Indicadores epidemiológicos calculados
         - Insights para gestão em saúde
         - Recomendações baseadas na análise integrada
+        """
+
+    def _get_direct_conversational_template(self) -> str:
+        """Template para queries conversacionais diretas (sem SQL)."""
+        return """
+        PERGUNTA DO USUÁRIO: {user_query}
+        TIPO DE CONSULTA: Conversacional/Explicativa
+        
+        CONTEXTO: O usuário fez uma pergunta que não requer consulta ao banco de dados,
+        mas sim uma explicação conceitual, definição ou esclarecimento sobre temas de saúde,
+        códigos médicos (CID), ou funcionamento do Sistema Único de Saúde (SUS).
+        
+        INSTRUÇÕES ESPECÍFICAS:
+        - Se for sobre códigos CID-10: Explique o significado, capítulo e contexto clínico
+        - Se for sobre terminologia médica: Forneça definições claras e contextualizadas
+        - Se for sobre SUS: Explique políticas, programas e funcionamento do sistema
+        - Se for conceitual: Relacione com a saúde pública brasileira
+        
+        FORMATO DA RESPOSTA:
+        - Linguagem clara e acessível
+        - Informações precisas e atualizadas
+        - Contexto relevante para a realidade brasileira
+        - Exemplos práticos quando apropriado
+        - Sugestões de perguntas relacionadas para aprofundamento
+        
+        FORNEÇA UMA RESPOSTA EDUCATIVA E INFORMATIVA:
         """
 
     def get_prompt(

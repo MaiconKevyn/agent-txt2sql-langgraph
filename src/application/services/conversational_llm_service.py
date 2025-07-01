@@ -120,16 +120,18 @@ class ConversationalLLMService:
         - Terminologia médica em português brasileiro
         
         FORMATO DA RESPOSTA:
-        Responda APENAS com:
+        Responda de forma DIRETA e CONCISA, em uma única frase ou parágrafo curto.
         
-        **Resumo Direto:**
-        [Uma resposta direta e amigável em 1-2 frases]
-        
-        **Dados Detalhados:**
-        [Apresentação clara dos números/resultados encontrados]
-        
-        Mantenha a resposta concisa, amigável e em português brasileiro.
-        NÃO inclua contextualização adicional, insights ou sugestões.
+        INSTRUÇÕES ESPECÍFICAS:
+        - Interprete a pergunta do usuário e responda exatamente o que foi solicitado
+        - NÃO use headers como "Resumo Direto" ou "Dados Detalhados"
+        - NÃO adicione explicações extras, contextualizações ou insights
+        - Seja direto: exemplo "Foram encontrados 2.785 casos de doenças respiratórias nos registros do SUS."
+        - Use linguagem natural e clara em português brasileiro
+        - Mantenha a resposta em uma única sentença sempre que possível
+        - SEMPRE inclua os dados específicos dos resultados (nomes de cidades, números exatos, etc.)
+        - Se perguntarem sobre "qual cidade", responda com o NOME da cidade, não apenas "a cidade"
+        - Para resultados com ranking, mencione o primeiro item da lista como resposta principal
         """
         
         # Formatação dos resultados SQL
@@ -149,6 +151,13 @@ RESULTADOS OBTIDOS:
 CONTEXTO ADICIONAL:
 {json.dumps(context or {}, ensure_ascii=False, indent=2)}
 
+⚠️ INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
+1. Use EXCLUSIVAMENTE os dados dos RESULTADOS OBTIDOS acima
+2. NUNCA invente cidades, números ou informações que não estão nos resultados
+3. Para perguntas como "qual cidade", responda EXATAMENTE com o nome da cidade que aparece em "1º lugar" nos resultados
+4. Se os resultados mostram "1º lugar: Ijuí com 212 casos", então a resposta deve incluir "Ijuí"
+5. NÃO use conhecimento geral sobre cidades brasileiras - use apenas os dados fornecidos
+
 Transforme estes dados em uma resposta conversacional amigável e informativa.
 Responda em português brasileiro, focando na utilidade prática da informação.
 """
@@ -167,11 +176,44 @@ Responda em português brasileiro, focando na utilidade prática da informação
             # Limita a quantidade de resultados para evitar prompts muito longos
             limited_results = sql_results[:20]
             
-            if isinstance(limited_results[0], (list, tuple)):
-                # Resultados tabulares
+            # Handle structured results from query parser
+            if isinstance(limited_results[0], dict):
+                # Look for simple query results with a single value
+                result_item = limited_results[0]
+                if "result" in result_item:
+                    result_value = result_item["result"]
+                    return f"Resultado encontrado: {result_value}"
+                
+                # Handle complex query results
                 formatted = []
-                for row in limited_results:
-                    formatted.append(str(row))
+                for item in limited_results:
+                    if "final_answer_text" in item:
+                        continue  # Skip metadata entries
+                    if "city" in item and "count" in item:
+                        formatted.append(f"{item.get('rank', '')}. {item['city']} - {item['count']}")
+                    elif "result" in item:
+                        formatted.append(f"Resultado: {item['result']}")
+                    else:
+                        # Fallback for other dict structures
+                        formatted.append(str(item))
+                
+                if formatted:
+                    result_text = "\n".join(formatted)
+                    if len(sql_results) > 20:
+                        result_text += f"\n... (mostrando 20 de {len(sql_results)} resultados)"
+                    return result_text
+            
+            elif isinstance(limited_results[0], (list, tuple)):
+                # Resultados tabulares - analisa se é uma consulta de ranking
+                formatted = []
+                for i, row in enumerate(limited_results):
+                    if len(row) == 2:  # Provavelmente cidade/valor
+                        if i == 0:
+                            formatted.append(f"1º lugar: {row[0]} com {row[1]} casos")
+                        else:
+                            formatted.append(f"{i+1}º lugar: {row[0]} com {row[1]} casos")
+                    else:
+                        formatted.append(str(row))
                 
                 result_text = "\n".join(formatted)
                 

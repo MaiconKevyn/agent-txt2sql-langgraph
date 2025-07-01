@@ -25,6 +25,11 @@ from ..services.conversational_response_service import (
     ConversationalResponseService,
     ConversationContext
 )
+from ..services.query_classification_service import (
+    IQueryClassificationService,
+    QueryType,
+    QueryClassification
+)
 
 
 @dataclass
@@ -36,6 +41,8 @@ class OrchestratorConfig:
     session_timeout: int = 3600  # seconds
     enable_conversational_response: bool = True
     conversational_fallback: bool = True
+    enable_query_routing: bool = True
+    routing_confidence_threshold: float = 0.7
 
 
 class Text2SQLOrchestrator:
@@ -71,6 +78,15 @@ class Text2SQLOrchestrator:
         self._ui_service = self._container.get_service(IUserInterfaceService)
         self._error_service = self._container.get_service(IErrorHandlingService)
         self._query_service = self._container.get_service(IQueryProcessingService)
+        
+        # Initialize query classification service if enabled
+        self._classification_service = None
+        if self._config.enable_query_routing:
+            try:
+                self._classification_service = self._container.get_service(IQueryClassificationService)
+            except Exception as e:
+                print(f"Warning: Query classification service unavailable: {e}")
+                self._config.enable_query_routing = False
         
         # Initialize conversational response service if enabled
         self._conversational_service = None
@@ -150,16 +166,43 @@ class Text2SQLOrchestrator:
             # Sanitize input
             sanitized_query = InputValidator.sanitize_input(query)
             
-            # Create query request
-            request = QueryRequest(
-                user_query=sanitized_query,
-                session_id=self._session_id,
-                timestamp=datetime.now()
-            )
+            # Step 1: Classify query if routing is enabled
+            classification = None
+            if self._config.enable_query_routing and self._classification_service:
+                try:
+                    classification = self._classification_service.classify_query(sanitized_query)
+                    print(f"🔍 Query classificada como: {classification.query_type.value} (confiança: {classification.confidence_score:.2f})")
+                except Exception as e:
+                    print(f"Warning: Classification failed, falling back to SQL processing: {e}")
             
-            # Process query
-            result = self._query_service.process_natural_language_query(request)
+            # Step 2: Route based on classification
+            if (classification and 
+                classification.query_type == QueryType.CONVERSATIONAL_QUERY and 
+                classification.confidence_score >= self._config.routing_confidence_threshold):
+                
+                # Route to conversational service directly
+                result = self._process_conversational_query(sanitized_query, classification)
+            else:
+                # Route to SQL processing (default behavior)
+                request = QueryRequest(
+                    user_query=sanitized_query,
+                    session_id=self._session_id,
+                    timestamp=datetime.now()
+                )
+                result = self._query_service.process_natural_language_query(request)
+            
             self._query_count += 1
+            
+            # Add classification metadata if available
+            if classification and hasattr(result, 'metadata'):
+                if result.metadata is None:
+                    result.metadata = {}
+                result.metadata.update({
+                    "query_classification": classification.query_type.value,
+                    "classification_confidence": classification.confidence_score,
+                    "routing_applied": True,
+                    "classification_reasoning": classification.reasoning
+                })
             
             return result
             
@@ -352,7 +395,9 @@ class Text2SQLOrchestrator:
                         "response_type": conversational_response.response_type.value,
                         "confidence_score": conversational_response.confidence_score,
                         "suggestions": conversational_response.suggestions,
-                        "processing_time": conversational_response.processing_time
+                        "processing_time": conversational_response.processing_time,
+                        # Include routing information if available
+                        **(result.metadata or {})
                     }
                 )
                 
@@ -387,7 +432,9 @@ class Text2SQLOrchestrator:
                 metadata={
                     "sql_query": result.sql_query,
                     "row_count": result.row_count,
-                    "conversational_response": False
+                    "conversational_response": False,
+                    # Include routing information if available
+                    **(result.metadata or {})
                 }
             )
         else:
@@ -396,7 +443,9 @@ class Text2SQLOrchestrator:
                 success=False,
                 execution_time=result.execution_time,
                 metadata={
-                    "conversational_response": False
+                    "conversational_response": False,
+                    # Include routing information if available
+                    **(result.metadata or {})
                 }
             )
     
@@ -448,6 +497,136 @@ class Text2SQLOrchestrator:
         except Exception as e:
             # Log but don't raise during cleanup
             print(f"Warning: Error during cleanup: {str(e)}")
+    
+    def _process_conversational_query(self, query: str, classification: QueryClassification) -> QueryResult:
+        """
+        Process conversational query directly without SQL execution
+        
+        Args:
+            query: User's natural language question
+            classification: Query classification result
+            
+        Returns:
+            QueryResult with conversational response
+        """
+        import time
+        start_time = time.time()
+        
+        try:
+            print(f"💬 Processando query conversacional: {query[:50]}...")
+            
+            # Use conversational service to generate direct response
+            if self._conversational_service:
+                # Generate conversational response without SQL execution
+                conversational_response = self._conversational_service.generate_response(
+                    user_query=query,
+                    sql_query="",  # No SQL for direct conversational queries
+                    sql_results=[],  # No SQL results
+                    session_id=self._session_id,
+                    context={"direct_conversational": True, "classification": classification.reasoning}
+                )
+                
+                execution_time = time.time() - start_time
+                
+                return QueryResult(
+                    sql_query="[CONVERSATIONAL_QUERY]",
+                    results=[{"conversational_response": conversational_response.message}],
+                    success=True,
+                    execution_time=execution_time,
+                    row_count=1,
+                    metadata={
+                        "query_type": "conversational",
+                        "routing_method": "direct_conversational",
+                        "classification_confidence": classification.confidence_score,
+                        "response_type": conversational_response.response_type.value,
+                        "suggestions": conversational_response.suggestions
+                    }
+                )
+            else:
+                # Fallback: generate basic conversational response
+                execution_time = time.time() - start_time
+                
+                basic_response = self._generate_basic_conversational_response(query, classification)
+                
+                return QueryResult(
+                    sql_query="[CONVERSATIONAL_QUERY]",
+                    results=[{"conversational_response": basic_response}],
+                    success=True,
+                    execution_time=execution_time,
+                    row_count=1,
+                    metadata={
+                        "query_type": "conversational",
+                        "routing_method": "basic_fallback",
+                        "classification_confidence": classification.confidence_score
+                    }
+                )
+                
+        except Exception as e:
+            execution_time = time.time() - start_time
+            error_info = self._error_service.handle_error(e, ErrorCategory.QUERY_PROCESSING)
+            
+            return QueryResult(
+                sql_query="",
+                results=[],
+                success=False,
+                execution_time=execution_time,
+                row_count=0,
+                error_message=f"Erro na resposta conversacional: {error_info.message}",
+                metadata={
+                    "query_type": "conversational",
+                    "routing_method": "error_fallback"
+                }
+            )
+    
+    def _generate_basic_conversational_response(self, query: str, classification: QueryClassification) -> str:
+        """Generate basic conversational response when conversational service is unavailable"""
+        
+        # Try to use LLM directly for basic conversational response
+        try:
+            if self._llm_service:
+                basic_prompt = f"""
+Você é um assistente especializado em saúde e sistema SUS brasileiro.
+
+PERGUNTA DO USUÁRIO: {query}
+
+CLASSIFICAÇÃO: {classification.reasoning}
+
+Forneça uma resposta clara, informativa e direta para a pergunta. 
+Se for sobre códigos CID, explique o significado.
+Se for sobre conceitos médicos, forneça definições simples.
+Se for sobre o SUS, explique de forma didática.
+
+Mantenha a resposta concisa mas completa.
+
+RESPOSTA:"""
+                
+                llm_response = self._llm_service.send_prompt(basic_prompt)
+                return llm_response.content
+            
+        except Exception as e:
+            print(f"Warning: LLM fallback failed: {e}")
+        
+        # Ultimate fallback: template-based response
+        if "cid" in query.lower() or "código" in query.lower():
+            return f"""
+Esta é uma pergunta sobre classificação médica (CID-10).
+
+**Sua pergunta:** {query}
+
+**Explicação:** O sistema CID-10 (Classificação Internacional de Doenças) é usado para codificar diagnósticos médicos. Cada código representa uma condição específica.
+
+Para obter informações mais detalhadas sobre códigos específicos, recomendo consultar fontes médicas oficiais ou profissionais de saúde.
+"""
+        else:
+            return f"""
+**Sua pergunta:** {query}
+
+Esta é uma pergunta conceitual sobre saúde ou o sistema SUS. 
+
+Para fornecer uma resposta mais precisa e detalhada, seria necessário acesso ao serviço conversacional completo. 
+
+**Sugestão:** Reformule sua pergunta como uma consulta específica aos dados (ex: "Quantos casos de...", "Qual a média de...") para obter informações baseadas nos dados disponíveis.
+"""
     
     def get_session_info(self) -> Dict[str, Any]:
         """Get current session information"""

@@ -31,6 +31,10 @@ from ..services.query_processing_service import (
     IQueryProcessingService, 
     QueryProcessingFactory
 )
+from ..services.query_classification_service import (
+    IQueryClassificationService,
+    QueryClassificationFactory
+)
 
 # Import CID-related services
 from ...domain.repositories.cid_repository import ICIDRepository
@@ -68,6 +72,10 @@ class ServiceConfig:
     # Query processing configuration
     query_processing_type: str = "comprehensive"
     
+    # Query classification configuration
+    enable_query_classification: bool = True
+    query_classification_confidence_threshold: float = 0.7
+    
     # CID configuration
     cid_repository_type: str = "sqlite"
     enable_cid_semantic_search: bool = True
@@ -101,6 +109,7 @@ class DependencyContainer:
             self._initialize_cid_repository()
             self._initialize_cid_semantic_search_service()
             self._initialize_schema_service()
+            self._initialize_query_classification_service()
             self._initialize_query_processing_service()
             self._initialize_ui_service()
             
@@ -230,6 +239,21 @@ class DependencyContainer:
         cid_semantic_service = CIDSemanticSearchService(cid_repository)
         self.register_service(ICIDSemanticSearchService, cid_semantic_service)
     
+    def _initialize_query_classification_service(self) -> None:
+        """Initialize query classification service"""
+        if not self._config.enable_query_classification:
+            return
+        
+        llm_service = self._get_registered_service(ILLMCommunicationService)
+        error_service = self._get_registered_service(IErrorHandlingService)
+        
+        classification_service = QueryClassificationFactory.create_service(
+            llm_service=llm_service,
+            error_service=error_service,
+            confidence_threshold=self._config.query_classification_confidence_threshold
+        )
+        self.register_service(IQueryClassificationService, classification_service)
+    
     def get_configuration(self) -> ServiceConfig:
         """Get current service configuration"""
         return self._config
@@ -273,6 +297,12 @@ class DependencyContainer:
             health_status["services"]["error_handling"] = {
                 "healthy": self.get_service(IErrorHandlingService) is not None
             }
+            
+            # Check query classification service if enabled
+            if self._config.enable_query_classification:
+                health_status["services"]["query_classification"] = {
+                    "healthy": self.get_service(IQueryClassificationService) is not None
+                }
             
             # Check CID services if enabled
             if self._config.enable_cid_semantic_search:
