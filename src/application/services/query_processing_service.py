@@ -135,8 +135,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=10,  # Increased for complex date queries
-                max_execution_time=30  # 30 seconds timeout
+                max_iterations=15,  # Increased for complex date queries
+                max_execution_time=45  # 45 seconds timeout
             )
             
         except Exception as e:
@@ -193,6 +193,10 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         agent_response = self._agent.run(enhanced_prompt)
         self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
         
+        # DEBUG: Log full response if it's short or contains issues
+        if len(agent_response) < 100 or "error" in agent_response.lower():
+            self.logger.warning(f"🔍 DEBUG - Full agent response: {repr(agent_response)}")
+        
         # Extract SQL query from response (if available)
         sql_query = self._extract_sql_from_response(agent_response)
         self.logger.info(f"🔧 Extracted SQL: {sql_query[:100]}...")
@@ -205,9 +209,32 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         results, row_count = self._parse_agent_results(agent_response)
         self.logger.info(f"📊 Parsed results: {row_count} rows")
         
+        # Check if agent stopped due to iteration limit and try to extract SQL from logs
+        if ("Agent stopped due to iteration limit" in agent_response or 
+            "Agent stopped due to time limit" in agent_response or
+            row_count == 0):
+            
+            # Try to extract SQL from the response even if execution failed
+            if sql_query == "SQL query not found in response":
+                # Look for SQL in the chain execution logs
+                sql_pattern = r'Action Input:\s*(SELECT\s+COUNT\(\*\)\s+FROM\s+sus_data)\s*;?'
+                match = re.search(sql_pattern, agent_response, re.IGNORECASE)
+                if match:
+                    sql_query = match.group(1).strip()
+                    self.logger.info(f"🔧 Extracted SQL from chain logs: {sql_query}")
+            
+            # If we have SQL but no results, execute directly
+            if sql_query != "SQL query not found in response":
+                self.logger.info("🔄 Fallback: Executing extracted SQL directly")
+                direct_result = self.execute_sql_query(sql_query)
+                if direct_result.success:
+                    results = direct_result.results
+                    row_count = direct_result.row_count
+                    self.logger.info("✅ Direct SQL execution successful")
+        
         # If the query was fixed for case sensitivity, re-execute the corrected query
         original_sql = self._extract_sql_from_response(agent_response)
-        if sql_query != original_sql:
+        if sql_query != original_sql and sql_query != "SQL query not found in response":
             self.logger.info("🔄 Re-executing corrected query")
             corrected_result = self.execute_sql_query(sql_query)
             if corrected_result.success:
@@ -516,13 +543,25 @@ IMPORTANTE - Regras para queries COUNT:
             r"```sql\n(.*?)\n```",
             r"```\n(SELECT.*?)\n```",
             r"Action Input:\s*(SELECT.*?)(?:\n|$)",
+            r"sql_db_query\s*Action Input:\s*(SELECT.*?)(?:\n|\r|\r\n|$)",
+            r"Action Input:\s*(SELECT.*?)(?:Error:|Observation:|$)",
+            r"Action Input:\s*\n?(SELECT.*?)(?:\n|\r|\r\n|Error:|Observation:|$)",
+            r"(SELECT COUNT\(\*\) FROM sus_data;?)",
+            r"(SELECT.*?FROM sus_data.*?;?)",
             r"(SELECT.*?)(?:\n|$)"
         ]
         
         for pattern in sql_patterns:
             match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
             if match:
-                return match.group(1).strip()
+                extracted_sql = match.group(1).strip()
+                # Clean up common issues
+                extracted_sql = extracted_sql.replace('\n', ' ').replace('\r', ' ')
+                extracted_sql = re.sub(r'\s+', ' ', extracted_sql)  # Multiple spaces to single
+                # Remove trailing text explanations
+                if 'This query' in extracted_sql:
+                    extracted_sql = extracted_sql.split('This query')[0].strip()
+                return extracted_sql
         
         return "SQL query not found in response"
     
