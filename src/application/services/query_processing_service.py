@@ -72,7 +72,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         llm_service: ILLMCommunicationService,
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
-        error_service: IErrorHandlingService
+        error_service: IErrorHandlingService,
+        use_langchain_primary: bool = False  # Default to Direct LLM as primary
     ):
         """
         Initialize query processing service
@@ -82,11 +83,13 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             db_service: Database connection service
             schema_service: Schema introspection service
             error_service: Error handling service
+            use_langchain_primary: If True, use LangChain as primary (old behavior)
         """
         self._llm_service = llm_service
         self._db_service = db_service
         self._schema_service = schema_service
         self._error_service = error_service
+        self._use_langchain_primary = use_langchain_primary
         self._query_history: List[QueryResult] = []
         
         # Setup logging for development
@@ -144,21 +147,30 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             raise RuntimeError(f"Failed to setup LangChain agent: {error_info.message}")
     
     def process_natural_language_query(self, request: QueryRequest) -> QueryResult:
-        """Process natural language query using LLM and execute SQL with fallback mechanism"""
+        """Process natural language query with configurable primary method"""
         start_time = time.time()
         
         try:
             self.logger.info(f"🔍 Processing query: {request.user_query}")
             
-            # Try primary method: LangChain SQL Agent
-            try:
-                return self._process_with_langchain_agent(request, start_time)
-            except Exception as langchain_error:
-                self.logger.warning(f"⚠️ LangChain agent failed: {str(langchain_error)}")
-                self.logger.info("🔄 Attempting fallback method...")
-                
-                # Fallback method: Direct LLM + SQL execution
-                return self._process_with_direct_llm(request, start_time)
+            if self._use_langchain_primary:
+                # Legacy behavior: LangChain primary, Direct fallback
+                try:
+                    self.logger.info("🤖 Using LangChain agent as primary method (legacy mode)")
+                    return self._process_with_langchain_agent_fallback(request, start_time)
+                except Exception as langchain_error:
+                    self.logger.warning(f"⚠️ LangChain agent failed: {str(langchain_error)}")
+                    self.logger.info("🔄 Attempting direct LLM fallback...")
+                    return self._process_with_direct_llm_primary(request, start_time)
+            else:
+                # New behavior: Direct primary, LangChain fallback
+                try:
+                    self.logger.info("🎯 Using direct LLM as primary method")
+                    return self._process_with_direct_llm_primary(request, start_time)
+                except Exception as direct_error:
+                    self.logger.warning(f"⚠️ Direct LLM method failed: {str(direct_error)}")
+                    self.logger.info("🔄 Attempting LangChain fallback...")
+                    return self._process_with_langchain_agent_fallback(request, start_time)
                 
         except Exception as e:
             execution_time = time.time() - start_time
@@ -172,24 +184,24 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 execution_time=execution_time,
                 row_count=0,
                 error_message=error_info.message,
-                metadata={"error_code": error_info.error_code, "fallback_attempted": True}
+                metadata={"error_code": error_info.error_code, "both_methods_failed": True}
             )
             
             self._query_history.append(query_result)
             return query_result
     
-    def _process_with_langchain_agent(self, request: QueryRequest, start_time: float) -> QueryResult:
-        """Process query using LangChain SQL Agent"""
+    def _process_with_langchain_agent_fallback(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Fallback method: Process query using LangChain SQL Agent"""
         # Get schema context
         schema_context = self._schema_service.get_schema_context()
-        self.logger.info("📊 Retrieved schema context")
+        self.logger.info("📊 Retrieved schema context for fallback method")
         
         # Create enhanced prompt with schema context
         enhanced_prompt = self._create_enhanced_prompt(request.user_query, schema_context)
         self.logger.info("✨ Created enhanced prompt")
         
         # Process with LangChain agent with timeout
-        self.logger.info("🤖 Calling LangChain agent...")
+        self.logger.info("🤖 Calling LangChain agent as fallback...")
         agent_response = self._agent.run(enhanced_prompt)
         self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
         
@@ -243,7 +255,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 self.logger.info("✅ Corrected query executed successfully")
         
         execution_time = time.time() - start_time
-        self.logger.info(f"⏱️ Query completed in {execution_time:.2f}s")
+        self.logger.info(f"⏱️ Fallback method completed in {execution_time:.2f}s")
         
         query_result = QueryResult(
             sql_query=sql_query,
@@ -255,20 +267,21 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 "agent_response": agent_response,
                 "schema_context_used": True,
                 "langchain_agent": True,
-                "method": "langchain_agent"
+                "method": "langchain_agent_fallback",
+                "method_priority": "fallback"
             }
         )
         
         self._query_history.append(query_result)
         return query_result
     
-    def _process_with_direct_llm(self, request: QueryRequest, start_time: float) -> QueryResult:
-        """Fallback method: Direct LLM call + SQL execution"""
-        self.logger.info("🎯 Using direct LLM fallback method")
+    def _process_with_direct_llm_primary(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Primary method: Direct LLM call + SQL execution (more reliable)"""
+        self.logger.info("🎯 Using direct LLM as primary method")
         
         # Get schema context
         schema_context = self._schema_service.get_schema_context()
-        self.logger.info("📊 Retrieved schema context for fallback")
+        self.logger.info("📊 Retrieved schema context for primary method")
         
         # Create specialized prompt for direct SQL generation
         direct_prompt = self._create_direct_sql_prompt(request.user_query, schema_context)
@@ -290,7 +303,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         execution_result = self.execute_sql_query(sql_query)
         
         execution_time = time.time() - start_time
-        self.logger.info(f"⏱️ Direct method completed in {execution_time:.2f}s")
+        self.logger.info(f"⏱️ Primary method completed in {execution_time:.2f}s")
         
         query_result = QueryResult(
             sql_query=sql_query,
@@ -302,13 +315,22 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             metadata={
                 "llm_response": llm_response.content,
                 "schema_context_used": True,
-                "method": "direct_llm_fallback",
-                "fallback_reason": "langchain_agent_parsing_error"
+                "method": "direct_llm_primary",
+                "method_priority": "primary"
             }
         )
         
         self._query_history.append(query_result)
         return query_result
+    
+    # Maintain compatibility with old method names
+    def _process_with_direct_llm(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Compatibility wrapper for old method name - redirects to primary method"""
+        return self._process_with_direct_llm_primary(request, start_time)
+    
+    def _process_with_langchain_agent(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Compatibility wrapper for old method name - redirects to fallback method"""
+        return self._process_with_langchain_agent_fallback(request, start_time)
     
     def validate_sql_query(self, sql_query: str) -> QueryValidationResult:
         """Validate SQL query for safety and correctness"""
@@ -672,13 +694,22 @@ SQL:"""
                     if 'JULIANDAY' in line.upper() or 'SUBSTR' in line.upper() or line.strip().startswith(')'):
                         sql_lines.append(line)
                     # Check for common SQL keywords
-                    elif any(keyword in line.upper() for keyword in ['FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'AS']):
+                    elif any(keyword in line.upper() for keyword in ['FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'AS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END']):
+                        sql_lines.append(line)
+                    # Check for table names (sus_data, cid_capitulos, etc.)
+                    elif any(table in line.lower() for table in ['sus_data', 'cid_capitulos']):
                         sql_lines.append(line)
                     # Check for parentheses and operators (part of multi-line expressions)
                     elif any(char in line for char in ['(', ')', '+', '-', '*', '/', '||', 'AVG', 'COUNT', 'SUM']):
                         sql_lines.append(line)
+                    # Check for simple identifiers that could be column names or values
+                    elif line.replace('_', '').replace(' ', '').replace('=', '').replace('1', '').replace('0', '').isalnum() and len(line) < 30:
+                        sql_lines.append(line)
+                    # Check for conditions like "MORTE = 1" 
+                    elif any(pattern in line.upper() for pattern in ['MORTE', 'SEXO', '= 1', '= 3', '= 0']):
+                        sql_lines.append(line)
                     # Stop if we hit explanatory text
-                    elif any(word in line.lower() for word in ['this query', 'will give', 'para', 'que', 'resultado', 'resposta']):
+                    elif any(word in line.lower() for word in ['this query', 'will give', 'para', 'que', 'resultado', 'resposta', 'consulta']):
                         break
                     elif not line and sql_lines:  # Empty line after SQL content
                         break

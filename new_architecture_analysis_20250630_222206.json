@@ -1,0 +1,292 @@
+{
+  "timestamp": "20250630_222206",
+  "architecture": "direct_primary_langchain_fallback",
+  "test_info": {
+    "total_queries": 21,
+    "test_categories": [
+      "Contagem básica",
+      "Filtros demográficos",
+      "Queries geográficas",
+      "Categorias de doença",
+      "Estatísticas",
+      "Temporais",
+      "Complexas"
+    ]
+  },
+  "summary_statistics": {
+    "total_queries": 21,
+    "direct_primary_successes": 21,
+    "direct_primary_success_rate": 100.0,
+    "langchain_fallback_activations": 0,
+    "langchain_fallback_activation_rate": 0.0,
+    "langchain_fallback_successes": 0,
+    "fallback_efficiency": 0,
+    "final_success_count": 20,
+    "final_success_rate": 95.23809523809523,
+    "avg_execution_time": 4.563496294475737,
+    "method_breakdown": {
+      "direct_primary": 21
+    },
+    "system_efficiency": 95.23809523809523
+  },
+  "detailed_results": [
+    {
+      "query": "Quantos pacientes existem?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 5.521497964859009,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 58655
+    },
+    {
+      "query": "Qual o total de registros?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 1.8400459289550781,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 58655
+    },
+    {
+      "query": "Quantos casos temos?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 3.5220696926116943,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 58655
+    },
+    {
+      "query": "Quantos homens morreram?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 7.94573712348938,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1236
+    },
+    {
+      "query": "Quantas mulheres na base?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 2.887549877166748,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 27614
+    },
+    {
+      "query": "Óbitos masculinos total",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 3.3356637954711914,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1236
+    },
+    {
+      "query": "Mortes femininas",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 4.720350027084351,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 966
+    },
+    {
+      "query": "Qual cidade tem mais casos?",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 7.799634218215942,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 8
+    },
+    {
+      "query": "Casos em Porto Alegre",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 3.267596483230591,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 7036
+    },
+    {
+      "query": "Cidade com mais mortes de homens",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 4.6721203327178955,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 8
+    },
+    {
+      "query": "Top 5 cidades",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 4.0090012550354,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 5
+    },
+    {
+      "query": "Casos de doenças respiratórias",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 3.4953696727752686,
+      "final_success": false,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 0
+    },
+    {
+      "query": "Mortes por neoplasias",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 5.285855054855347,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1
+    },
+    {
+      "query": "Doenças infecciosas total",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 6.603797435760498,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 0
+    },
+    {
+      "query": "Óbitos circulatórios",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 3.9003610610961914,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 71
+    },
+    {
+      "query": "Média de idade",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 2.586240291595459,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1
+    },
+    {
+      "query": "Idade média mortes",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 2.9771435260772705,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1
+    },
+    {
+      "query": "Casos em 2017",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 2.7978932857513428,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 10065
+    },
+    {
+      "query": "Tempo médio internação",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 8.75344204902649,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 1
+    },
+    {
+      "query": "Homens mortos Porto Alegre",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 4.6226630210876465,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 3747
+    },
+    {
+      "query": "Top 3 cidades casos",
+      "direct_primary_success": true,
+      "langchain_fallback_activated": false,
+      "langchain_fallback_success": false,
+      "total_execution_time": 5.2893900871276855,
+      "final_success": true,
+      "method_used": "direct_primary",
+      "sql_extracted": true,
+      "result_count": 3
+    }
+  ],
+  "successful_direct_queries": [
+    "Quantos pacientes existem?",
+    "Qual o total de registros?",
+    "Quantos casos temos?",
+    "Quantos homens morreram?",
+    "Quantas mulheres na base?",
+    "Óbitos masculinos total",
+    "Mortes femininas",
+    "Qual cidade tem mais casos?",
+    "Casos em Porto Alegre",
+    "Cidade com mais mortes de homens",
+    "Top 5 cidades",
+    "Casos de doenças respiratórias",
+    "Mortes por neoplasias",
+    "Doenças infecciosas total",
+    "Óbitos circulatórios",
+    "Média de idade",
+    "Idade média mortes",
+    "Casos em 2017",
+    "Tempo médio internação",
+    "Homens mortos Porto Alegre",
+    "Top 3 cidades casos"
+  ],
+  "fallback_activated_queries": [],
+  "failed_queries": [
+    "Casos de doenças respiratórias"
+  ]
+}
