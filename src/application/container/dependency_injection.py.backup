@@ -35,6 +35,10 @@ from ..services.query_classification_service import (
     IQueryClassificationService,
     QueryClassificationFactory
 )
+from ..services.sql_validation_service import (
+    ISQLValidationService,
+    SQLValidationFactory
+)
 
 # Import CID-related services
 from ...domain.repositories.cid_repository import ICIDRepository
@@ -109,6 +113,7 @@ class DependencyContainer:
             self._initialize_cid_repository()
             self._initialize_cid_semantic_search_service()
             self._initialize_schema_service()
+            self._initialize_sql_validation_service()
             self._initialize_query_classification_service()
             self._initialize_query_processing_service()
             self._initialize_ui_service()
@@ -197,19 +202,26 @@ class DependencyContainer:
         )
         self.register_service(ISchemaIntrospectionService, schema_service)
     
+    def _initialize_sql_validation_service(self) -> None:
+        """Initialize SQL validation service"""
+        sql_validator = SQLValidationFactory.create_comprehensive_validator()
+        self.register_service(ISQLValidationService, sql_validator)
+    
     def _initialize_query_processing_service(self) -> None:
         """Initialize query processing service"""
         llm_service = self._get_registered_service(ILLMCommunicationService)
         db_service = self._get_registered_service(IDatabaseConnectionService)
         schema_service = self._get_registered_service(ISchemaIntrospectionService)
         error_service = self._get_registered_service(IErrorHandlingService)
+        sql_validator = self._get_registered_service(ISQLValidationService)
         
         query_service = QueryProcessingFactory.create_service(
             self._config.query_processing_type,
             llm_service,
             db_service,
             schema_service,
-            error_service
+            error_service,
+            sql_validator
         )
         self.register_service(IQueryProcessingService, query_service)
     

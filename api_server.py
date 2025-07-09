@@ -22,9 +22,9 @@ load_dotenv()
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.application.container.dependency_injection import (
-    ContainerFactory, 
-    ServiceConfig
+from src.application.config.simple_config import (
+    ApplicationConfig,
+    OrchestratorConfig
 )
 from src.application.orchestrator.text2sql_orchestrator import (
     Text2SQLOrchestrator,
@@ -84,7 +84,7 @@ def initialize_agent(model_name: str = None) -> Text2SQLOrchestrator:
     if model_name is None:
         model_name = os.getenv("LLM_MODEL", "llama3")
     
-    service_config = ServiceConfig(
+    app_config = ApplicationConfig(
         database_type=os.getenv("DATABASE_TYPE", "sqlite"),
         database_path=os.getenv("DATABASE_PATH", "sus_database.db"),
         llm_provider=os.getenv("LLM_PROVIDER", "ollama"),
@@ -104,11 +104,20 @@ def initialize_agent(model_name: str = None) -> Text2SQLOrchestrator:
         max_query_length=int(os.getenv("MAX_QUERY_LENGTH", "1000")),
         enable_query_history=os.getenv("ENABLE_QUERY_HISTORY", "true").lower() == "true",
         enable_statistics=os.getenv("ENABLE_STATISTICS", "true").lower() == "true",
-        session_timeout=int(os.getenv("SESSION_TIMEOUT", "3600"))
+        session_timeout=int(os.getenv("SESSION_TIMEOUT", "3600")),
+        enable_conversational_response=os.getenv("ENABLE_CONVERSATIONAL_RESPONSE", "true").lower() == "true",
+        conversational_fallback=os.getenv("CONVERSATIONAL_FALLBACK", "true").lower() == "true",
+        enable_query_routing=os.getenv("ENABLE_QUERY_ROUTING", "true").lower() == "true",
+        routing_confidence_threshold=float(os.getenv("ROUTING_CONFIDENCE_THRESHOLD", "0.7")),
+        # Simple Query Decomposition Configuration
+        enable_query_decomposition=os.getenv("ENABLE_QUERY_DECOMPOSITION", "true").lower() == "true",
+        decomposition_complexity_threshold=int(os.getenv("DECOMPOSITION_COMPLEXITY_THRESHOLD", "2")),
+        decomposition_timeout_seconds=float(os.getenv("DECOMPOSITION_TIMEOUT_SECONDS", "60.0")),
+        decomposition_fallback_enabled=os.getenv("DECOMPOSITION_FALLBACK_ENABLED", "true").lower() == "true",
+        decomposition_debug_mode=os.getenv("DECOMPOSITION_DEBUG_MODE", "false").lower() == "true"
     )
     
-    container = ContainerFactory.create_container_with_config(service_config)
-    return Text2SQLOrchestrator(container, orchestrator_config)
+    return Text2SQLOrchestrator(app_config, orchestrator_config)
 
 @app.on_event("startup")
 async def startup_event():
@@ -286,7 +295,7 @@ async def health_check():
                 services={"agent": "not_initialized"}
             )
         
-        health_status = agent.container.health_check()
+        health_status = agent.health_check()
         return HealthResponse(
             status=health_status["status"],
             timestamp=datetime.now().isoformat(),
@@ -306,7 +315,7 @@ async def get_schema():
         raise HTTPException(status_code=503, detail="Agent not initialized")
     
     try:
-        schema_service = agent.container.get_schema_introspection_service()
+        schema_service = agent.get_schema_introspection_service()
         schema_info = schema_service.get_schema_information()
         
         return SchemaResponse(

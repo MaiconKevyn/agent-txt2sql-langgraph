@@ -92,6 +92,8 @@ class QueryClassificationService(IQueryClassificationService):
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
+        # Prevent duplicate logs by disabling propagation to root logger
+        self.logger.propagate = False
         
         # Initialize pattern databases
         self._setup_patterns()

@@ -18,20 +18,19 @@ import argparse
 from typing import Optional
 
 # Import the clean architecture components
-from src.application.container.dependency_injection import (
-    ContainerFactory, 
-    ServiceConfig
+from src.application.config.simple_config import (
+    ApplicationConfig,
+    OrchestratorConfig
 )
 from src.application.orchestrator.text2sql_orchestrator import (
-    Text2SQLOrchestrator,
-    OrchestratorConfig
+    Text2SQLOrchestrator
 )
 from src.application.services.user_interface_service import InterfaceType
 
 
-def create_service_config(args) -> ServiceConfig:
-    """Create service configuration from command line arguments"""
-    return ServiceConfig(
+def create_app_config(args) -> ApplicationConfig:
+    """Create application configuration from command line arguments"""
+    return ApplicationConfig(
         # Database configuration
         database_type="sqlite",
         database_path=args.database_path,
@@ -226,13 +225,12 @@ Melhorias sobre versão anterior:
                 print(f"\n🎉 Sistema funcionando perfeitamente!")
             return
         
-        # Create orchestrator
-        orchestrator = Text2SQLOrchestrator(container, orchestrator_config)
+        # Orchestrator already created above for health check compatibility
         
         # Single query mode
         if args.query:
             print(f"🔍 Processando consulta: {args.query}")
-            result = orchestrator.process_single_query(args.query)
+            result = agent.process_single_query(args.query)
             
             if result.success:
                 # Check if this is a COUNT query (single result with single value)
@@ -254,7 +252,7 @@ Melhorias sobre versão anterior:
             return
         
         # Interactive session mode
-        orchestrator.start_interactive_session()
+        agent.start_interactive_session()
         
     except KeyboardInterrupt:
         print("\n\n👋 Até logo!")

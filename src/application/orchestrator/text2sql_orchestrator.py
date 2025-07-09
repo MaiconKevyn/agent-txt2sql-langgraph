@@ -5,7 +5,18 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..container.dependency_injection import DependencyContainer, ServiceConfig, ContainerFactory
+from ..config.simple_config import ApplicationConfig, OrchestratorConfig
+from ..services.database_connection_service import DatabaseConnectionFactory
+from ..services.llm_communication_service import LLMCommunicationFactory, LLMConfig
+from ..services.schema_introspection_service import SchemaIntrospectionFactory
+from ..services.user_interface_service import UserInterfaceFactory
+from ..services.error_handling_service import ErrorHandlingFactory
+from ..services.query_processing_service import QueryProcessingFactory
+from ..services.query_classification_service import QueryClassificationFactory
+from ..services.sql_validation_service import SQLValidationFactory
+from ...domain.repositories.cid_repository import ICIDRepository
+from ...domain.services.cid_semantic_search_service import ICIDSemanticSearchService, CIDSemanticSearchService
+from ...infrastructure.repositories.sqlite_cid_repository import SQLiteCIDRepository
 from ..services.database_connection_service import IDatabaseConnectionService
 from ..services.llm_communication_service import ILLMCommunicationService
 from ..services.schema_introspection_service import ISchemaIntrospectionService
@@ -30,19 +41,10 @@ from ..services.query_classification_service import (
     QueryType,
     QueryClassification
 )
+# Simple Query Decomposition System
+from ..services.simple_query_decomposer import SimpleQueryDecomposer, DecompositionConfig
 
 
-@dataclass
-class OrchestratorConfig:
-    """Configuration for the orchestrator"""
-    max_query_length: int = 1000
-    enable_query_history: bool = True
-    enable_statistics: bool = True
-    session_timeout: int = 3600  # seconds
-    enable_conversational_response: bool = True
-    conversational_fallback: bool = True
-    enable_query_routing: bool = True
-    routing_confidence_threshold: float = 0.7
 
 
 class Text2SQLOrchestrator:
@@ -54,36 +56,45 @@ class Text2SQLOrchestrator:
     
     def __init__(
         self, 
-        container: Optional[DependencyContainer] = None,
-        config: Optional[OrchestratorConfig] = None
+        app_config: Optional[ApplicationConfig] = None,
+        orchestrator_config: Optional[OrchestratorConfig] = None
     ):
         """
         Initialize Text2SQL orchestrator
         
         Args:
-            container: Dependency injection container
-            config: Orchestrator configuration
+            app_config: Application configuration
+            orchestrator_config: Orchestrator configuration
         """
-        self._container = container or ContainerFactory.create_default_container()
-        self._config = config or OrchestratorConfig()
+        self._app_config = app_config or ApplicationConfig()
+        self._config = orchestrator_config or OrchestratorConfig()
         
-        # Initialize container if not already done
-        if not self._container._initialized:
-            self._container.initialize()
+        # Initialize services dict first
+        self._services = {}
         
-        # Get all required services
-        self._db_service = self._container.get_service(IDatabaseConnectionService)
-        self._llm_service = self._container.get_service(ILLMCommunicationService)
-        self._schema_service = self._container.get_service(ISchemaIntrospectionService)
-        self._ui_service = self._container.get_service(IUserInterfaceService)
-        self._error_service = self._container.get_service(IErrorHandlingService)
-        self._query_service = self._container.get_service(IQueryProcessingService)
+        # Initialize all services directly
+        self._initialize_services()
+        
+        # Store services for compatibility after initialization
+        self._services.update({
+            IDatabaseConnectionService: self._db_service,
+            ILLMCommunicationService: self._llm_service,
+            ISchemaIntrospectionService: self._schema_service,
+            IUserInterfaceService: self._ui_service,
+            IErrorHandlingService: self._error_service,
+            IQueryProcessingService: self._query_service
+        })
         
         # Initialize query classification service if enabled
         self._classification_service = None
         if self._config.enable_query_routing:
             try:
-                self._classification_service = self._container.get_service(IQueryClassificationService)
+                self._classification_service = QueryClassificationFactory.create_service(
+                    llm_service=self._llm_service,
+                    error_service=self._error_service,
+                    confidence_threshold=self._app_config.query_classification_confidence_threshold
+                )
+                self._services[IQueryClassificationService] = self._classification_service
             except Exception as e:
                 print(f"Warning: Query classification service unavailable: {e}")
                 self._config.enable_query_routing = False
@@ -99,18 +110,192 @@ class Text2SQLOrchestrator:
                 # Log warning but continue without conversational service
                 print(f"Warning: Conversational service unavailable: {e}")
         
+        # Simple Query Decomposition System
+        self._simple_decomposer = None
+        if self._config.enable_query_decomposition:
+            try:
+                decomp_config = DecompositionConfig(
+                    enabled=True,
+                    complexity_threshold=self._config.decomposition_complexity_threshold,
+                    timeout_seconds=self._config.decomposition_timeout_seconds,
+                    debug_mode=self._config.decomposition_debug_mode,
+                    fallback_enabled=self._config.decomposition_fallback_enabled
+                )
+                self._simple_decomposer = SimpleQueryDecomposer(
+                    query_service=self._query_service,
+                    config=decomp_config
+                )
+                if self._config.decomposition_debug_mode:
+                    print("🧩 Simple Query Decomposition System initialized successfully")
+            except Exception as e:
+                if not self._config.decomposition_fallback_enabled:
+                    raise
+                print(f"Warning: Simple decomposition system unavailable: {e}")
+                self._config.enable_query_decomposition = False
+        
         # Session management
         self._session_id = self._generate_session_id()
         self._query_count = 0
         self._session_start_time = datetime.now()
+        self._decomposition_stats = {
+            "total_decomposed": 0,
+            "successful_decompositions": 0,
+            "fallback_count": 0,
+            "total_time_saved": 0.0
+        }
         
         # Validate all services are working
         self._validate_services()
     
-    @property
-    def container(self) -> DependencyContainer:
-        """Get the dependency container"""
-        return self._container
+    def _initialize_services(self) -> None:
+        """Initialize all services directly without DI container"""
+        # Initialize database service
+        self._db_service = DatabaseConnectionFactory.create_service(
+            self._app_config.database_type,
+            db_path=self._app_config.database_path
+        )
+        
+        # Initialize error handling service
+        self._error_service = ErrorHandlingFactory.create_service(
+            self._app_config.error_handling_type,
+            enable_logging=self._app_config.enable_error_logging
+        )
+        
+        # Initialize LLM service
+        llm_config = LLMConfig(
+            model_name=self._app_config.llm_model,
+            temperature=self._app_config.llm_temperature,
+            timeout=self._app_config.llm_timeout,
+            max_retries=self._app_config.llm_max_retries
+        )
+        self._llm_service = LLMCommunicationFactory.create_service(
+            self._app_config.llm_provider,
+            model_name=self._app_config.llm_model,
+            temperature=self._app_config.llm_temperature,
+            timeout=self._app_config.llm_timeout,
+            max_retries=self._app_config.llm_max_retries
+        )
+        
+        # Initialize schema service
+        self._schema_service = SchemaIntrospectionFactory.create_service(
+            self._app_config.schema_type,
+            self._db_service
+        )
+        
+        # Initialize SQL validation service
+        self._sql_validator = SQLValidationFactory.create_comprehensive_validator()
+        
+        # Initialize query processing service
+        self._query_service = QueryProcessingFactory.create_service(
+            self._app_config.query_processing_type,
+            self._llm_service,
+            self._db_service,
+            self._schema_service,
+            self._error_service,
+            self._sql_validator
+        )
+        
+        # Initialize UI service
+        self._ui_service = UserInterfaceFactory.create_service(
+            self._app_config.ui_type,
+            interface_type=self._app_config.interface_type
+        )
+        
+        # Initialize CID repository if enabled
+        if self._app_config.enable_cid_semantic_search:
+            if self._app_config.cid_repository_type == "sqlite":
+                self._cid_repository = SQLiteCIDRepository(self._app_config.database_path)
+                self._cid_semantic_service = CIDSemanticSearchService(self._cid_repository)
+                self._services[ICIDRepository] = self._cid_repository
+                self._services[ICIDSemanticSearchService] = self._cid_semantic_service
+    
+    def get_service(self, service_type):
+        """Get service instance (compatibility with old container interface)"""
+        return self._services.get(service_type)
+    
+    def get_schema_introspection_service(self):
+        """Get schema introspection service"""
+        return self._schema_service
+    
+    def health_check(self) -> Dict[str, Any]:
+        """Perform health check on all services"""
+        health_status = {
+            "status": "healthy",
+            "services": {},
+            "timestamp": None
+        }
+        
+        try:
+            # Check database service
+            health_status["services"]["database"] = {
+                "healthy": self._db_service.test_connection(),
+                "type": self._app_config.database_type
+            }
+            
+            # Check LLM service
+            health_status["services"]["llm"] = {
+                "healthy": self._llm_service.is_available(),
+                "model_info": self._llm_service.get_model_info()
+            }
+            
+            # Check other services existence
+            health_status["services"]["schema"] = {
+                "healthy": self._schema_service is not None
+            }
+            health_status["services"]["query_processing"] = {
+                "healthy": self._query_service is not None
+            }
+            health_status["services"]["ui"] = {
+                "healthy": self._ui_service is not None
+            }
+            health_status["services"]["error_handling"] = {
+                "healthy": self._error_service is not None
+            }
+            
+            # Check query classification service if enabled
+            if self._config.enable_query_routing:
+                health_status["services"]["query_classification"] = {
+                    "healthy": self._classification_service is not None
+                }
+            
+            # Check CID services if enabled
+            if self._app_config.enable_cid_semantic_search:
+                health_status["services"]["cid_repository"] = {
+                    "healthy": hasattr(self, '_cid_repository') and self._cid_repository is not None
+                }
+                health_status["services"]["cid_semantic_search"] = {
+                    "healthy": hasattr(self, '_cid_semantic_service') and self._cid_semantic_service is not None
+                }
+            
+            # Determine overall health
+            all_healthy = all(
+                service_health.get("healthy", False) 
+                for service_health in health_status["services"].values()
+            )
+            health_status["status"] = "healthy" if all_healthy else "degraded"
+            
+        except Exception as e:
+            health_status["status"] = "unhealthy"
+            health_status["error"] = str(e)
+        
+        from datetime import datetime
+        health_status["timestamp"] = datetime.now().isoformat()
+        
+        return health_status
+    
+    def shutdown(self) -> None:
+        """Shutdown all services gracefully"""
+        try:
+            # Close database connections
+            if self._db_service:
+                self._db_service.close_connection()
+            
+            # Clear all services
+            self._services.clear()
+            
+        except Exception as e:
+            # Log error but don't raise - we're shutting down anyway
+            print(f"Warning: Error during shutdown: {str(e)}")
     
     def start_interactive_session(self) -> None:
         """Start interactive user session"""
@@ -183,13 +368,20 @@ class Text2SQLOrchestrator:
                 # Route to conversational service directly
                 result = self._process_conversational_query(sanitized_query, classification)
             else:
-                # Route to SQL processing (default behavior)
-                request = QueryRequest(
-                    user_query=sanitized_query,
-                    session_id=self._session_id,
-                    timestamp=datetime.now()
-                )
-                result = self._query_service.process_natural_language_query(request)
+                # Simple decomposition check - placeholder for new system
+                if (self._config.enable_query_decomposition and 
+                    self._simple_decomposer):
+                    
+                    # Use simple decomposition (to be implemented)
+                    result = self._process_with_simple_decomposition(sanitized_query)
+                else:
+                    # Route to SQL processing (default behavior)
+                    request = QueryRequest(
+                        user_query=sanitized_query,
+                        session_id=self._session_id,
+                        timestamp=datetime.now()
+                    )
+                    result = self._query_service.process_natural_language_query(request)
             
             self._query_count += 1
             
@@ -306,7 +498,7 @@ class Text2SQLOrchestrator:
     def _display_system_status(self) -> None:
         """Display system status"""
         try:
-            health_check = self._container.health_check()
+            health_check = self.health_check()
             
             status_text = f"🔍 Status do Sistema: {health_check['status'].upper()}\n\n"
             
@@ -492,7 +684,7 @@ class Text2SQLOrchestrator:
             self._db_service.close_connection()
             
             # Shutdown container
-            self._container.shutdown()
+            self.shutdown()
             
         except Exception as e:
             # Log but don't raise during cleanup
@@ -635,7 +827,7 @@ Para fornecer uma resposta mais precisa e detalhada, seria necessário acesso ao
             "start_time": self._session_start_time.isoformat(),
             "query_count": self._query_count,
             "duration_seconds": (datetime.now() - self._session_start_time).total_seconds(),
-            "container_health": self._container.health_check()
+            "container_health": self.health_check()
         }
     
     def process_conversational_query(self, query: str) -> Dict[str, Any]:
@@ -662,4 +854,420 @@ Para fornecer uma resposta mais precisa e detalhada, seria necessário acesso ao
             "error_message": result.error_message if not result.success else None,
             "metadata": formatted_response.metadata,
             "timestamp": datetime.now().isoformat()
+        }
+    
+    # Simple Query Decomposition Methods
+    
+    def _process_with_simple_decomposition(self, query: str) -> QueryResult:
+        """
+        Process query with simple decomposition system
+        
+        Args:
+            query: Sanitized user query
+            
+        Returns:
+            QueryResult from decomposition or fallback
+        """
+        if not self._simple_decomposer:
+            return self._fallback_to_standard_processing(query)
+        
+        try:
+            result = self._simple_decomposer.decompose_and_execute(query)
+            
+            # Update session stats if decomposition was used
+            if (result.metadata and 
+                result.metadata.get("decomposition_used", False)):
+                self._decomposition_stats["total_decomposed"] += 1
+                if result.success:
+                    self._decomposition_stats["successful_decompositions"] += 1
+            
+            return result
+            
+        except Exception as e:
+            if self._config.decomposition_debug_mode:
+                print(f"❌ Simple decomposition error: {e}")
+            self._decomposition_stats["fallback_count"] += 1
+            return self._fallback_to_standard_processing(query)
+    
+    # Complex decomposition methods - temporarily disabled during refactoring
+    def _process_with_decomposition_check_DISABLED(self, query: str) -> QueryResult:
+        """
+        Process query with decomposition check and fallback
+        
+        Args:
+            query: Sanitized user query
+            
+        Returns:
+            QueryResult from either decomposition or standard processing
+        """
+        decomposition_start_time = datetime.now()
+        
+        try:
+            # Check if query should be decomposed
+            if self._config.decomposition_debug_mode:
+                print(f"🔍 Checking if query should be decomposed...")
+            
+            should_decompose = self._query_planner.should_decompose_query(query)
+            
+            if should_decompose:
+                if self._config.show_decomposition_progress:
+                    print(f"🧩 Query complexa detectada - iniciando decomposição...")
+                
+                # Update stats
+                self._decomposition_stats["total_decomposed"] += 1
+                
+                # Execute decomposition
+                result = self._execute_decomposed_query(query, decomposition_start_time)
+                
+                if result.success:
+                    self._decomposition_stats["successful_decompositions"] += 1
+                    if self._config.show_decomposition_progress:
+                        print(f"✅ Decomposição executada com sucesso!")
+                    return result
+                else:
+                    # Decomposition failed, try fallback
+                    if self._config.decomposition_fallback_enabled:
+                        if self._config.show_decomposition_progress:
+                            print(f"⚠️ Decomposição falhou, usando processamento padrão...")
+                        return self._fallback_to_standard_processing(query)
+                    else:
+                        return result
+            else:
+                # Query doesn't need decomposition
+                if self._config.decomposition_debug_mode:
+                    print(f"📝 Query não atende critérios para decomposição")
+                return self._fallback_to_standard_processing(query)
+                
+        except Exception as e:
+            # Error in decomposition system
+            if self._config.decomposition_fallback_enabled:
+                if self._config.show_decomposition_progress:
+                    print(f"❌ Erro no sistema de decomposição: {e}")
+                    print(f"🔄 Usando processamento padrão...")
+                self._decomposition_stats["fallback_count"] += 1
+                return self._fallback_to_standard_processing(query)
+            else:
+                raise
+    
+    def _execute_decomposed_query_DISABLED(self, query: str, start_time: datetime) -> QueryResult:
+        """
+        Execute query using decomposition system
+        
+        Args:
+            query: User query
+            start_time: Start time for performance measurement
+            
+        Returns:
+            QueryResult from decomposition execution
+        """
+        try:
+            # Generate execution plan
+            plan = self._query_planner.create_execution_plan(query)
+            
+            if self._config.show_decomposition_progress:
+                print(f"📋 Plano gerado: {len(plan.steps)} etapas usando estratégia {plan.strategy.value}")
+                
+                if self._config.decomposition_debug_mode:
+                    for i, step in enumerate(plan.steps, 1):
+                        print(f"   {i}. {step.description}")
+            
+            # Execute plan with progress callback if enabled
+            if self._config.show_decomposition_progress:
+                def progress_callback(progress):
+                    print(f"   📊 Progresso: {progress.overall_progress:.0%} - {progress.current_step_description}")
+                
+                execution_result = self._execution_orchestrator.execute_plan_async(plan, progress_callback)
+            else:
+                execution_result = self._execution_orchestrator.execute_plan(plan)
+            
+            # Convert PlanExecutionResult to QueryResult
+            total_execution_time = (datetime.now() - start_time).total_seconds()
+            
+            if execution_result.success:
+                # Calculate time potentially saved
+                estimated_standard_time = len(plan.steps) * 10.0  # Estimate
+                time_saved = max(0, estimated_standard_time - total_execution_time)
+                self._decomposition_stats["total_time_saved"] += time_saved
+                
+                # Create successful QueryResult
+                return QueryResult(
+                    sql_query=f"Decomposed query with {len(plan.steps)} steps",
+                    results=execution_result.final_results,
+                    success=True,
+                    execution_time=total_execution_time,
+                    row_count=execution_result.final_row_count,
+                    metadata={
+                        "decomposition_used": True,
+                        "plan_id": plan.plan_id,
+                        "strategy": plan.strategy.value,
+                        "steps_executed": len(execution_result.completed_steps),
+                        "total_steps": len(plan.steps),
+                        "estimated_time_saved": time_saved,
+                        "complexity_score": plan.complexity_score,
+                        "execution_metadata": execution_result.metadata,
+                        "generator": execution_result.metadata.get("formatted_result", {}).get("generator", "unknown") if execution_result.metadata else "unknown"
+                    }
+                )
+            else:
+                # Decomposition execution failed
+                return QueryResult(
+                    sql_query="",
+                    results=[],
+                    success=False,
+                    execution_time=total_execution_time,
+                    row_count=0,
+                    error_message=f"Decomposition execution failed: {execution_result.error_message}",
+                    metadata={
+                        "decomposition_used": True,
+                        "decomposition_failed": True,
+                        "plan_id": plan.plan_id,
+                        "failed_step": execution_result.failed_step_id
+                    }
+                )
+                
+        except Exception as e:
+            total_execution_time = (datetime.now() - start_time).total_seconds()
+            return QueryResult(
+                sql_query="",
+                results=[],
+                success=False,
+                execution_time=total_execution_time,
+                row_count=0,
+                error_message=f"Decomposition system error: {str(e)}",
+                metadata={
+                    "decomposition_used": True,
+                    "decomposition_error": True
+                }
+            )
+    
+    def _fallback_to_standard_processing(self, query: str) -> QueryResult:
+        """
+        Fallback to standard query processing
+        
+        Args:
+            query: User query
+            
+        Returns:
+            QueryResult from standard processing
+        """
+        request = QueryRequest(
+            user_query=query,
+            session_id=self._session_id,
+            timestamp=datetime.now()
+        )
+        
+        result = self._query_service.process_natural_language_query(request)
+        
+        # Add metadata to indicate standard processing was used
+        if hasattr(result, 'metadata'):
+            if result.metadata is None:
+                result.metadata = {}
+            result.metadata.update({
+                "decomposition_used": False,
+                "processing_method": "standard"
+            })
+        
+        return result
+    
+    def get_decomposition_statistics(self) -> Dict[str, Any]:
+        """
+        Get decomposition system statistics
+        
+        Returns:
+            Dictionary with decomposition statistics
+        """
+        total_queries = self._query_count
+        decomposed_queries = self._decomposition_stats["total_decomposed"]
+        
+        base_stats = {
+            "decomposition_enabled": self._config.enable_query_decomposition,
+            "total_queries_processed": total_queries,
+            "queries_decomposed": decomposed_queries,
+            "decomposition_rate": (decomposed_queries / total_queries * 100) if total_queries > 0 else 0,
+            "successful_decompositions": self._decomposition_stats["successful_decompositions"],
+            "success_rate": (self._decomposition_stats["successful_decompositions"] / decomposed_queries * 100) if decomposed_queries > 0 else 0,
+            "fallback_count": self._decomposition_stats["fallback_count"],
+            "total_time_saved_seconds": self._decomposition_stats["total_time_saved"],
+            "configuration": {
+                "complexity_threshold": self._config.decomposition_complexity_threshold,
+                "timeout_seconds": self._config.decomposition_timeout_seconds,
+                "fallback_enabled": self._config.decomposition_fallback_enabled,
+                "debug_mode": self._config.decomposition_debug_mode
+            }
+        }
+        
+        # Add simple decomposer statistics if available
+        if self._simple_decomposer:
+            simple_stats = self._simple_decomposer.get_statistics()
+            base_stats["simple_decomposer"] = simple_stats
+        
+        return base_stats
+    
+    def set_decomposition_debug_mode(self, enabled: bool) -> None:
+        """
+        Enable or disable decomposition debug mode
+        
+        Args:
+            enabled: True to enable debug mode, False to disable
+        """
+        self._config.decomposition_debug_mode = enabled
+        if enabled:
+            print("🐛 Decomposition debug mode enabled")
+        else:
+            print("🔇 Decomposition debug mode disabled")
+    
+    def get_enhanced_statistics(self) -> Dict[str, Any]:
+        """
+        Get enhanced orchestrator statistics including decomposition and performance
+        
+        Returns:
+            Complete statistics including decomposition and performance data
+        """
+        base_stats = self.get_session_info()
+        decomposition_stats = self.get_decomposition_statistics()
+        
+        # Performance statistics - disabled during refactoring
+        performance_stats = {"disabled": "Performance optimization temporarily disabled"}
+        
+        return {
+            **base_stats,
+            "decomposition_statistics": decomposition_stats,
+            "performance_statistics": performance_stats,  # NEW
+            "services_status": {
+                "query_classification": self._classification_service is not None,
+                "conversational_response": self._conversational_service is not None,
+                "query_decomposition": (self._simple_decomposer is not None),
+                "performance_optimization": False  # Disabled during refactoring
+            },
+            "configuration": {
+                "enable_query_routing": self._config.enable_query_routing,
+                "enable_conversational_response": self._config.enable_conversational_response,
+                "enable_query_decomposition": self._config.enable_query_decomposition,
+                "routing_confidence_threshold": self._config.routing_confidence_threshold,
+                "decomposition_complexity_threshold": self._config.decomposition_complexity_threshold
+            }
+        }
+    
+    # NEW: Performance monitoring methods (Checkpoint 9)
+    
+    def get_performance_statistics(self) -> Dict[str, Any]:
+        """
+        Get detailed performance statistics for cache and parallel execution
+        
+        Returns:
+            Performance statistics including cache hit rates and parallel efficiency
+        """
+        if not (self._execution_orchestrator and 
+                hasattr(self._execution_orchestrator, 'get_performance_statistics')):
+            return {
+                "performance_optimization_enabled": False,
+                "message": "Performance optimization not available"
+            }
+        
+        return self._execution_orchestrator.get_performance_statistics()
+    
+    def optimize_system_performance(self) -> Dict[str, Any]:
+        """
+        Execute system performance optimization (cache cleanup, etc.)
+        
+        Returns:
+            Results of optimization operations
+        """
+        optimization_results = {
+            "timestamp": datetime.now().isoformat(),
+            "operations_performed": []
+        }
+        
+        # Optimize decomposition system performance
+        if (self._execution_orchestrator and 
+            hasattr(self._execution_orchestrator, 'optimize_performance')):
+            
+            decomp_optimization = self._execution_orchestrator.optimize_performance()
+            optimization_results["decomposition_optimization"] = decomp_optimization
+            optimization_results["operations_performed"].append("decomposition_cache_optimization")
+        
+        # Could add other system optimizations here
+        optimization_results["total_operations"] = len(optimization_results["operations_performed"])
+        
+        return optimization_results
+    
+    def get_cache_performance(self) -> Dict[str, Any]:
+        """
+        Get cache performance metrics
+        
+        Returns:
+            Cache hit rates and memory usage statistics
+        """
+        if not (self._execution_orchestrator and 
+                hasattr(self._execution_orchestrator, 'get_cache_hit_rate')):
+            return {"cache_enabled": False}
+        
+        return {
+            "cache_enabled": True,
+            "cache_hit_rate": self._execution_orchestrator.get_cache_hit_rate(),
+            "parallel_efficiency": self._execution_orchestrator.get_parallel_efficiency(),
+            "optimization_enabled": getattr(self._execution_orchestrator, 'enable_performance_optimization', False)
+        }
+    
+    def enable_performance_debug_mode(self, enabled: bool = True):
+        """
+        Enable performance debug mode for detailed monitoring
+        
+        Args:
+            enabled: True to enable, False to disable
+        """
+        if (self._execution_orchestrator and 
+            hasattr(self._execution_orchestrator, 'enable_performance_monitoring')):
+            self._execution_orchestrator.enable_performance_monitoring(enabled)
+            print(f"🔍 Performance debug mode: {'enabled' if enabled else 'disabled'}")
+        else:
+            print("⚠️ Performance monitoring not available")
+    
+    def get_system_health_with_performance(self) -> Dict[str, Any]:
+        """
+        Get comprehensive system health including performance metrics
+        
+        Returns:
+            System health with performance indicators
+        """
+        base_health = self.health_check()
+        
+        # Add performance health indicators
+        performance_health = {
+            "cache_system": "unknown",
+            "parallel_execution": "unknown",
+            "optimization_status": "unknown"
+        }
+        
+        if (self._execution_orchestrator and 
+            hasattr(self._execution_orchestrator, 'get_performance_statistics')):
+            
+            perf_stats = self._execution_orchestrator.get_performance_statistics()
+            
+            # Determine cache health
+            if perf_stats.get("optimization_enabled"):
+                cache_stats = perf_stats.get("cache_statistics", {})
+                cache_hit_rate = cache_stats.get("execution_results", {}).get("hit_rate", 0)
+                
+                if cache_hit_rate > 70:
+                    performance_health["cache_system"] = "healthy"
+                elif cache_hit_rate > 30:
+                    performance_health["cache_system"] = "degraded"
+                else:
+                    performance_health["cache_system"] = "poor"
+                
+                # Determine parallel execution health
+                parallel_stats = perf_stats.get("parallel_statistics", {})
+                if parallel_stats:
+                    performance_health["parallel_execution"] = "healthy"
+                else:
+                    performance_health["parallel_execution"] = "unavailable"
+                
+                performance_health["optimization_status"] = "enabled"
+            else:
+                performance_health["optimization_status"] = "disabled"
+        
+        return {
+            **base_health,
+            "performance_health": performance_health
         }
