@@ -154,6 +154,13 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
     def _setup_langchain_agent(self) -> None:
         """Setup LangChain SQL agent with enhanced error handling"""
         try:
+            # Check if LLM service is HuggingFace - skip LangChain agent setup
+            if hasattr(self._llm_service, '__class__') and 'HuggingFace' in self._llm_service.__class__.__name__:
+                self.logger.info("🤗 HuggingFace LLM detected - using direct processing only")
+                self._agent = None
+                self._toolkit = None
+                return
+            
             from langchain_community.agent_toolkits.sql.base import create_sql_agent
             from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
             from langchain.agents.agent_types import AgentType
@@ -398,6 +405,16 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
 
     def _process_with_langchain_agent_fallback(self, request: QueryRequest, start_time: float) -> QueryResult:
         """Fallback method: Process query using LangChain SQL Agent"""
+        # Get model info for logging
+        model_info = self._llm_service.get_model_info()
+        model_name = model_info.get('model_name', 'Unknown')
+        provider = model_info.get('provider', 'Unknown')
+        
+        # Check if LangChain agent is available (HuggingFace models don't have it)
+        if self._agent is None:
+            self.logger.warning(f"🤗 LangChain agent not available ({model_name}) - using enhanced direct LLM")
+            return self._process_with_error_aware_direct_llm(request, start_time)
+        
         # Get schema context
         schema_context = self._schema_service.get_schema_context()
         self.logger.info("📊 Retrieved schema context for fallback method")
@@ -407,9 +424,9 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         self.logger.info("✨ Created enhanced prompt")
         
         # Process with LangChain agent with timeout
-        self.logger.info("🤖 Calling LangChain agent as fallback...")
+        self.logger.info(f"🤖 Calling LangChain agent ({model_name}) as fallback...")
         agent_response = self._agent.run(enhanced_prompt)
-        self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
+        self.logger.info(f"✅ {model_name} agent response received (length: {len(agent_response)})")
         
         # DEBUG: Log full response if it's short or contains issues
         if len(agent_response) < 100 or "error" in agent_response.lower():
@@ -483,7 +500,11 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
     
     def _process_with_direct_llm_primary(self, request: QueryRequest, start_time: float) -> QueryResult:
         """Primary method: Direct LLM call + SQL execution (more reliable)"""
-        self.logger.info("🎯 Using direct LLM as primary method")
+        # Log which model is being used
+        model_info = self._llm_service.get_model_info()
+        model_name = model_info.get('model_name', 'Unknown')
+        provider = model_info.get('provider', 'Unknown')
+        self.logger.info(f"🎯 Using direct LLM as primary method: {model_name} ({provider})")
         
         # Get schema context
         schema_context = self._schema_service.get_schema_context()
@@ -495,7 +516,7 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         
         # Call LLM directly to generate SQL
         llm_response = self._llm_service.send_prompt(direct_prompt)
-        self.logger.info(f"🤖 Direct LLM response received (length: {len(llm_response.content)})")
+        self.logger.info(f"🤖 {model_name} response received (length: {len(llm_response.content)})")
         
         # Extract SQL from LLM response
         sql_query = self._extract_sql_from_direct_response(llm_response.content)

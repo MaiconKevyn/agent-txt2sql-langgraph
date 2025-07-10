@@ -2,8 +2,8 @@
   {
     "id": "GT001",
     "difficulty": "easy",
-    "question": "Quantos homens e mulheres foram registrados?",
-    "query": "SELECT DS_SEXO, COUNT(*) AS total FROM sus_data GROUP BY DS_SEXO;"
+    "question": "Quantos homens foram registrados?",
+    "query": "adicionar query sql"
   },
   {
     "id": "GT002",
@@ -14,8 +14,8 @@
   {
     "id": "GT003",
     "difficulty": "easy",
-    "question": "Qual a média de idade dos pacientes que são de Porto Alegre?",
-    "query": "SELECT AVG(VL_IDADE) AS media_idade FROM sus_data WHERE SG_UF = 'SP';"
+    "question": "Qual a média de idade dos pacientes que são de Uruguaiana?",
+    "query": "adicionar query sql"
   },
   {
     "id": "GT004",
@@ -26,67 +26,8 @@
   {
     "id": "GT005",
     "difficulty": "easy",
-    "question": "Quais são os tipos de sexo registrados na base de dados?",
-    "query": "SELECT DISTINCT DS_SEXO FROM sus_data;"
-  },
-  {
-    "id": "GT009",
-    "difficulty": "medium",
-    "question": "Qual a média de idade dos pacientes para cada capítulo do CID?",
-    "query": "SELECT c.descricao as capitulo_cid, AVG(s.VL_IDADE) AS media_idade FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim GROUP BY c.descricao;"
-  },
-  {
-    "id": "GT010",
-    "difficulty": "medium",
-    "question": "Liste os 3 capítulos do CID com o maior número de atendimentos.",
-    "query": "SELECT c.descricao as capitulo_cid, COUNT(*) AS total_atendimentos FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim GROUP BY c.descricao ORDER BY total_atendimentos DESC LIMIT 3;"
-  },
-  {
-    "id": "GT011",
-    "difficulty": "medium",
-    "question": "Qual o número de atendimentos por estado (UF) e por sexo?",
-    "query": "SELECT SG_UF, DS_SEXO, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY SG_UF, DS_SEXO ORDER BY SG_UF, DS_SEXO;"
-  },
-  {
-    "id": "GT012",
-    "difficulty": "medium",
-    "question": "Quais são os 5 diagnósticos (DIAG_PRINC) mais comuns e a descrição do seu capítulo CID?",
-    "query": "SELECT s.DIAG_PRINC, c.descricao as capitulo_cid, COUNT(*) AS total FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim GROUP BY s.DIAG_PRINC, c.descricao ORDER BY total DESC LIMIT 5;"
-  },
-  {
-    "id": "GT013",
-    "difficulty": "medium",
-    "question": "Qual a quantidade de atendimentos em que o município de residência do paciente é diferente do município do estabelecimento de saúde?",
-    "query": "SELECT COUNT(*) AS total FROM sus_data WHERE NM_MUNICIPIO != NM_MUNICIP;"
-  },
-  {
-    "id": "GT014",
-    "difficulty": "hard",
-    "question": "Qual é a porcentagem de atendimentos para cada capítulo do CID em relação ao total geral?",
-    "query": "WITH ChapterCounts AS (SELECT c.descricao, COUNT(*) as count_per_chapter FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim GROUP BY c.descricao), TotalCount AS (SELECT COUNT(*) as total_count FROM sus_data) SELECT cc.descricao, (cc.count_per_chapter * 100.0 / tc.total_count) AS percentage FROM ChapterCounts cc, TotalCount tc ORDER BY percentage DESC;"
-  },
-  {
-    "id": "GT015",
-    "difficulty": "hard",
-    "question": "Para cada estado (UF), qual é o capítulo CID mais frequente e quantos atendimentos ele teve?",
-    "query": "WITH RankedChapters AS (SELECT s.SG_UF, c.descricao, COUNT(*) as total_atendimentos, ROW_NUMBER() OVER(PARTITION BY s.SG_UF ORDER BY COUNT(*) DESC) as rn FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim WHERE s.SG_UF IS NOT NULL AND c.descricao IS NOT NULL GROUP BY s.SG_UF, c.descricao) SELECT SG_UF, descricao, total_atendimentos FROM RankedChapters WHERE rn = 1;"
-  },
-  {
-    "id": "GT016",
-    "difficulty": "hard",
-    "question": "Calcule a média de dias de permanência para pacientes mais velhos e mais novos que a média de idade geral.",
-    "query": "WITH AvgAge AS (SELECT AVG(VL_IDADE) as overall_avg_age FROM sus_data) SELECT CASE WHEN s.VL_IDADE >= a.overall_avg_age THEN 'Mais Velho que a Média' ELSE 'Mais Novo que a Média' END AS grupo_idade, AVG(s.DIAS_PERM) AS media_dias_permanencia FROM sus_data s, AvgAge a GROUP BY grupo_idade;"
-  },
-  {
-    "id": "GT017",
-    "difficulty": "hard",
-    "question": "Liste os 3 municípios com a maior proporção de internações (código de atendimento '1') em relação ao total de atendimentos.",
-    "query": "WITH MunicipioStats AS (SELECT NM_MUNICIP, COUNT(*) as total_atendimentos, SUM(CASE WHEN TP_ATEND = '1' THEN 1 ELSE 0 END) as total_internacoes FROM sus_data GROUP BY NM_MUNICIP) SELECT NM_MUNICIP, (CAST(total_internacoes AS REAL) / total_atendimentos) AS proporcao_internacoes FROM MunicipioStats WHERE total_atendimentos > 10 ORDER BY proporcao_internacoes DESC LIMIT 3;"
-  },
-  {
-    "id": "GT018",
-    "difficulty": "hard",
-    "question": "Para cada capítulo CID, qual é a razão de atendimentos entre homens e mulheres?",
-    "query": "SELECT c.descricao, CAST(SUM(CASE WHEN s.DS_SEXO = 'Masculino' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN s.DS_SEXO = 'Feminino' THEN 1 ELSE 0 END), 0) AS razao_homem_mulher FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC >= c.codigo_inicio AND s.DIAG_PRINC <= c.codigo_fim WHERE c.descricao IS NOT NULL AND s.DS_SEXO IN ('Masculino', 'Feminino') GROUP BY c.descricao ORDER BY c.descricao;"
+    "question": "Quais são os cinco municipios com mais mortes?",
+    "query": "adicionar query sql"
   }
+
 ]

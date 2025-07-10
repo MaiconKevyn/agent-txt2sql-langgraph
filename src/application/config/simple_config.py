@@ -14,11 +14,18 @@ class ApplicationConfig:
     database_path: str = "sus_database.db"
     
     # LLM configuration
-    llm_provider: str = "ollama"
-    llm_model: str = "llama3"
+    # llm_provider: str = "huggingface"  # ollama, huggingface
+    # llm_model: str = "defog/sqlcoder-7b-2"  # llama3, defog/sqlcoder-7b-2
+    llm_provider: str = "ollama"  # ollama, huggingface
+    llm_model: str = "llama3"  # llama3, defog/sqlcoder-7b-2
     llm_temperature: float = 0.0
     llm_timeout: int = 120
     llm_max_retries: int = 3
+    
+    # Hugging Face specific configuration
+    llm_device: str = "auto"  # auto, cpu, cuda
+    llm_load_in_8bit: bool = False
+    llm_load_in_4bit: bool = True  # Recommended for SQLCoder-7b-2
     
     # Schema configuration
     schema_type: str = "sus"

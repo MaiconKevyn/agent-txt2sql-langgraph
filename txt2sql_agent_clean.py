@@ -30,32 +30,23 @@ from src.application.services.user_interface_service import InterfaceType
 
 def create_app_config(args) -> ApplicationConfig:
     """Create application configuration from command line arguments"""
-    return ApplicationConfig(
-        # Database configuration
-        database_type="sqlite",
-        database_path=args.database_path,
-        
-        # LLM configuration
-        llm_provider="ollama",
-        llm_model=args.model,
-        llm_temperature=0.0,
-        llm_timeout=args.timeout,
-        llm_max_retries=3,
-        
-        # Schema configuration
-        schema_type="sus",
-        
-        # UI configuration
-        ui_type="cli",
-        interface_type=InterfaceType.CLI_INTERACTIVE if args.interactive else InterfaceType.CLI_BASIC,
-        
-        # Error handling configuration
-        error_handling_type="comprehensive",
-        enable_error_logging=args.enable_logging,
-        
-        # Query processing configuration
-        query_processing_type="comprehensive"
-    )
+    # Use defaults from ApplicationConfig and override with command line args when explicitly provided
+    config = ApplicationConfig()
+    
+    # Override with command line arguments if they differ from defaults
+    if hasattr(args, 'database_path') and args.database_path != "sus_database.db":
+        config.database_path = args.database_path
+    if hasattr(args, 'model') and args.model != "llama3":
+        # Only override if user explicitly specified a different model
+        config.llm_model = args.model
+    if hasattr(args, 'timeout') and args.timeout != 120:
+        config.llm_timeout = args.timeout
+    if hasattr(args, 'interactive'):
+        config.interface_type = InterfaceType.CLI_INTERACTIVE if args.interactive else InterfaceType.CLI_BASIC
+    if hasattr(args, 'enable_logging'):
+        config.enable_error_logging = args.enable_logging
+    
+    return config
 
 
 def create_orchestrator_config(args) -> OrchestratorConfig:
@@ -199,17 +190,16 @@ Melhorias sobre versão anterior:
     
     try:
         # Create configuration
-        service_config = create_service_config(args)
+        app_config = create_app_config(args)
         orchestrator_config = create_orchestrator_config(args)
         
-        # Create dependency container
-        container = ContainerFactory.create_container_with_config(service_config)
+        # Create orchestrator directly with configurations
+        orchestrator = Text2SQLOrchestrator(app_config, orchestrator_config)
         
         # Health check mode
         if args.health_check:
             print("🔍 Executando verificação de saúde do sistema...")
-            container.initialize()
-            health_status = container.health_check()
+            health_status = orchestrator.health_check()
             
             print(f"\n📊 Status do Sistema: {health_status['status'].upper()}")
             print("=" * 50)
@@ -230,7 +220,7 @@ Melhorias sobre versão anterior:
         # Single query mode
         if args.query:
             print(f"🔍 Processando consulta: {args.query}")
-            result = agent.process_single_query(args.query)
+            result = orchestrator.process_single_query(args.query)
             
             if result.success:
                 # Check if this is a COUNT query (single result with single value)
@@ -252,7 +242,7 @@ Melhorias sobre versão anterior:
             return
         
         # Interactive session mode
-        agent.start_interactive_session()
+        orchestrator.start_interactive_session()
         
     except KeyboardInterrupt:
         print("\n\n👋 Até logo!")

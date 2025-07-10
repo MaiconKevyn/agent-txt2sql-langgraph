@@ -173,7 +173,10 @@ class Text2SQLOrchestrator:
             model_name=self._app_config.llm_model,
             temperature=self._app_config.llm_temperature,
             timeout=self._app_config.llm_timeout,
-            max_retries=self._app_config.llm_max_retries
+            max_retries=self._app_config.llm_max_retries,
+            device=getattr(self._app_config, 'llm_device', 'auto'),
+            load_in_8bit=getattr(self._app_config, 'llm_load_in_8bit', False),
+            load_in_4bit=getattr(self._app_config, 'llm_load_in_4bit', True)
         )
         
         # Initialize schema service
