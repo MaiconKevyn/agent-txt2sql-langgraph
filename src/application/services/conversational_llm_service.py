@@ -22,7 +22,7 @@ from src.domain.exceptions.custom_exceptions import (
 class ConversationalConfig:
     """Configuração especializada para LLM conversacional."""
     model_name: str = "llama3.2:latest"  # Use available model
-    temperature: float = 0.7  # Mais criativo para conversação
+    temperature: float = 0.8  # Mais criativo para conversação
     max_tokens: int = 1000
     timeout: int = 60
     max_retries: int = 3
@@ -130,8 +130,8 @@ class ConversationalLLMService:
         - NÃO adicione explicações extras, contextualizações ou insights
         - Seja direto: exemplo "Foram encontrados 2.785 casos de doenças respiratórias nos registros do SUS."
         - Use linguagem natural e clara em português brasileiro
-        - Mantenha a resposta em uma única sentença sempre que possível
-        - SEMPRE inclua os dados específicos dos resultados (nomes de cidades, números exatos, etc.)
+        - SEMPRE inclua os dados específicos dos resultados (nomes de cidades, números exatos, etc.). 
+        - Se não foi especificado o numero cidades/municipios, use toda informação disponível.
         - Se perguntarem sobre "qual cidade", responda com o NOME da cidade, não apenas "a cidade"
         - Para resultados com ranking, mencione o primeiro item da lista como resposta principal
         """
@@ -141,28 +141,26 @@ class ConversationalLLMService:
         
         prompt = f"""{sus_context}
 
-PERGUNTA DO USUÁRIO:
-{user_query}
+    PERGUNTA DO USUÁRIO:
+    {user_query}
+    
+    CONSULTA SQL EXECUTADA:
+    {sql_query}
+    
+    RESULTADOS OBTIDOS:
+    {results_text}
+    
+    CONTEXTO ADICIONAL:
+    {json.dumps(context or {}, ensure_ascii=False, indent=2)}
 
-CONSULTA SQL EXECUTADA:
-{sql_query}
-
-RESULTADOS OBTIDOS:
-{results_text}
-
-CONTEXTO ADICIONAL:
-{json.dumps(context or {}, ensure_ascii=False, indent=2)}
-
-⚠️ INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
-1. Use EXCLUSIVAMENTE os dados dos RESULTADOS OBTIDOS acima
-2. NUNCA invente cidades, números ou informações que não estão nos resultados
-3. Para perguntas como "qual cidade", responda EXATAMENTE com o nome da cidade que aparece em "1º lugar" nos resultados
-4. Se os resultados mostram "1º lugar: Ijuí com 212 casos", então a resposta deve incluir "Ijuí"
-5. NÃO use conhecimento geral sobre cidades brasileiras - use apenas os dados fornecidos
-
-Transforme estes dados em uma resposta conversacional amigável e informativa.
-Responda em português brasileiro, focando na utilidade prática da informação.
-"""
+    ⚠️ INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
+    1. NUNCA invente cidades, números ou informações que não estão nos resultados
+    2. Para perguntas como "qual cidade", responda EXATAMENTE com o nome da cidade que aparece em "1º lugar" nos resultados
+    3. NÃO use conhecimento geral sobre cidades brasileiras - use apenas os dados fornecidos
+    
+    Transforme estes dados em uma resposta conversacional amigável e informativa.
+    Responda em português brasileiro, focando na utilidade prática da informação.
+    """
         
         return prompt
 

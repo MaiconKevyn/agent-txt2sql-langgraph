@@ -304,6 +304,10 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         # Extract and process SQL
         sql_query = self._extract_sql_from_direct_response(llm_response.content)
         self._log_sql_query(sql_query, "🔧 Error-aware LLM generated SQL")
+        
+        # Clean problematic SQL comments
+        sql_query = self._clean_sql_comments(sql_query)
+        
         sql_query = self._fix_case_sensitivity_issues(sql_query)
         
         # Execute with validation
@@ -392,12 +396,15 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         try:
             # Process with llama3 directly
             self.logger.info("🦙 Calling llama3 as direct fallback...")
-            llm_response = fallback_llm_service.generate_response(fallback_prompt)
+            llm_response = fallback_llm_service.send_prompt(fallback_prompt)
             self.logger.info(f"✅ Llama3 fallback response received (length: {len(llm_response.content)})")
             
             # Extract and clean SQL query
             sql_query = self._extract_sql_from_response(llm_response.content)
             self._log_sql_query(sql_query, "🦙 Llama3 Fallback SQL")
+            
+            # Clean problematic SQL comments
+            sql_query = self._clean_sql_comments(sql_query)
             
             # Apply common fixes
             sql_query = self._fix_case_sensitivity_issues(sql_query)
@@ -505,6 +512,9 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         # Extract SQL from LLM response
         sql_query = self._extract_sql_from_direct_response(llm_response.content)
         self._log_sql_query(sql_query, "🔧 Extracted SQL from direct response")
+        
+        # Clean problematic SQL comments
+        sql_query = self._clean_sql_comments(sql_query)
         
         # Fix case sensitivity issues
         sql_query = self._fix_case_sensitivity_issues(sql_query)
@@ -945,61 +955,116 @@ IMPORTANTE - Regras para queries COUNT:
         
         fixed_query = re.sub(pattern_direct, replacement_direct, fixed_query)
         
+        # Fix SQLite incompatible YEAR() function calls
+        fixed_query = self._fix_sqlite_year_extraction(fixed_query)
+        
         return fixed_query
+    
+    def _fix_sqlite_year_extraction(self, sql_query: str) -> str:
+        """Fix YEAR() function calls for SQLite compatibility"""
+        if not sql_query or 'YEAR(' not in sql_query.upper():
+            return sql_query
+        
+        self.logger.info("🔧 Fixing YEAR() function for SQLite compatibility")
+        
+        # Replace YEAR(JULIANDAY(DT_INTER)) with DT_INTER/10000
+        sql_query = re.sub(
+            r'YEAR\s*\(\s*JULIANDAY\s*\(\s*DT_INTER\s*\)\s*\)',
+            'DT_INTER/10000',
+            sql_query,
+            flags=re.IGNORECASE
+        )
+        
+        # Replace YEAR(DT_INTER) with DT_INTER/10000
+        sql_query = re.sub(
+            r'YEAR\s*\(\s*DT_INTER\s*\)',
+            'DT_INTER/10000',
+            sql_query,
+            flags=re.IGNORECASE
+        )
+        
+        # Replace any remaining YEAR() patterns with DT_INTER/10000
+        sql_query = re.sub(
+            r'YEAR\s*\([^)]+\)',
+            'DT_INTER/10000',
+            sql_query,
+            flags=re.IGNORECASE
+        )
+        
+        self.logger.info(f"✅ SQLite YEAR() fix applied")
+        return sql_query
     
     def _create_direct_sql_prompt(self, user_query: str, schema_context) -> str:
         """Create optimized prompt for direct SQL generation"""
         return f"""
-Você é um especialista em SQL para bases de dados do SUS brasileiro.
-
-CONTEXTO DA BASE DE DADOS:
-{schema_context.formatted_context}
-
-PERGUNTA DO USUÁRIO: {user_query}
-
-🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE SQL 🚨
-
-1. PARA CONSULTAS DE RANKING/TOP (ex: "top 5 cidades"):
-   - Use filtros diretos no WHERE, não CASE statements
-   - SEMPRE inclua LIMIT com o número solicitado
-   - Para contagens específicas, filtre primeiro no WHERE
-
-❌ INCORRETO (CASE statement complexo):
-SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total, 
-       SUM(CASE WHEN IDADE > 50 AND SEXO = 3 THEN 1 ELSE 0 END) as filtrado
-FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total DESC;
-
-✅ CORRETO (filtro direto):
-SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes
-FROM sus_data 
-WHERE MORTE = 1 AND SEXO = 3 AND IDADE > 50 AND DIAG_PRINC LIKE 'J%'
-GROUP BY CIDADE_RESIDENCIA_PACIENTE 
-ORDER BY total_mortes DESC 
-LIMIT 5;
-
-2. PARA TEMPO DE INTERNAÇÃO:
-SEMPRE use JULIANDAY para calcular diferenças de data!
-NUNCA use subtração aritmética direta (DT_SAIDA - DT_INTER)!
-
-❌ INCORRETO (subtração aritmética): DT_SAIDA - DT_INTER
-✅ CORRETO (conversão de data): JULIANDAY(...) - JULIANDAY(...)
-
-TEMPLATE OBRIGATÓRIO PARA TEMPO MÉDIO DE INTERNAÇÃO:
-SELECT AVG(
-    JULIANDAY(SUBSTR(DT_SAIDA, 1, 4) || '-' || SUBSTR(DT_SAIDA, 5, 2) || '-' || SUBSTR(DT_SAIDA, 7, 2)) -
-    JULIANDAY(SUBSTR(DT_INTER, 1, 4) || '-' || SUBSTR(DT_INTER, 5, 2) || '-' || SUBSTR(DT_INTER, 7, 2))
-) AS tempo_medio_dias 
-FROM sus_data 
-WHERE DIAG_PRINC LIKE 'J%';
-
-3. OUTRAS INSTRUÇÕES:
-- Para doenças respiratórias: WHERE DIAG_PRINC LIKE 'J%'
-- Para filtros de data: DT_INTER >= 20170401 AND DT_INTER <= 20170430
-- SEXO = 3 para mulheres, SEXO = 1 para homens
-- MORTE = 1 para mortes confirmadas
-- Gere APENAS o SQL necessário, sem explicações
-
-SQL:"""
+        Você é um especialista em SQL para bases de dados do SUS brasileiro.
+        
+        CONTEXTO DA BASE DE DADOS:
+        {schema_context.formatted_context}
+        
+        PERGUNTA DO USUÁRIO: {user_query}
+        
+        🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE SQL 🚨
+        
+        1. PARA CONSULTAS DE RANKING/TOP (ex: "top 5 cidades"):
+           - Use filtros diretos no WHERE, não CASE statements
+           - SEMPRE inclua LIMIT com o número solicitado
+           - Para contagens específicas, filtre primeiro no WHERE
+        
+        ❌ INCORRETO (CASE statement complexo):
+        SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total, 
+               SUM(CASE WHEN IDADE > 50 AND SEXO = 3 THEN 1 ELSE 0 END) as filtrado
+        FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total DESC;
+        
+        ✅ CORRETO (filtro direto):
+        SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes
+        FROM sus_data 
+        WHERE MORTE = 1 AND SEXO = 3 AND IDADE > 50 AND DIAG_PRINC LIKE 'J%'
+        GROUP BY CIDADE_RESIDENCIA_PACIENTE 
+        ORDER BY total_mortes DESC 
+        LIMIT 5;
+        
+        2. PARA TEMPO DE INTERNAÇÃO:
+        SEMPRE use JULIANDAY para calcular diferenças de data!
+        NUNCA use subtração aritmética direta (DT_SAIDA - DT_INTER)!
+        
+        ❌ INCORRETO (subtração aritmética): DT_SAIDA - DT_INTER
+        ✅ CORRETO (conversão de data): JULIANDAY(...) - JULIANDAY(...)
+        
+        TEMPLATE OBRIGATÓRIO PARA TEMPO MÉDIO DE INTERNAÇÃO:
+        SELECT AVG(
+            JULIANDAY(SUBSTR(DT_SAIDA, 1, 4) || '-' || SUBSTR(DT_SAIDA, 5, 2) || '-' || SUBSTR(DT_SAIDA, 7, 2)) -
+            JULIANDAY(SUBSTR(DT_INTER, 1, 4) || '-' || SUBSTR(DT_INTER, 5, 2) || '-' || SUBSTR(DT_INTER, 7, 2))
+        ) AS tempo_medio_dias 
+        FROM sus_data 
+        WHERE DIAG_PRINC LIKE 'J%';
+        
+        3. 🚨 CRÍTICO - FUNÇÕES SQLite:
+        - ❌ NUNCA use YEAR(), MONTH(), DAY() - NÃO EXISTEM no SQLite!
+        - ✅ Para extrair ano: USE APENAS DT_INTER/10000
+        - ✅ Para extrair mês: USE APENAS (DT_INTER/100) % 100
+        - ✅ Para agrupar por ano: GROUP BY DT_INTER/10000
+        
+        4. 🚨 CRÍTICO - REGRAS PARA CUSTOS E ATENDIMENTOS:
+        - ❌ NUNCA filtre por MORTE = 0 em consultas sobre "gastos", "custos" ou "atendimentos"
+        - ✅ Gastos/custos/atendimentos SEMPRE incluem todos os casos (MORTE = 0 e MORTE = 1)
+        - ✅ Apenas filtre por MORTE quando explicitamente perguntado sobre "mortes" ou "óbitos"
+        - ✅ Para "gasto MÉDIO" ou "média": SEMPRE use AVG(VAL_TOT), NUNCA SUM(VAL_TOT)
+        - ✅ Para "gasto TOTAL": use SUM(VAL_TOT)
+        - ✅ Palavras que indicam MÉDIA: "médio", "média", "average" → use AVG()
+        - ✅ Palavras que indicam TOTAL: "total", "soma", "sum" → use SUM()
+        - Exemplo CORRETO para "gasto médio por cidade": SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE
+        - Exemplo INCORRETO: SELECT CIDADE_RESIDENCIA_PACIENTE, SUM(VAL_TOT) FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE (isso é total, não média!)
+        - Exemplo INCORRETO: SELECT AVG(VAL_TOT) FROM sus_data WHERE MORTE = 0
+        
+        5. OUTRAS INSTRUÇÕES:
+        - Para doenças respiratórias: WHERE DIAG_PRINC LIKE 'J%'
+        - Para filtros de data: DT_INTER >= 20170401 AND DT_INTER <= 20170430
+        - SEXO = 3 para mulheres, SEXO = 1 para homens
+        - MORTE = 1 para mortes confirmadas
+        - Gere APENAS o SQL necessário, sem explicações
+        
+        SQL:"""
     
     def _extract_sql_from_direct_response(self, response: str) -> str:
         """Extract SQL query from direct LLM response - ENHANCED for JULIANDAY multi-line queries"""
@@ -1087,6 +1152,68 @@ SQL:"""
                 return clean_line
         
         return "SELECT COUNT(*) FROM sus_data;"  # Safe fallback
+    
+    def _clean_sql_comments(self, sql_query: str) -> str:
+        """Remove problematic SQL comments that can break query execution"""
+        if not sql_query:
+            return sql_query
+        
+        # Handle inline comments carefully - only remove the comment part, not the rest of the line
+        # For single-line SQL with inline comments, we need to be more careful
+        
+        # Split the SQL into tokens and reconstruct
+        cleaned_sql = sql_query
+        
+        # Remove inline comments but preserve the rest of the SQL
+        # Look for -- followed by text, but only remove the comment part
+        comment_pattern = r'--[^a-zA-Z]*[a-zA-Z][^G]*(?=GROUP|ORDER|LIMIT|$)'
+        
+        # Simple approach: just remove comment text but keep SQL keywords
+        import re
+        
+        # Pattern to match comment but not affect SQL structure
+        # Look for -- comment text that's not part of SQL keywords
+        if '--' in cleaned_sql:
+            # Split on spaces to work with tokens
+            tokens = cleaned_sql.split()
+            filtered_tokens = []
+            skip_comment = False
+            
+            for token in tokens:
+                if '--' in token:
+                    # If token starts with --, skip it and following comment words
+                    if token.startswith('--'):
+                        skip_comment = True
+                        continue
+                    else:
+                        # Token contains -- but doesn't start with it
+                        # Keep the part before --
+                        sql_part = token.split('--')[0]
+                        if sql_part:
+                            filtered_tokens.append(sql_part)
+                        skip_comment = True
+                        continue
+                
+                # Check if we should stop skipping (SQL keyword found)
+                if skip_comment and token.upper() in ['GROUP', 'ORDER', 'LIMIT', 'HAVING', 'WHERE', 'SELECT', 'FROM']:
+                    skip_comment = False
+                    filtered_tokens.append(token)
+                elif not skip_comment:
+                    filtered_tokens.append(token)
+            
+            cleaned_sql = ' '.join(filtered_tokens)
+        
+        # Clean up extra whitespace
+        cleaned_sql = ' '.join(cleaned_sql.split())
+        
+        # Ensure semicolon at the end
+        if not cleaned_sql.strip().endswith(';'):
+            cleaned_sql += ';'
+        
+        if cleaned_sql != sql_query:
+            self.logger.info(f"🧹 Cleaned SQL comments: {sql_query} -> {cleaned_sql}")
+        
+        return cleaned_sql
     
     def _parse_agent_results(self, response: str) -> tuple[List[Dict[str, Any]], int]:
         """Parse results from agent response"""
