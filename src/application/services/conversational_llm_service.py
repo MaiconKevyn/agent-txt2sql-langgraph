@@ -44,6 +44,8 @@ class ConversationalLLMService:
         self.base_url = base_url.rstrip('/')
         self.config = config or ConversationalConfig()
         self.logger = logging.getLogger(__name__)
+        # Prevent duplicate logs by disabling propagation to root logger
+        self.logger.propagate = False
         
         # Endpoints
         self.chat_endpoint = f"{self.base_url}/api/chat"

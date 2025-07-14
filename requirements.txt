@@ -6,3 +6,10 @@ pandas
 sqlalchemy
 tabulate
 streamlit
+transformers
+torch
+accelerate
+bitsandbytes
+fastapi
+uvicorn[standard]
+python-dotenv

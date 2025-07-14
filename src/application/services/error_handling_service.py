@@ -100,6 +100,8 @@ class ComprehensiveErrorHandlingService(IErrorHandlingService):
                 ]
             )
             self._logger = logging.getLogger(__name__)
+            # Prevent duplicate logs by disabling propagation to root logger
+            self._logger.propagate = False
         else:
             self._logger = None
     

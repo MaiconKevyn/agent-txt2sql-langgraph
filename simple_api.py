@@ -12,13 +12,12 @@ from datetime import datetime
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.application.container.dependency_injection import (
-    ContainerFactory, 
-    ServiceConfig
+from src.application.config.simple_config import (
+    ApplicationConfig,
+    OrchestratorConfig
 )
 from src.application.orchestrator.text2sql_orchestrator import (
-    Text2SQLOrchestrator,
-    OrchestratorConfig
+    Text2SQLOrchestrator
 )
 from src.application.services.user_interface_service import InterfaceType
 
@@ -30,7 +29,7 @@ def initialize_agent():
     """Initialize the clean architecture agent"""
     print("🔧 Initializing agent...")
     
-    service_config = ServiceConfig(
+    app_config = ApplicationConfig(
         database_type="sqlite",
         database_path="sus_database.db",
         llm_provider="ollama",
@@ -53,8 +52,7 @@ def initialize_agent():
         session_timeout=3600
     )
     
-    container = ContainerFactory.create_container_with_config(service_config)
-    return Text2SQLOrchestrator(container, orchestrator_config)
+    return Text2SQLOrchestrator(app_config, orchestrator_config)
 
 @app.route('/')
 def home():
@@ -67,7 +65,7 @@ def health():
         return {"status": "error", "message": "Agent not initialized"}, 500
     
     try:
-        health_status = agent.container.health_check()
+        health_status = agent.health_check()
         return {
             "status": health_status["status"],
             "timestamp": datetime.now().isoformat(),

@@ -103,6 +103,7 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
     def get_sample_data(self, table_name: str, limit: int = 3) -> List[Dict[str, Any]]:
         """Get sample data from a table"""
         conn = self._db_service.get_raw_connection()
+
         cursor = conn.cursor()
         
         cursor.execute(f"SELECT * FROM {table_name} LIMIT {limit}")
@@ -135,8 +136,10 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
         
         # Define important notes specific to SUS data with multi-table support
         important_notes = [
-            "IMPORTANTE: Para consultas baseadas em cidade, use a coluna CIDADE_RESIDENCIA_PACIENTE",
-            "A coluna MUNIC_RES contém códigos numéricos de município, NÃO nomes de cidades",
+            "CRÍTICO: Para perguntas sobre CIDADES ou MUNICÍPIOS, SEMPRE use CIDADE_RESIDENCIA_PACIENTE",
+            "NUNCA use MUNIC_RES para perguntas sobre cidades - contém apenas códigos IBGE numéricos",
+            "MUNIC_RES = códigos como 430300, 430460 (inúteis para usuário final)",
+            "CIDADE_RESIDENCIA_PACIENTE = nomes como 'Porto Alegre', 'Santa Maria' (legível)",
             "Use MORTE = 1 para consultas sobre óbitos/mortes",
             "Códigos de sexo: 1=Masculino, 3=Feminino (padrão SUS)",
             "Códigos CID-10 estão na coluna DIAG_PRINC da tabela sus_data",
@@ -154,16 +157,22 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
         
         # Define query examples based on available tables
         query_examples = [
-            "-- Mortes em Porto Alegre",
+            "-- ✅ CORRETO: Cidades com mais mortes (use CIDADE_RESIDENCIA_PACIENTE)",
+            "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5",
+            "",
+            "-- ✅ CORRETO: Mortes em cidade específica",
             "SELECT COUNT(*) FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Porto Alegre' AND MORTE = 1",
             "",
-            "-- Pacientes por faixa etária",
+            "-- ❌ ERRADO: NÃO use MUNIC_RES para perguntas sobre cidades",
+            "-- SELECT MUNIC_RES, COUNT(*) FROM sus_data... (retorna códigos inúteis)",
+            "",
+            "-- ✅ CORRETO: Pacientes por faixa etária",
             "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END as faixa_etaria, COUNT(*) FROM sus_data GROUP BY faixa_etaria",
             "",
-            "-- Diagnósticos mais comuns",
+            "-- ✅ CORRETO: Diagnósticos mais comuns",
             "SELECT DIAG_PRINC, COUNT(*) as total FROM sus_data GROUP BY DIAG_PRINC ORDER BY total DESC LIMIT 10",
             "",
-            "-- Custo total por estado",
+            "-- ✅ CORRETO: Custo total por estado",
             "SELECT UF_RESIDENCIA_PACIENTE, SUM(VAL_TOT) as custo_total FROM sus_data GROUP BY UF_RESIDENCIA_PACIENTE"
         ]
         
@@ -271,12 +280,12 @@ class SUSSchemaIntrospectionService(ISchemaIntrospectionService):
     ) -> str:
         """Format complete context for multiple tables"""
         context = f"""
-CONTEXTO DO BANCO DE DADOS - SISTEMA ÚNICO DE SAÚDE (SUS)
-========================================================
-
-INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
-"""
+        CONTEXTO DO BANCO DE DADOS - SISTEMA ÚNICO DE SAÚDE (SUS)
+        ========================================================
         
+        INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
+        """
+
         # Add information for each table
         for table in tables:
             context += f"\n\nTABELA: {table.name}\n"
@@ -287,7 +296,7 @@ INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
             if table.name == "sus_data":
                 column_descriptions = {
                     "DIAG_PRINC": "Código do diagnóstico principal (CID-10)",
-                    "MUNIC_RES": "Código numérico do município de residência (IBGE)",
+                    "MUNIC_RES": "🚨 Código IBGE numérico (ex: 430300) - NÃO USE para perguntas sobre cidades",
                     "MUNIC_MOV": "Código numérico do município de internação",
                     "PROC_REA": "Código do procedimento realizado (SUS)",
                     "IDADE": "Idade do paciente em anos",
@@ -300,7 +309,7 @@ INFORMAÇÕES DAS TABELAS ({len(tables)} tabelas):
                     "DT_INTER": "Data de internação (formato AAAAMMDD)",
                     "DT_SAIDA": "Data de saída (formato AAAAMMDD)",
                     "UF_RESIDENCIA_PACIENTE": "Estado de residência do paciente",
-                    "CIDADE_RESIDENCIA_PACIENTE": "Cidade de residência do paciente",
+                    "CIDADE_RESIDENCIA_PACIENTE": "✅ Nome da cidade do paciente - USE ESTA para perguntas sobre cidades",
                     "LATI_CIDADE_RES": "Latitude da cidade de residência",
                     "LONG_CIDADE_RES": "Longitude da cidade de residência"
                 }

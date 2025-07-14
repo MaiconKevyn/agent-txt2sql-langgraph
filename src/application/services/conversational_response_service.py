@@ -69,6 +69,8 @@ class ConversationalResponseService:
         self.prompt_service = prompt_template_service or SUSPromptTemplateService()
         self.enable_memory = enable_memory
         self.logger = logging.getLogger(__name__)
+        # Prevent duplicate logs by disabling propagation to root logger
+        self.logger.propagate = False
         
         # Cache de contextos de conversação
         self.conversation_contexts: Dict[str, ConversationContext] = {}

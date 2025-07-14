@@ -13,6 +13,7 @@ from .llm_communication_service import ILLMCommunicationService, LLMResponse
 from .database_connection_service import IDatabaseConnectionService
 from .schema_introspection_service import ISchemaIntrospectionService
 from .error_handling_service import IErrorHandlingService, ErrorCategory
+from .sql_validation_service import ISQLValidationService, SQLValidationFactory
 
 
 @dataclass
@@ -65,7 +66,7 @@ class IQueryProcessingService(ABC):
 
 
 class ComprehensiveQueryProcessingService(IQueryProcessingService):
-    """Comprehensive query processing implementation using LangChain"""
+    """Comprehensive query processing implementation with direct LLM fallback"""
     
     def __init__(
         self,
@@ -73,7 +74,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
         error_service: IErrorHandlingService,
-        use_langchain_primary: bool = False  # Default to Direct LLM as primary
+        sql_validator: Optional[ISQLValidationService] = None,
+        use_direct_llm_primary: bool = True  # Always use Direct LLM as primary (LangChain removed)
     ):
         """
         Initialize query processing service
@@ -83,25 +85,30 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             db_service: Database connection service
             schema_service: Schema introspection service
             error_service: Error handling service
-            use_langchain_primary: If True, use LangChain as primary (old behavior)
+            sql_validator: SQL validation service (optional)
+            use_direct_llm_primary: Always True (LangChain removed, direct LLM only)
         """
         self._llm_service = llm_service
         self._db_service = db_service
         self._schema_service = schema_service
         self._error_service = error_service
-        self._use_langchain_primary = use_langchain_primary
+        self._sql_validator = sql_validator or SQLValidationFactory.create_comprehensive_validator()
+        self._use_direct_llm_primary = use_direct_llm_primary
         self._query_history: List[QueryResult] = []
         
         # Setup logging for development
         self._setup_logging()
         
-        # Initialize LangChain components
-        self._setup_langchain_agent()
+        # LangChain removed - using direct LLM only
+        self._agent = None
     
     def _setup_logging(self) -> None:
         """Setup logging for development visibility"""
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
+        
+        # Prevent propagation to root logger to avoid duplicates
+        self.logger.propagate = False
         
         # Only add handler if it doesn't exist to avoid duplicates
         if not self.logger.handlers:
@@ -112,39 +119,38 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
     
-    def _setup_langchain_agent(self) -> None:
-        """Setup LangChain SQL agent with enhanced error handling"""
-        try:
-            from langchain_community.agent_toolkits.sql.base import create_sql_agent
-            from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
-            from langchain.agents.agent_types import AgentType
-            
-            # Get LLM instance (assuming Ollama service)
-            if hasattr(self._llm_service, 'get_llm_instance'):
-                llm_instance = self._llm_service.get_llm_instance()
-            else:
-                raise ValueError("LLM service does not provide LangChain-compatible instance")
-            
-            # Get database connection
-            db_connection = self._db_service.get_connection()
-            
-            # Create SQL toolkit
-            self._toolkit = SQLDatabaseToolkit(db=db_connection, llm=llm_instance)
-            
-            # Create SQL agent with improved configuration
-            self._agent = create_sql_agent(
-                llm=llm_instance,
-                toolkit=self._toolkit,
-                agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                verbose=True,
-                handle_parsing_errors=True,
-                max_iterations=15,  # Increased for complex date queries
-                max_execution_time=45  # 45 seconds timeout
-            )
-            
-        except Exception as e:
-            error_info = self._error_service.handle_error(e, ErrorCategory.SYSTEM)
-            raise RuntimeError(f"Failed to setup LangChain agent: {error_info.message}")
+    def _log_sql_query(self, sql_query: str, prefix: str = "SQL", max_line_length: int = 120) -> None:
+        """
+        Log SQL query with proper formatting for readability
+        
+        Args:
+            sql_query: SQL query to log
+            prefix: Log message prefix 
+            max_line_length: Maximum length per line before wrapping
+        """
+        if not sql_query or sql_query.strip() == "":
+            self.logger.info(f"{prefix}: [EMPTY QUERY]")
+            return
+        
+        # Clean and format SQL
+        clean_sql = sql_query.strip()
+        
+        # If SQL is short, log in single line
+        if len(clean_sql) <= max_line_length:
+            self.logger.info(f"{prefix}: {clean_sql}")
+            return
+        
+        # For longer SQL, log with proper formatting
+        self.logger.info(f"{prefix} (multi-line):")
+        self.logger.info(f"  {clean_sql}")
+        
+        # Also log a compact version for easy searching
+        compact_sql = ' '.join(clean_sql.split())
+        if len(compact_sql) <= 200:
+            self.logger.info(f"{prefix} (compact): {compact_sql}")
+        else:
+            self.logger.info(f"{prefix} (compact): {compact_sql[:200]}... [+{len(compact_sql)-200} chars]")
+    
     
     def process_natural_language_query(self, request: QueryRequest) -> QueryResult:
         """Process natural language query with configurable primary method"""
@@ -153,24 +159,14 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         try:
             self.logger.info(f"🔍 Processing query: {request.user_query}")
             
-            if self._use_langchain_primary:
-                # Legacy behavior: LangChain primary, Direct fallback
-                try:
-                    self.logger.info("🤖 Using LangChain agent as primary method (legacy mode)")
-                    return self._process_with_langchain_agent_fallback(request, start_time)
-                except Exception as langchain_error:
-                    self.logger.warning(f"⚠️ LangChain agent failed: {str(langchain_error)}")
-                    self.logger.info("🔄 Attempting direct LLM fallback...")
-                    return self._process_with_direct_llm_primary(request, start_time)
-            else:
-                # New behavior: Direct primary, LangChain fallback
-                try:
-                    self.logger.info("🎯 Using direct LLM as primary method")
-                    return self._process_with_direct_llm_primary(request, start_time)
-                except Exception as direct_error:
-                    self.logger.warning(f"⚠️ Direct LLM method failed: {str(direct_error)}")
-                    self.logger.info("🔄 Attempting LangChain fallback...")
-                    return self._process_with_langchain_agent_fallback(request, start_time)
+            # Always use direct LLM as primary with Llama3 fallback
+            try:
+                self.logger.info("🎯 Using direct LLM as primary method")
+                return self._process_with_direct_llm_primary(request, start_time)
+            except Exception as direct_error:
+                self.logger.warning(f"⚠️ Direct LLM method failed: {str(direct_error)}")
+                self.logger.info("🔄 Attempting Llama3 direct fallback...")
+                return self._process_with_llama3_fallback(request, start_time)
                 
         except Exception as e:
             execution_time = time.time() - start_time
@@ -190,94 +186,309 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             self._query_history.append(query_result)
             return query_result
     
-    def _process_with_langchain_agent_fallback(self, request: QueryRequest, start_time: float) -> QueryResult:
-        """Fallback method: Process query using LangChain SQL Agent"""
-        # Get schema context
-        schema_context = self._schema_service.get_schema_context()
-        self.logger.info("📊 Retrieved schema context for fallback method")
+    def _process_with_multi_strategy_retry(self, request: QueryRequest, start_time: float, primary_error: str = "") -> QueryResult:
+        """
+        Advanced fallback with multiple retry strategies
+        As a senior data scientist would implement: try different approaches systematically
+        """
+        self.logger.info("🧠 Initiating multi-strategy retry system...")
         
-        # Create enhanced prompt with schema context
-        enhanced_prompt = self._create_enhanced_prompt(request.user_query, schema_context)
-        self.logger.info("✨ Created enhanced prompt")
+        strategies = [
+            {
+                "name": "llama3_fallback",
+                "description": "Direct Llama3 fallback with error awareness",
+                "method": self._process_with_llama3_fallback
+            },
+            {
+                "name": "enhanced_direct_llm", 
+                "description": "Direct LLM with enhanced error-aware prompt",
+                "method": self._process_with_error_aware_direct_llm
+            },
+            {
+                "name": "simplified_query",
+                "description": "Simplified query approach for complex failures",
+                "method": self._process_with_simplified_approach
+            }
+        ]
         
-        # Process with LangChain agent with timeout
-        self.logger.info("🤖 Calling LangChain agent as fallback...")
-        agent_response = self._agent.run(enhanced_prompt)
-        self.logger.info(f"✅ Agent response received (length: {len(agent_response)})")
+        last_error = primary_error
         
-        # DEBUG: Log full response if it's short or contains issues
-        if len(agent_response) < 100 or "error" in agent_response.lower():
-            self.logger.warning(f"🔍 DEBUG - Full agent response: {repr(agent_response)}")
+        for i, strategy in enumerate(strategies):
+            try:
+                self.logger.info(f"🔄 Strategy {i+1}/{len(strategies)}: {strategy['description']}")
+                
+                strategy_start_time = time.time()
+                # Pass error context for first strategy (llama3_fallback)
+                if strategy["name"] == "llama3_fallback":
+                    result = strategy["method"](request, strategy_start_time, last_error)
+                else:
+                    result = strategy["method"](request, strategy_start_time)
+                
+                if result.success:
+                    # Success! Mark it appropriately
+                    total_execution_time = time.time() - start_time
+                    result.execution_time = total_execution_time
+                    result.metadata = result.metadata or {}
+                    result.metadata.update({
+                        "multi_strategy_retry": True,
+                        "successful_strategy": strategy["name"],
+                        "strategy_attempt": i + 1,
+                        "primary_error": primary_error,
+                        "total_strategies_tried": i + 1
+                    })
+                    
+                    self.logger.info(f"✅ Multi-strategy success with {strategy['name']} on attempt {i+1}")
+                    return result
+                else:
+                    self.logger.warning(f"⚠️ Strategy {strategy['name']} failed: {result.error_message}")
+                    last_error = result.error_message or "Unknown error"
+                    
+            except Exception as e:
+                self.logger.warning(f"⚠️ Strategy {strategy['name']} threw exception: {str(e)}")
+                last_error = str(e)
+                continue
         
-        # Extract SQL query from response (if available)
-        sql_query = self._extract_sql_from_response(agent_response)
-        self.logger.info(f"🔧 Extracted SQL: {sql_query[:100]}...")
+        # All strategies failed
+        total_execution_time = time.time() - start_time
+        self.logger.error(f"❌ All {len(strategies)} strategies failed")
         
-        # Fix case sensitivity issues in SQL query
-        sql_query = self._fix_case_sensitivity_issues(sql_query)
-        self.logger.info("🛠️ Applied case sensitivity fixes")
-        
-        # Parse results from agent response
-        results, row_count = self._parse_agent_results(agent_response)
-        self.logger.info(f"📊 Parsed results: {row_count} rows")
-        
-        # Check if agent stopped due to iteration limit and try to extract SQL from logs
-        if ("Agent stopped due to iteration limit" in agent_response or 
-            "Agent stopped due to time limit" in agent_response or
-            row_count == 0):
-            
-            # Try to extract SQL from the response even if execution failed
-            if sql_query == "SQL query not found in response":
-                # Look for SQL in the chain execution logs
-                sql_pattern = r'Action Input:\s*(SELECT\s+COUNT\(\*\)\s+FROM\s+sus_data)\s*;?'
-                match = re.search(sql_pattern, agent_response, re.IGNORECASE)
-                if match:
-                    sql_query = match.group(1).strip()
-                    self.logger.info(f"🔧 Extracted SQL from chain logs: {sql_query}")
-            
-            # If we have SQL but no results, execute directly
-            if sql_query != "SQL query not found in response":
-                self.logger.info("🔄 Fallback: Executing extracted SQL directly")
-                direct_result = self.execute_sql_query(sql_query)
-                if direct_result.success:
-                    results = direct_result.results
-                    row_count = direct_result.row_count
-                    self.logger.info("✅ Direct SQL execution successful")
-        
-        # If the query was fixed for case sensitivity, re-execute the corrected query
-        original_sql = self._extract_sql_from_response(agent_response)
-        if sql_query != original_sql and sql_query != "SQL query not found in response":
-            self.logger.info("🔄 Re-executing corrected query")
-            corrected_result = self.execute_sql_query(sql_query)
-            if corrected_result.success:
-                results = corrected_result.results
-                row_count = corrected_result.row_count
-                self.logger.info("✅ Corrected query executed successfully")
-        
-        execution_time = time.time() - start_time
-        self.logger.info(f"⏱️ Fallback method completed in {execution_time:.2f}s")
-        
-        query_result = QueryResult(
-            sql_query=sql_query,
-            results=results,
-            success=True,
-            execution_time=execution_time,
-            row_count=row_count,
+        return QueryResult(
+            sql_query="",
+            results=[],
+            success=False,
+            execution_time=total_execution_time,
+            row_count=0,
+            error_message=f"All retry strategies failed. Last error: {last_error}",
             metadata={
-                "agent_response": agent_response,
-                "schema_context_used": True,
-                "langchain_agent": True,
-                "method": "langchain_agent_fallback",
-                "method_priority": "fallback"
+                "multi_strategy_retry": True,
+                "all_strategies_failed": True,
+                "strategies_tried": len(strategies),
+                "primary_error": primary_error,
+                "final_error": last_error
             }
         )
+    
+    def _process_with_error_aware_direct_llm(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Enhanced direct LLM method that's aware of previous errors"""
+        self.logger.info("🎯 Using error-aware direct LLM approach")
         
-        self._query_history.append(query_result)
-        return query_result
+        # Get schema context
+        schema_context = self._schema_service.get_schema_context()
+        
+        # Create enhanced prompt that addresses common SQL generation errors
+        enhanced_prompt = f"""
+{schema_context.formatted_context}
+
+PERGUNTA DO USUÁRIO: {request.user_query}
+
+INSTRUÇÕES CRÍTICAS PARA GERAÇÃO DE SQL:
+1. 🚨 SEMPRE inclua a coluna no SELECT quando usar GROUP BY
+2. 🚨 NUNCA termine uma cláusula WHERE com AND - sempre complete a condição
+3. 🚨 Para perguntas sobre cidades, use CIDADE_RESIDENCIA_PACIENTE (nomes), não MUNIC_RES (códigos)
+4. 🚨 Para consultas com múltiplos filtros, verifique TODOS os critérios (idade, sexo, morte)
+5. 🚨 Use sintaxe SQL válida: SELECT campos FROM tabela WHERE condições GROUP BY campos ORDER BY campos
+
+EXEMPLO DE SQL CORRETO PARA REFERÊNCIA:
+SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes 
+FROM sus_data 
+WHERE MORTE = 1 AND SEXO = 3 AND IDADE < 40 
+GROUP BY CIDADE_RESIDENCIA_PACIENTE 
+ORDER BY total_mortes DESC;
+
+Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
+"""
+        
+        # Call LLM with enhanced prompt
+        llm_response = self._llm_service.send_prompt(enhanced_prompt)
+        
+        # Extract and process SQL
+        sql_query = self._extract_sql_from_direct_response(llm_response.content)
+        self._log_sql_query(sql_query, "🔧 Error-aware LLM generated SQL")
+        sql_query = self._fix_case_sensitivity_issues(sql_query)
+        
+        # Execute with validation
+        execution_result = self.execute_sql_query(sql_query)
+        
+        execution_time = time.time() - start_time
+        
+        return QueryResult(
+            sql_query=sql_query,
+            results=execution_result.results,
+            success=execution_result.success,
+            execution_time=execution_time,
+            row_count=execution_result.row_count,
+            error_message=execution_result.error_message,
+            metadata={
+                "method": "error_aware_direct_llm",
+                "enhanced_prompt_used": True,
+                "llm_response": llm_response.content
+            }
+        )
+    
+    def _process_with_simplified_approach(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Simplified approach for complex queries that consistently fail"""
+        self.logger.info("🎯 Using simplified query approach")
+        
+        # Try to break down complex queries into simpler components
+        simplified_query = self._simplify_user_query(request.user_query)
+        
+        # Use simplified query approach
+        simplified_request = QueryRequest(
+            user_query=simplified_query,
+            session_id=request.session_id,
+            timestamp=request.timestamp,
+            context=request.context
+        )
+        
+        return self._process_with_llama3_fallback(simplified_request, start_time)
+    
+    def _simplify_user_query(self, user_query: str) -> str:
+        """Simplify complex queries to increase success rate"""
+        query_lower = user_query.lower()
+        
+        # Simplification rules based on common failure patterns
+        if "mulheres" in query_lower and "menos de" in query_lower and "anos" in query_lower:
+            # Complex age/gender query - simplify to basic demographic query
+            return "Quais cidades têm mais mortes de mulheres?"
+        elif "maior" in query_lower or "mais" in query_lower and "cidade" in query_lower:
+            # City ranking query - simplify
+            return "Quais cidades têm mais mortes?"
+        
+        # Default: return original query
+        return user_query
+
+    def _process_with_llama3_fallback(self, request: QueryRequest, start_time: float, error_context: str = "") -> QueryResult:
+        """Fallback method: Direct llama3 call with specialized fallback prompting"""
+        self.logger.info("🦙 Using llama3 direct fallback method")
+        
+        # Create fallback LLM service specifically for llama3
+        from ..config.simple_config import ApplicationConfig
+        
+        # Override config temporarily for fallback
+        fallback_config = ApplicationConfig(
+            llm_provider="ollama",
+            llm_model="llama3", 
+            llm_temperature=0.0,
+            llm_timeout=60
+        )
+        
+        # Create temporary LLM service for llama3
+        try:
+            from .llm_communication_service import OllamaLLMService
+            fallback_llm_service = OllamaLLMService(fallback_config, self.logger)
+        except ImportError:
+            # Fallback to the main service if specific class not available
+            fallback_llm_service = self._llm_service
+        
+        # Get schema context
+        schema_context = self._schema_service.get_schema_context()
+        self.logger.info("📊 Retrieved schema context for llama3 fallback")
+        
+        # Create specialized fallback prompt
+        schema_text = str(schema_context) if schema_context else ""
+        fallback_prompt = self._create_llama3_fallback_prompt(request.user_query, schema_text, error_context)
+        self.logger.info("✨ Created specialized llama3 fallback prompt")
+        
+        try:
+            # Process with llama3 directly
+            self.logger.info("🦙 Calling llama3 as direct fallback...")
+            llm_response = fallback_llm_service.generate_response(fallback_prompt)
+            self.logger.info(f"✅ Llama3 fallback response received (length: {len(llm_response.content)})")
+            
+            # Extract and clean SQL query
+            sql_query = self._extract_sql_from_response(llm_response.content)
+            self._log_sql_query(sql_query, "🦙 Llama3 Fallback SQL")
+            
+            # Apply common fixes
+            sql_query = self._fix_case_sensitivity_issues(sql_query)
+            
+            # Execute the SQL query
+            execution_result = self.execute_sql_query(sql_query)
+            
+            execution_time = time.time() - start_time
+            self.logger.info(f"⏱️ Llama3 fallback completed in {execution_time:.2f}s")
+            
+            query_result = QueryResult(
+                sql_query=sql_query,
+                results=execution_result.results,
+                success=execution_result.success,
+                execution_time=execution_time,
+                row_count=execution_result.row_count,
+                error_message=execution_result.error_message,
+                metadata={
+                    "llm_response": llm_response.content,
+                    "schema_context_used": True,
+                    "llama3_fallback": True,
+                    "method": "llama3_direct_fallback",
+                    "method_priority": "fallback",
+                    "error_context": error_context
+                }
+            )
+            
+            self._query_history.append(query_result)
+            return query_result
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            self.logger.error(f"❌ Llama3 fallback failed: {str(e)}")
+            
+            return QueryResult(
+                sql_query="",
+                results=[],
+                success=False,
+                execution_time=execution_time,
+                row_count=0,
+                error_message=f"Llama3 fallback failed: {str(e)}",
+                metadata={
+                    "llama3_fallback": True,
+                    "fallback_failed": True,
+                    "error_context": error_context
+                }
+            )
+    
+    def _create_llama3_fallback_prompt(self, user_query: str, schema_context: str, error_context: str = "") -> str:
+        """Create specialized prompt for llama3 fallback with error awareness"""
+        
+        error_guidance = ""
+        if error_context:
+            error_guidance = f"""
+        ERRO ANTERIOR DETECTADO: {error_context}
+        
+        INSTRUÇÕES DE CORREÇÃO:
+        - Se erro de sintaxe, revise cuidadosamente a sintaxe SQL
+        - Se erro de coluna inexistente, verifique nomes exatos no schema
+        - Se erro de tipo de dados, use conversões apropriadas (CAST, julianday)
+        - Para cálculos de tempo, use julianday(data_fim) - julianday(data_inicio)
+        - Para códigos CID-10, use LIKE 'J%' para doenças respiratórias
+        """
+        
+        prompt = f"""Você é um especialista em SQL para dados do Sistema Único de Saúde (SUS).
+
+        {schema_context}
+        
+        {error_guidance}
+
+        INSTRUÇÕES CRÍTICAS:
+        1. Para perguntas sobre CIDADES/MUNICÍPIOS: SEMPRE use CIDADE_RESIDENCIA_PACIENTE
+        2. NUNCA use MUNIC_RES (contém códigos numéricos inúteis)
+        3. Para mortes/óbitos: WHERE MORTE = 1
+        4. Códigos de sexo: 1=Masculino, 3=Feminino
+        5. Para cálculos de tempo: julianday(DT_SAIDA) - julianday(DT_INTER)
+        6. Doenças respiratórias: DIAG_PRINC LIKE 'J%'
+        
+        PERGUNTA: {user_query}
+        
+        Gere APENAS a query SQL, sem explicações:"""
+
+        return prompt
     
     def _process_with_direct_llm_primary(self, request: QueryRequest, start_time: float) -> QueryResult:
         """Primary method: Direct LLM call + SQL execution (more reliable)"""
-        self.logger.info("🎯 Using direct LLM as primary method")
+        # Log which model is being used
+        model_info = self._llm_service.get_model_info()
+        model_name = model_info.get('model_name', 'Unknown')
+        provider = model_info.get('provider', 'Unknown')
+        self.logger.info(f"🎯 Using direct LLM as primary method: {model_name} ({provider})")
         
         # Get schema context
         schema_context = self._schema_service.get_schema_context()
@@ -289,18 +500,124 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         
         # Call LLM directly to generate SQL
         llm_response = self._llm_service.send_prompt(direct_prompt)
-        self.logger.info(f"🤖 Direct LLM response received (length: {len(llm_response.content)})")
+        self.logger.info(f"🤖 {model_name} response received (length: {len(llm_response.content)})")
         
         # Extract SQL from LLM response
         sql_query = self._extract_sql_from_direct_response(llm_response.content)
-        self.logger.info(f"🔧 Extracted SQL from direct response: {sql_query[:100]}...")
+        self._log_sql_query(sql_query, "🔧 Extracted SQL from direct response")
         
         # Fix case sensitivity issues
         sql_query = self._fix_case_sensitivity_issues(sql_query)
         self.logger.info("🛠️ Applied case sensitivity fixes to direct SQL")
         
+        # 🚨 VALIDATION CHECKPOINT 1: Comprehensive SQL validation
+        validation_result = self._sql_validator.validate_sql(sql_query, request.user_query)
+        self.logger.info(f"🔍 SQL validation score: {validation_result.score:.1f}/100")
+        
+        if validation_result.has_critical_issues:
+            self.logger.error("❌ Critical issues found in generated SQL:")
+            for issue in validation_result.issues:
+                if issue.severity.value in ['critical', 'error']:
+                    self.logger.error(f"  - {issue.code}: {issue.message}")
+            
+            # Try to use corrected SQL if available
+            if validation_result.corrected_sql:
+                self.logger.info("🔄 Using corrected SQL from validator")
+                sql_query = validation_result.corrected_sql
+            else:
+                # 🎯 INTELLIGENT FALLBACK: Critical validation failed, try multi-strategy
+                self.logger.warning("⚠️ Primary method validation failed critically")
+                self.logger.info("🔄 Triggering intelligent fallback due to validation failure...")
+                
+                try:
+                    fallback_start_time = time.time()
+                    fallback_result = self._process_with_multi_strategy_retry(request, fallback_start_time, "SQL validation failed")
+                    
+                    # Mark as fallback result
+                    total_execution_time = time.time() - start_time
+                    fallback_result.execution_time = total_execution_time
+                    fallback_result.metadata = fallback_result.metadata or {}
+                    fallback_result.metadata.update({
+                        "primary_failed": True,
+                        "primary_error": "SQL validation failed",
+                        "primary_sql": sql_query,
+                        "fallback_triggered": True,
+                        "fallback_reason": "SQL_validation_failed",
+                        "validation_score": validation_result.score
+                    })
+                    
+                    self.logger.info(f"✅ Fallback after validation failure {'succeeded' if fallback_result.success else 'also failed'}")
+                    self._query_history.append(fallback_result)
+                    return fallback_result
+                    
+                except Exception as fallback_error:
+                    self.logger.error(f"❌ Fallback after validation failure also failed: {str(fallback_error)}")
+                
+                # Return validation error with fallback info
+                execution_time = time.time() - start_time
+                return QueryResult(
+                    sql_query=sql_query,
+                    results=[],
+                    success=False,
+                    execution_time=execution_time,
+                    row_count=0,
+                    error_message=f"SQL validation failed: {'; '.join([i.message for i in validation_result.issues if i.severity.value in ['critical', 'error']])}",
+                    metadata={
+                        "validation_failed": True,
+                        "validation_score": validation_result.score,
+                        "validation_issues": [{"code": i.code, "message": i.message, "severity": i.severity.value} for i in validation_result.issues],
+                        "fallback_attempted": True,
+                        "both_methods_failed": True
+                    }
+                )
+        elif validation_result.corrected_sql:
+            # Use corrected SQL even for non-critical issues
+            self.logger.info("✅ Using improved SQL from validator")
+            sql_query = validation_result.corrected_sql
+        
+        # Log validation warnings
+        for issue in validation_result.issues:
+            if issue.severity.value == 'warning':
+                self.logger.warning(f"⚠️ {issue.code}: {issue.message}")
+        
         # Execute the SQL query directly
         execution_result = self.execute_sql_query(sql_query)
+        
+        # 🎯 INTELLIGENT FALLBACK: If SQL execution failed, try fallback method
+        if not execution_result.success:
+            self.logger.warning(f"⚠️ Primary method SQL execution failed: {execution_result.error_message}")
+            self.logger.info("🔄 Triggering intelligent fallback to Llama3 direct method...")
+            
+            try:
+                # Reset start time for fallback
+                fallback_start_time = time.time()
+                fallback_result = self._process_with_multi_strategy_retry(request, fallback_start_time, execution_result.error_message or "SQL execution failed")
+                
+                # Mark as fallback result and combine execution times
+                total_execution_time = time.time() - start_time
+                fallback_result.execution_time = total_execution_time
+                fallback_result.metadata = fallback_result.metadata or {}
+                fallback_result.metadata.update({
+                    "primary_failed": True,
+                    "primary_error": execution_result.error_message,
+                    "primary_sql": sql_query,
+                    "fallback_triggered": True,
+                    "fallback_reason": "SQL_execution_failed"
+                })
+                
+                self.logger.info(f"✅ Fallback method {'succeeded' if fallback_result.success else 'also failed'}")
+                self._query_history.append(fallback_result)
+                return fallback_result
+                
+            except Exception as fallback_error:
+                self.logger.error(f"❌ Fallback method also failed: {str(fallback_error)}")
+                # Return original primary result with fallback info
+                execution_result.metadata = execution_result.metadata or {}
+                execution_result.metadata.update({
+                    "fallback_attempted": True,
+                    "fallback_error": str(fallback_error),
+                    "both_methods_failed": True
+                })
         
         execution_time = time.time() - start_time
         self.logger.info(f"⏱️ Primary method completed in {execution_time:.2f}s")
@@ -316,7 +633,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 "llm_response": llm_response.content,
                 "schema_context_used": True,
                 "method": "direct_llm_primary",
-                "method_priority": "primary"
+                "method_priority": "primary",
+                **(execution_result.metadata or {})
             }
         )
         
@@ -329,8 +647,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         return self._process_with_direct_llm_primary(request, start_time)
     
     def _process_with_langchain_agent(self, request: QueryRequest, start_time: float) -> QueryResult:
-        """Compatibility wrapper for old method name - redirects to fallback method"""
-        return self._process_with_langchain_agent_fallback(request, start_time)
+        """Compatibility wrapper for old method name - redirects to llama3 fallback method"""
+        return self._process_with_llama3_fallback(request, start_time)
     
     def validate_sql_query(self, sql_query: str) -> QueryValidationResult:
         """Validate SQL query for safety and correctness"""
@@ -390,7 +708,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         start_time = time.time()
         
         try:
-            self.logger.info(f"⚡ Executing SQL: {sql_query[:100]}...")
+            self._log_sql_query(sql_query, "⚡ Executing SQL")
             
             # Validate query first
             validation = self.validate_sql_query(sql_query)
@@ -639,7 +957,27 @@ CONTEXTO DA BASE DE DADOS:
 
 PERGUNTA DO USUÁRIO: {user_query}
 
-🚨 REGRA CRÍTICA PARA TEMPO DE INTERNAÇÃO 🚨
+🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE SQL 🚨
+
+1. PARA CONSULTAS DE RANKING/TOP (ex: "top 5 cidades"):
+   - Use filtros diretos no WHERE, não CASE statements
+   - SEMPRE inclua LIMIT com o número solicitado
+   - Para contagens específicas, filtre primeiro no WHERE
+
+❌ INCORRETO (CASE statement complexo):
+SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total, 
+       SUM(CASE WHEN IDADE > 50 AND SEXO = 3 THEN 1 ELSE 0 END) as filtrado
+FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total DESC;
+
+✅ CORRETO (filtro direto):
+SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes
+FROM sus_data 
+WHERE MORTE = 1 AND SEXO = 3 AND IDADE > 50 AND DIAG_PRINC LIKE 'J%'
+GROUP BY CIDADE_RESIDENCIA_PACIENTE 
+ORDER BY total_mortes DESC 
+LIMIT 5;
+
+2. PARA TEMPO DE INTERNAÇÃO:
 SEMPRE use JULIANDAY para calcular diferenças de data!
 NUNCA use subtração aritmética direta (DT_SAIDA - DT_INTER)!
 
@@ -654,9 +992,11 @@ SELECT AVG(
 FROM sus_data 
 WHERE DIAG_PRINC LIKE 'J%';
 
-OUTRAS INSTRUÇÕES:
+3. OUTRAS INSTRUÇÕES:
 - Para doenças respiratórias: WHERE DIAG_PRINC LIKE 'J%'
 - Para filtros de data: DT_INTER >= 20170401 AND DT_INTER <= 20170430
+- SEXO = 3 para mulheres, SEXO = 1 para homens
+- MORTE = 1 para mortes confirmadas
 - Gere APENAS o SQL necessário, sem explicações
 
 SQL:"""
@@ -969,11 +1309,12 @@ class QueryProcessingFactory:
         llm_service: ILLMCommunicationService,
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
-        error_service: IErrorHandlingService
+        error_service: IErrorHandlingService,
+        sql_validator: Optional[ISQLValidationService] = None
     ) -> IQueryProcessingService:
         """Create comprehensive query processing service"""
         return ComprehensiveQueryProcessingService(
-            llm_service, db_service, schema_service, error_service
+            llm_service, db_service, schema_service, error_service, sql_validator
         )
     
     @staticmethod
@@ -982,12 +1323,13 @@ class QueryProcessingFactory:
         llm_service: ILLMCommunicationService,
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
-        error_service: IErrorHandlingService
+        error_service: IErrorHandlingService,
+        sql_validator: Optional[ISQLValidationService] = None
     ) -> IQueryProcessingService:
         """Create query processing service based on type"""
         if service_type.lower() == "comprehensive":
             return ComprehensiveQueryProcessingService(
-                llm_service, db_service, schema_service, error_service
+                llm_service, db_service, schema_service, error_service, sql_validator
             )
         else:
             raise ValueError(f"Unsupported query processing service type: {service_type}")

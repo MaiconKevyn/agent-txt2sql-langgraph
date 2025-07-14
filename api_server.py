@@ -22,13 +22,12 @@ load_dotenv()
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.application.container.dependency_injection import (
-    ContainerFactory, 
-    ServiceConfig
+from src.application.config.simple_config import (
+    ApplicationConfig,
+    OrchestratorConfig
 )
 from src.application.orchestrator.text2sql_orchestrator import (
-    Text2SQLOrchestrator,
-    OrchestratorConfig
+    Text2SQLOrchestrator
 )
 from src.application.services.user_interface_service import InterfaceType
 
@@ -81,42 +80,104 @@ class SchemaResponse(BaseModel):
 
 def initialize_agent(model_name: str = None) -> Text2SQLOrchestrator:
     """Initialize the clean architecture agent"""
-    if model_name is None:
-        model_name = os.getenv("LLM_MODEL", "llama3")
+    # Use simple_config as base configuration
+    base_config = ApplicationConfig()
     
-    service_config = ServiceConfig(
-        database_type=os.getenv("DATABASE_TYPE", "sqlite"),
-        database_path=os.getenv("DATABASE_PATH", "sus_database.db"),
-        llm_provider=os.getenv("LLM_PROVIDER", "ollama"),
+    if model_name is None:
+        model_name = os.getenv("LLM_MODEL", base_config.llm_model)
+    
+    app_config = ApplicationConfig(
+        database_type=os.getenv("DATABASE_TYPE", base_config.database_type),
+        database_path=os.getenv("DATABASE_PATH", base_config.database_path),
+        llm_provider=os.getenv("LLM_PROVIDER", base_config.llm_provider),
         llm_model=model_name,
-        llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.0")),
-        llm_timeout=int(os.getenv("LLM_TIMEOUT", "120")),
-        llm_max_retries=int(os.getenv("LLM_MAX_RETRIES", "3")),
-        schema_type=os.getenv("SCHEMA_TYPE", "sus"),
-        ui_type=os.getenv("UI_TYPE", "cli"),
+        llm_temperature=float(os.getenv("LLM_TEMPERATURE", str(base_config.llm_temperature))),
+        llm_timeout=int(os.getenv("LLM_TIMEOUT", str(base_config.llm_timeout))),
+        llm_max_retries=int(os.getenv("LLM_MAX_RETRIES", str(base_config.llm_max_retries))),
+        llm_device=os.getenv("LLM_DEVICE", base_config.llm_device),
+        llm_load_in_8bit=os.getenv("LLM_LOAD_IN_8BIT", str(base_config.llm_load_in_8bit)).lower() == "true",
+        llm_load_in_4bit=os.getenv("LLM_LOAD_IN_4BIT", str(base_config.llm_load_in_4bit)).lower() == "true",
+        schema_type=os.getenv("SCHEMA_TYPE", base_config.schema_type),
+        ui_type=os.getenv("UI_TYPE", base_config.ui_type),
         interface_type=InterfaceType.CLI_BASIC,
-        error_handling_type=os.getenv("ERROR_HANDLING_TYPE", "comprehensive"),
-        enable_error_logging=os.getenv("ENABLE_ERROR_LOGGING", "true").lower() == "true",
-        query_processing_type=os.getenv("QUERY_PROCESSING_TYPE", "comprehensive")
+        error_handling_type=os.getenv("ERROR_HANDLING_TYPE", base_config.error_handling_type),
+        enable_error_logging=os.getenv("ENABLE_ERROR_LOGGING", str(base_config.enable_error_logging)).lower() == "true",
+        query_processing_type=os.getenv("QUERY_PROCESSING_TYPE", base_config.query_processing_type)
     )
     
     orchestrator_config = OrchestratorConfig(
         max_query_length=int(os.getenv("MAX_QUERY_LENGTH", "1000")),
         enable_query_history=os.getenv("ENABLE_QUERY_HISTORY", "true").lower() == "true",
         enable_statistics=os.getenv("ENABLE_STATISTICS", "true").lower() == "true",
-        session_timeout=int(os.getenv("SESSION_TIMEOUT", "3600"))
+        session_timeout=int(os.getenv("SESSION_TIMEOUT", "3600")),
+        enable_conversational_response=os.getenv("ENABLE_CONVERSATIONAL_RESPONSE", "true").lower() == "true",
+        conversational_fallback=os.getenv("CONVERSATIONAL_FALLBACK", "true").lower() == "true",
+        enable_query_routing=os.getenv("ENABLE_QUERY_ROUTING", "true").lower() == "true",
+        routing_confidence_threshold=float(os.getenv("ROUTING_CONFIDENCE_THRESHOLD", "0.7")),
+        # Simple Query Decomposition Configuration
+        enable_query_decomposition=os.getenv("ENABLE_QUERY_DECOMPOSITION", "true").lower() == "true",
+        decomposition_complexity_threshold=int(os.getenv("DECOMPOSITION_COMPLEXITY_THRESHOLD", "2")),
+        decomposition_timeout_seconds=float(os.getenv("DECOMPOSITION_TIMEOUT_SECONDS", "60.0")),
+        decomposition_fallback_enabled=os.getenv("DECOMPOSITION_FALLBACK_ENABLED", "true").lower() == "true",
+        decomposition_debug_mode=os.getenv("DECOMPOSITION_DEBUG_MODE", "false").lower() == "true"
     )
     
-    container = ContainerFactory.create_container_with_config(service_config)
-    return Text2SQLOrchestrator(container, orchestrator_config)
+    return Text2SQLOrchestrator(app_config, orchestrator_config)
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize agent on startup"""
     global agent
     try:
+        # Get configuration details for logging - use simple_config as default
+        config = ApplicationConfig()
+        llm_provider = os.getenv("LLM_PROVIDER", config.llm_provider)
+        llm_model = os.getenv("LLM_MODEL", config.llm_model)
+        
+        print(f"🤖 Initializing LLM: {llm_model} ({llm_provider.title()})")
+        
         agent = initialize_agent()
-        print("✅ TXT2SQL Agent initialized successfully")
+        
+        # Get detailed model information
+        try:
+            model_info = agent._llm_service.get_model_info()
+            print("✅ TXT2SQL Agent initialized successfully")
+            print()
+            print("📊 Model Information:")
+            print(f"   🔸 Provider: {model_info.get('provider', 'Unknown')}")
+            print(f"   🔸 Model: {model_info.get('model_name', 'Unknown')}")
+            
+            # Show device info if available
+            if 'device' in model_info:
+                device_info = model_info['device']
+                if 'cuda' in str(device_info).lower():
+                    print(f"   🔸 Device: {device_info} 🚀")
+                else:
+                    print(f"   🔸 Device: {device_info}")
+            
+            # Show quantization info for HuggingFace models
+            if model_info.get('provider') == 'HuggingFace':
+                if model_info.get('load_in_4bit'):
+                    print("   🔸 Quantization: 4-bit (enabled) 💾")
+                elif model_info.get('load_in_8bit'):
+                    print("   🔸 Quantization: 8-bit (enabled) 💾")
+                else:
+                    print("   🔸 Quantization: Full precision")
+                
+                if model_info.get('cuda_available'):
+                    print("   🔸 CUDA: Available ⚡")
+                else:
+                    print("   🔸 CUDA: Not available")
+            
+            # Show availability status
+            status_icon = "✅" if model_info.get('available', False) else "❌"
+            print(f"   🔸 Status: Available {status_icon}")
+            print()
+            
+        except Exception as model_info_error:
+            print("✅ TXT2SQL Agent initialized successfully")
+            print(f"⚠️ Could not retrieve detailed model info: {str(model_info_error)}")
+            
     except Exception as e:
         print(f"❌ Failed to initialize agent: {str(e)}")
         raise
@@ -286,7 +347,7 @@ async def health_check():
                 services={"agent": "not_initialized"}
             )
         
-        health_status = agent.container.health_check()
+        health_status = agent.health_check()
         return HealthResponse(
             status=health_status["status"],
             timestamp=datetime.now().isoformat(),
@@ -306,7 +367,7 @@ async def get_schema():
         raise HTTPException(status_code=503, detail="Agent not initialized")
     
     try:
-        schema_service = agent.container.get_schema_introspection_service()
+        schema_service = agent.get_schema_introspection_service()
         schema_info = schema_service.get_schema_information()
         
         return SchemaResponse(
