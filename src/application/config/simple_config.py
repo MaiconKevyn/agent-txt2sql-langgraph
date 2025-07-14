@@ -17,7 +17,7 @@ class ApplicationConfig:
     # llm_provider: str = "huggingface"  # ollama, huggingface
     # llm_model: str = "defog/sqlcoder-7b-2"  # llama3, defog/sqlcoder-7b-2
     llm_provider: str = "ollama"  # ollama, huggingface
-    llm_model: str = "llama3"  # llama3, defog/sqlcoder-7b-2
+    llm_model: str = "mistral"  # llama3, defog/sqlcoder-7b-2
     llm_temperature: float = 0.0
     llm_timeout: int = 120
     llm_max_retries: int = 3

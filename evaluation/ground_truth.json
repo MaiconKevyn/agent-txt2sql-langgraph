@@ -3,19 +3,19 @@
     "id": "GT001",
     "difficulty": "easy",
     "question": "Quantos homens foram registrados?",
-    "query": "adicionar query sql"
+    "query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;"
   },
   {
     "id": "GT002",
     "difficulty": "easy",
     "question": "Liste os 5 municípios com o maior número de atendimentos.",
-    "query": "SELECT NM_MUNICIPIO, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY NM_MUNICIPIO ORDER BY total_atendimentos DESC LIMIT 5;"
+    "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;"
   },
   {
     "id": "GT003",
     "difficulty": "easy",
     "question": "Qual a média de idade dos pacientes que são de Uruguaiana?",
-    "query": "adicionar query sql"
+    "query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';"
   },
   {
     "id": "GT004",
@@ -26,8 +26,67 @@
   {
     "id": "GT005",
     "difficulty": "easy",
-    "question": "Quais são os cinco municipios com mais mortes?",
-    "query": "adicionar query sql"
+    "question": "Quais são os cinco municípios com mais mortes?",
+    "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;"
+  },
+  {
+    "id": "GT006",
+    "difficulty": "easy",
+    "question": "Quantas mulheres foram atendidas?",
+    "query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;"
+  },
+  {
+    "id": "GT007",
+    "difficulty": "easy",
+    "question": "Qual o valor total gasto em atendimentos?",
+    "query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;"
+  },
+  {
+    "id": "GT008",
+    "difficulty": "easy",
+    "question": "Quantos pacientes com mais de 40 anos morreram?",
+    "query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;"
+  },
+  {
+    "id": "GT009",
+    "difficulty": "medium",
+    "question": "Qual a idade média dos pacientes que morreram?",
+    "query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;"
+  },
+  {
+    "id": "GT010",
+    "difficulty": "medium",
+    "question": "Quantos casos de doença respiratória?",
+    "query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';"
+  },
+  {
+    "id": "GT011",
+    "difficulty": "medium",
+    "question": "Qual o gasto médio por atendimento em cada cidade?",
+    "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;"
+  },
+  {
+    "id": "GT012",
+    "difficulty": "medium",
+    "question": "Quantos atendimentos por sexo foram registrados?",
+    "query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;"
+  },
+  {
+    "id": "GT013",
+    "difficulty": "hard",
+    "question": "Qual a faixa etária com mais mortes?",
+    "query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;"
+  },
+  {
+    "id": "GT014",
+    "difficulty": "hard",
+    "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
+    "query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;"
+  },
+  {
+    "id": "GT015",
+    "difficulty": "hard",
+    "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
+    "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;"
   }
-
 ]

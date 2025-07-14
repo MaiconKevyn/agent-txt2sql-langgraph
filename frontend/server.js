@@ -2,7 +2,7 @@
 
 /**
  * DataVisSUS Web Interface Server
- * Professional Node.js/Express server for TXT2SQL Agent
+ * Interface web independente que se comunica com o TXT2SQL Agent via API REST
  */
 
 const express = require('express');
@@ -10,15 +10,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config();
+
+const API_CONFIG = require('./config/api');
 
 // App Configuration
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
-const PYTHON_SCRIPT_PATH = path.join(__dirname, '..', 'python_bridge.py');
 
 // Security Middleware - Enhanced Chrome compatibility
 app.use(helmet({
@@ -29,22 +30,22 @@ app.use(helmet({
             fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", `http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`]
+            connectSrc: ["'self'", `http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, API_CONFIG.BASE_URL]
         },
         useDefaults: false
     },
     crossOriginEmbedderPolicy: false,
-    contentTypeOptions: false // Disable for Chrome compatibility
+    contentTypeOptions: false
 }));
 
-// Enhanced CORS Configuration for Chrome compatibility
+// Enhanced CORS Configuration
 app.use(cors({
     origin: function(origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
         
         const allowedOrigins = process.env.NODE_ENV === 'production'
-            ? ['https://your-domain.com']
+            ? process.env.ALLOWED_ORIGINS?.split(',') || []
             : [
                 'http://localhost:3000',
                 'http://127.0.0.1:3000',
@@ -99,16 +100,15 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// MELHORADO: Static Files com Headers corretos
-app.use(express.static(__dirname, {
+// Static Files with correct headers
+app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',
     etag: true,
     lastModified: true,
     setHeaders: (res, filePath) => {
-        // Headers específicos para CSS
         if (filePath.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css; charset=utf-8');
-            res.setHeader('Cache-Control', 'no-cache'); // ADICIONADO para debug
+            res.setHeader('Cache-Control', 'no-cache');
         }
         if (filePath.endsWith('.js')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
@@ -119,58 +119,18 @@ app.use(express.static(__dirname, {
     }
 }));
 
-// Enhanced CSS route for Chrome compatibility
-app.get('/styles.css', (req, res) => {
-    const cssPath = path.join(__dirname, 'styles.css');
-
-    // Verificar se arquivo existe
-    if (!fs.existsSync(cssPath)) {
-        console.error('❌ CSS file not found:', cssPath);
-        return res.status(404).send('CSS file not found');
-    }
-
-    // Enhanced headers for Chrome
-    res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    
-    // Send file
-    res.sendFile(cssPath, (err) => {
-        if (err) {
-            console.error('❌ Error serving CSS:', err);
-        } else {
-            console.log('✅ CSS file served successfully');
-        }
-    });
-});
-
-app.get('/app.js', (req, res) => {
-    const jsPath = path.join(__dirname, 'app.js');
-
-    if (!fs.existsSync(jsPath)) {
-        console.error('❌ JS file not found:', jsPath);
-        return res.status(404).send('JS file not found');
-    }
-
-    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    res.sendFile(jsPath);
-
-    console.log('✅ JS file served successfully');
-});
-
 // Health Check Endpoint
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development'
+        environment: process.env.NODE_ENV || 'development',
+        agent_api: API_CONFIG.BASE_URL
     });
 });
 
-// Query Processing Endpoint
+// Query Processing Endpoint - Proxy to Agent API
 app.post('/api/query', async (req, res) => {
     const startTime = Date.now();
 
@@ -195,15 +155,22 @@ app.post('/api/query', async (req, res) => {
 
         console.log(`[${new Date().toISOString()}] Processing query: "${question.substring(0, 100)}${question.length > 100 ? '...' : ''}"`);
 
-        // Execute Python script with the question
-        const result = await executePythonQuery(question);
+        // Forward request to Agent API
+        const response = await forwardToAgentAPI('/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ question })
+        });
 
         const executionTime = (Date.now() - startTime) / 1000;
 
         console.log(`[${new Date().toISOString()}] Query completed in ${executionTime.toFixed(2)}s`);
 
         res.json({
-            ...result,
+            ...response,
             execution_time: executionTime,
             timestamp: new Date().toISOString()
         });
@@ -222,15 +189,20 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
-// Schema Endpoint
+// Schema Endpoint - Proxy to Agent API
 app.get('/api/schema', async (req, res) => {
     try {
         console.log(`[${new Date().toISOString()}] Schema request received`);
 
-        const result = await executePythonSchema();
+        const response = await forwardToAgentAPI('/schema', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
 
         res.json({
-            ...result,
+            ...response,
             timestamp: new Date().toISOString()
         });
 
@@ -244,9 +216,56 @@ app.get('/api/schema', async (req, res) => {
     }
 });
 
+// Models Endpoint - Proxy to Agent API
+app.get('/api/models', async (req, res) => {
+    try {
+        const response = await forwardToAgentAPI('/models', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        res.json(response);
+
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Models error:`, error);
+
+        res.status(500).json({
+            error: error.message || 'Failed to load models',
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Agent Health Check Endpoint
+app.get('/api/agent-health', async (req, res) => {
+    try {
+        const response = await forwardToAgentAPI('/health', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        res.json({
+            agent_status: 'online',
+            agent_health: response,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        res.json({
+            agent_status: 'offline',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Serve main page
 app.get('/', (req, res) => {
-    const htmlPath = path.join(__dirname, 'index.html');
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
 
     if (!fs.existsSync(htmlPath)) {
         console.error('❌ HTML file not found:', htmlPath);
@@ -256,19 +275,25 @@ app.get('/', (req, res) => {
     res.sendFile(htmlPath);
 });
 
-// ADICIONADO: Debug route para verificar arquivos
-app.get('/debug/files', (req, res) => {
+// Debug endpoint to check configuration
+app.get('/debug/config', (req, res) => {
+    const publicPath = path.join(__dirname, 'public');
     const files = {
-        'styles.css': fs.existsSync(path.join(__dirname, 'styles.css')),
-        'app.js': fs.existsSync(path.join(__dirname, 'app.js')),
-        'index.html': fs.existsSync(path.join(__dirname, 'index.html')),
-        'python_bridge.py': fs.existsSync(PYTHON_SCRIPT_PATH)
+        'index.html': fs.existsSync(path.join(publicPath, 'index.html')),
+        'app.js': fs.existsSync(path.join(publicPath, 'app.js')),
+        'styles.css': fs.existsSync(path.join(publicPath, 'styles.css'))
     };
 
     res.json({
         files,
-        __dirname,
-        PYTHON_SCRIPT_PATH
+        config: {
+            api_base_url: API_CONFIG.BASE_URL,
+            port: PORT,
+            host: HOST,
+            public_path: publicPath,
+            environment: process.env.NODE_ENV || 'development'
+        },
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -293,89 +318,39 @@ app.use((err, req, res, next) => {
 });
 
 /**
- * Execute Python query via child process
+ * Forward requests to Agent API with retry logic
  */
-function executePythonQuery(question) {
-    return new Promise((resolve, reject) => {
-        const python = spawn('python3', [PYTHON_SCRIPT_PATH, 'query', question], {
-            cwd: path.dirname(PYTHON_SCRIPT_PATH),
-            env: { ...process.env, NO_COLOR: '1', TERM: 'dumb' },
-            stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr to suppress warnings
-        });
+async function forwardToAgentAPI(endpoint, options = {}) {
+    const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+    const maxAttempts = API_CONFIG.RETRY.MAX_ATTEMPTS;
+    let delay = API_CONFIG.RETRY.DELAY;
 
-        let stdout = '';
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const response = await fetch(url, {
+                ...options,
+                timeout: API_CONFIG.TIMEOUTS.QUERY
+            });
 
-        python.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-
-        python.on('close', (code) => {
-            if (code !== 0) {
-                reject(new Error(`Python script failed with code ${code}`));
-                return;
+            if (!response.ok) {
+                throw new Error(`Agent API returned ${response.status}: ${response.statusText}`);
             }
 
-            try {
-                const result = JSON.parse(stdout);
-                resolve(result);
-            } catch (parseError) {
-                reject(new Error(`Failed to parse Python response: ${parseError.message}`));
-            }
-        });
+            const data = await response.json();
+            return data;
 
-        python.on('error', (error) => {
-            reject(new Error(`Failed to spawn Python process: ${error.message}`));
-        });
+        } catch (error) {
+            console.error(`[Attempt ${attempt}/${maxAttempts}] Error connecting to Agent API:`, error.message);
 
-        // Set timeout
-        setTimeout(() => {
-            python.kill('SIGTERM');
-            reject(new Error('Query timeout - please try again'));
-        }, 120000); // 2 minutes timeout
-    });
-}
-
-/**
- * Execute Python schema request via child process
- */
-function executePythonSchema() {
-    return new Promise((resolve, reject) => {
-        const python = spawn('python3', [PYTHON_SCRIPT_PATH, 'schema'], {
-            cwd: path.dirname(PYTHON_SCRIPT_PATH),
-            env: { ...process.env, NO_COLOR: '1', TERM: 'dumb' },
-            stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr to suppress warnings
-        });
-
-        let stdout = '';
-
-        python.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-
-        python.on('close', (code) => {
-            if (code !== 0) {
-                reject(new Error(`Python script failed with code ${code}`));
-                return;
+            if (attempt === maxAttempts) {
+                throw new Error(`Agent API unavailable after ${maxAttempts} attempts. Please ensure the TXT2SQL Agent is running on ${API_CONFIG.BASE_URL}`);
             }
 
-            try {
-                const result = JSON.parse(stdout);
-                resolve(result);
-            } catch (parseError) {
-                reject(new Error(`Failed to parse Python response: ${parseError.message}`));
-            }
-        });
-
-        python.on('error', (error) => {
-            reject(new Error(`Failed to spawn Python process: ${error.message}`));
-        });
-
-        // Set timeout
-        setTimeout(() => {
-            python.kill('SIGTERM');
-            reject(new Error('Schema request timeout'));
-        }, 30000); // 30 seconds timeout
-    });
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= API_CONFIG.RETRY.BACKOFF_MULTIPLIER;
+        }
+    }
 }
 
 // Graceful shutdown
@@ -393,18 +368,21 @@ process.on('SIGTERM', () => {
 app.listen(PORT, HOST, () => {
     console.log('\n🚀 DataVisSUS Web Interface Server Started');
     console.log('='.repeat(50));
-    console.log(`📍 Server: http://${HOST}:${PORT}`);
+    console.log(`📍 Web Interface: http://${HOST}:${PORT}`);
+    console.log(`🔗 Agent API: ${API_CONFIG.BASE_URL}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📁 Static files: ${__dirname}`);
-    console.log(`🐍 Python bridge: ${PYTHON_SCRIPT_PATH}`);
-    console.log(`🔍 Debug files: http://${HOST}:${PORT}/debug/files`);
+    console.log(`📁 Static files: ${path.join(__dirname, 'public')}`);
+    console.log(`🔍 Debug config: http://${HOST}:${PORT}/debug/config`);
     console.log('⏹️  Press Ctrl+C to stop');
     console.log('='.repeat(50));
 
     // Check critical files
-    const criticalFiles = ['styles.css', 'app.js', 'index.html'];
+    const publicPath = path.join(__dirname, 'public');
+    const criticalFiles = ['index.html', 'app.js', 'styles.css'];
+    
+    console.log('\n📋 Checking critical files:');
     criticalFiles.forEach(file => {
-        const filePath = path.join(__dirname, file);
+        const filePath = path.join(publicPath, file);
         if (fs.existsSync(filePath)) {
             console.log(`✅ ${file} found`);
         } else {
@@ -412,11 +390,13 @@ app.listen(PORT, HOST, () => {
         }
     });
 
-    // Check if Python bridge exists
-    if (!fs.existsSync(PYTHON_SCRIPT_PATH)) {
-        console.warn(`⚠️  Python bridge not found: ${PYTHON_SCRIPT_PATH}`);
-        console.warn('   Make sure to create the Python bridge script');
-    } else {
-        console.log('✅ Python bridge found');
-    }
+    console.log('\n🔌 Testing Agent API connection...');
+    forwardToAgentAPI('/health')
+        .then(() => {
+            console.log('✅ Agent API connection successful');
+        })
+        .catch((error) => {
+            console.warn(`⚠️  Agent API connection failed: ${error.message}`);
+            console.warn('   Make sure the TXT2SQL Agent is running on port 8000');
+        });
 });
