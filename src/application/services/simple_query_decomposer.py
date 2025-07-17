@@ -190,12 +190,12 @@ class SimpleQueryDecomposer:
             
             if not analysis.should_decompose:
                 if self.config.debug_mode:
-                    print("📝 Query complexity below threshold, using standard processing")
+                    print("Query complexity below threshold, using standard processing")
                 return self._execute_standard(query)
             
             # Attempt decomposition
             if self.config.debug_mode:
-                print(f"🧩 Query complexity above threshold, attempting decomposition...")
+                print(f"Query complexity above threshold, attempting decomposition...")
                 print(f"   Strategy: {analysis.recommended_strategy.value}")
             
             self.stats["total_decomposed"] += 1

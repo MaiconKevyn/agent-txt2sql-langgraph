@@ -327,14 +327,16 @@ class ComprehensiveSQLValidationService(ISQLValidationService):
         issues = []
         sql_upper = sql.upper()
         
-        # Check for COUNT with LIMIT (unnecessary)
+        # Check for COUNT with LIMIT (unnecessary only without GROUP BY)
         if 'COUNT(' in sql_upper and 'LIMIT' in sql_upper:
-            issues.append(ValidationIssue(
-                code="BP001",
-                severity=ValidationSeverity.WARNING,
-                message="LIMIT with COUNT(*) is unnecessary - COUNT always returns one row",
-                suggested_fix="Remove LIMIT clause from COUNT queries"
-            ))
+            # LIMIT is only unnecessary if there's no GROUP BY
+            if 'GROUP BY' not in sql_upper:
+                issues.append(ValidationIssue(
+                    code="BP001",
+                    severity=ValidationSeverity.WARNING,
+                    message="LIMIT with COUNT(*) is unnecessary - COUNT always returns one row",
+                    suggested_fix="Remove LIMIT clause from COUNT queries"
+                ))
         
         # Check for proper aggregation patterns
         if query_intent and "top" in query_intent.lower() and "cities" in query_intent.lower():

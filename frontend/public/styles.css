@@ -32,6 +32,25 @@
     --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark Theme Variables */
+[data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    
+    --border-color: #334155;
+    --border-light: #475569;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+}
+
 /* Base Styles */
 * {
     margin: 0;
@@ -53,6 +72,11 @@ body {
     font-feature-settings: 'kern', 'liga', 'clig', 'calt';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: var(--transition-slow);
+}
+
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
 }
 
 /* App Container */
@@ -458,8 +482,47 @@ body {
     color: #dc2626;
 }
 
+[data-theme="dark"] .error-message .message-text {
+    background: #4c1d1d;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+}
+
 .error-message .message-avatar {
     background: #ef4444;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.625rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+.theme-toggle:hover {
+    background: var(--sus-primary);
+    color: white;
+    border-color: var(--sus-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.theme-toggle i {
+    font-size: 1rem;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.theme-toggle:hover i {
+    color: white;
 }
 
 /* Chat Input */

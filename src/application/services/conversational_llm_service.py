@@ -21,8 +21,9 @@ from src.domain.exceptions.custom_exceptions import (
 @dataclass
 class ConversationalConfig:
     """Configuração especializada para LLM conversacional."""
-    model_name: str = "llama3.2:latest"  # Use available model
-    temperature: float = 0.7  # Mais criativo para conversação
+    # model_name: str = "llama3.2:latest"
+    model_name: str = "mistral"
+    temperature: float = 0.8
     max_tokens: int = 1000
     timeout: int = 60
     max_retries: int = 3
@@ -44,8 +45,8 @@ class ConversationalLLMService:
         self.base_url = base_url.rstrip('/')
         self.config = config or ConversationalConfig()
         self.logger = logging.getLogger(__name__)
-        # Prevent duplicate logs by disabling propagation to root logger
-        self.logger.propagate = False
+        # Enable propagation to see detailed logs in output
+        self.logger.propagate = True
         
         # Endpoints
         self.chat_endpoint = f"{self.base_url}/api/chat"
@@ -86,11 +87,25 @@ class ConversationalLLMService:
         Returns:
             Resposta em linguagem natural amigável
         """
+        self.logger.info(f"🗣️ Iniciando geração de resposta conversacional para: '{user_query}'")
+        self.logger.info(f"📊 SQL executada: {sql_query}")
+        self.logger.info(f"📋 Resultados SQL recebidos: {type(sql_results).__name__} com {len(sql_results) if hasattr(sql_results, '__len__') else 'N/A'} items")
+        
         prompt = self._build_conversational_prompt(
             user_query, sql_query, sql_results, context
         )
         
-        return self._call_llm(prompt)
+        # Log do contexto completo enviado ao LLM
+        self.logger.info("=" * 80)
+        self.logger.info("🤖 CONTEXTO COMPLETO ENVIADO AO LLM CONVERSACIONAL:")
+        self.logger.info("=" * 80)
+        self.logger.info(prompt)
+        self.logger.info("=" * 80)
+        
+        response = self._call_llm(prompt)
+        
+        self.logger.info(f"✅ Resposta conversacional gerada: '{response}'")
+        return response
 
     def _build_conversational_prompt(
         self,
@@ -99,91 +114,224 @@ class ConversationalLLMService:
         sql_results: Any,
         context: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Constrói prompt especializado para respostas conversacionais."""
+        """Constrói prompt otimizado usando técnicas avançadas de prompt engineering."""
         
-        # Contexto SUS especializado
-        sus_context = """
-        Você é um assistente especialista em dados do Sistema Único de Saúde (SUS) brasileiro.
-        Sua função é transformar resultados de consultas SQL em respostas conversacionais
-        amigáveis e informativas para profissionais de saúde e gestores públicos.
-        
-        CARACTERÍSTICAS DA SUA RESPOSTA:
-        - Linguagem clara e profissional, mas amigável
-        - Explicações contextualizadas sobre o SUS quando relevante
-        - Interpretação dos dados com insights úteis
-        - Formatação organizada e fácil de ler
-        - Sugestões de ações ou análises adicionais quando apropriado
-        
-        CONHECIMENTO ESPECÍFICO DO SUS:
-        - CNES: Cadastro Nacional de Estabelecimentos de Saúde
-        - CID: Classificação Internacional de Doenças
-        - SIGTAP: Sistema de Gerenciamento da Tabela de Procedimentos
-        - Estados e municípios brasileiros
-        - Terminologia médica em português brasileiro
-        
-        FORMATO DA RESPOSTA:
-        Responda de forma DIRETA e CONCISA, em uma única frase ou parágrafo curto.
-        
-        INSTRUÇÕES ESPECÍFICAS:
-        - Interprete a pergunta do usuário e responda exatamente o que foi solicitado
-        - NÃO use headers como "Resumo Direto" ou "Dados Detalhados"
-        - NÃO adicione explicações extras, contextualizações ou insights
-        - Seja direto: exemplo "Foram encontrados 2.785 casos de doenças respiratórias nos registros do SUS."
-        - Use linguagem natural e clara em português brasileiro
-        - Mantenha a resposta em uma única sentença sempre que possível
-        - SEMPRE inclua os dados específicos dos resultados (nomes de cidades, números exatos, etc.)
-        - Se perguntarem sobre "qual cidade", responda com o NOME da cidade, não apenas "a cidade"
-        - Para resultados com ranking, mencione o primeiro item da lista como resposta principal
-        """
+        # Determina o tipo de consulta para template específico
+        query_type = self._classify_query_type(user_query, sql_results)
         
         # Formatação dos resultados SQL
         results_text = self._format_sql_results(sql_results)
         
-        prompt = f"""{sus_context}
+        # Few-shot examples baseados no tipo de consulta
+        examples = self._get_few_shot_examples(query_type)
+        
+        # Chain-of-Thought prompting structure
+        prompt = f"""# ESPECIALISTA EM ANÁLISE DE DADOS SUS
 
-PERGUNTA DO USUÁRIO:
-{user_query}
+## IDENTIDADE E CONTEXTO
+Você é um analista sênior especializado em dados do Sistema Único de Saúde (SUS) brasileiro, com expertise em:
+- CNES (Cadastro Nacional de Estabelecimentos de Saúde)  
+- CID-10 (Classificação Internacional de Doenças)
+- Epidemiologia e saúde pública brasileira
+- Comunicação técnica clara para gestores de saúde
 
-CONSULTA SQL EXECUTADA:
+## TAREFA
+Transformar dados SQL em resposta conversacional precisa e útil.
+
+## METODOLOGIA (Chain-of-Thought)
+1. **ANÁLISE**: Entenda a pergunta do usuário
+2. **INTERPRETAÇÃO**: Examine os dados fornecidos
+3. **SÍNTESE**: Formule resposta direta e precisa
+4. **VALIDAÇÃO**: Verifique consistência com dados
+
+## EXEMPLOS DE REFERÊNCIA
+{examples}
+
+## DADOS DA CONSULTA ATUAL
+
+### Pergunta do Usuário:
+"{user_query}"
+
+### Query SQL Executada:
+```sql
 {sql_query}
+```
 
-RESULTADOS OBTIDOS:
+### Resultados Obtidos:
+```
 {results_text}
+```
 
-CONTEXTO ADICIONAL:
+### Contexto Adicional:
+```json
 {json.dumps(context or {}, ensure_ascii=False, indent=2)}
+```
 
-⚠️ INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
-1. Use EXCLUSIVAMENTE os dados dos RESULTADOS OBTIDOS acima
-2. NUNCA invente cidades, números ou informações que não estão nos resultados
-3. Para perguntas como "qual cidade", responda EXATAMENTE com o nome da cidade que aparece em "1º lugar" nos resultados
-4. Se os resultados mostram "1º lugar: Ijuí com 212 casos", então a resposta deve incluir "Ijuí"
-5. NÃO use conhecimento geral sobre cidades brasileiras - use apenas os dados fornecidos
+## INSTRUÇÕES DE EXECUÇÃO
 
-Transforme estes dados em uma resposta conversacional amigável e informativa.
-Responda em português brasileiro, focando na utilidade prática da informação.
-"""
+### ✅ FAZER:
+- Responder EXATAMENTE o que foi perguntado
+- Usar APENAS dados dos resultados fornecidos
+- Incluir números específicos e nomes exatos (cidades, valores)
+- Manter linguagem clara e profissional
+- Para rankings, destacar o primeiro colocado
+
+### ❌ NÃO FAZER:
+- Inventar dados não presentes nos resultados
+- Adicionar contextualizações não solicitadas
+- Usar cabeçalhos ou formatação complexa
+- Especular ou fazer suposições
+- Responder "a cidade" ao invés do nome específico
+
+## TEMPLATE DE RESPOSTA
+Tipo de consulta identificado: **{query_type}**
+
+**Sua resposta deve seguir este padrão:**
+- Seja direta e factual
+- Uma frase ou parágrafo curto
+- Português brasileiro natural
+- Foque na utilidade prática
+
+---
+**RESPOSTA:**"""
         
         return prompt
 
+    def _classify_query_type(self, user_query: str, sql_results: Any) -> str:
+        """Classifica o tipo de consulta para usar template específico."""
+        user_query_lower = user_query.lower()
+        
+        # Análise de padrões na pergunta
+        if any(word in user_query_lower for word in ['quantos', 'quantas', 'total', 'número']):
+            if any(word in user_query_lower for word in ['cidade', 'município', 'onde']):
+                # Detecta se pede dados de "cada" entidade (lista completa)
+                if any(word in user_query_lower for word in ['cada', 'por', 'em cada', 'todas']):
+                    return "LISTAGEM_COMPLETA_GEOGRÁFICA"
+                return "CONTAGEM_GEOGRÁFICA"
+            return "CONTAGEM_SIMPLES"
+        
+        elif any(word in user_query_lower for word in ['qual', 'quais', 'que']):
+            if any(word in user_query_lower for word in ['cidade', 'município']):
+                return "IDENTIFICAÇÃO_GEOGRÁFICA"
+            return "IDENTIFICAÇÃO_GERAL"
+        
+        elif any(word in user_query_lower for word in ['maior', 'menor', 'mais', 'menos', 'ranking']):
+            return "COMPARAÇÃO_RANKING"
+        
+        elif any(word in user_query_lower for word in ['média', 'mediana', 'percentual', '%']):
+            return "ANÁLISE_ESTATÍSTICA"
+        
+        # Análise dos resultados
+        if sql_results and isinstance(sql_results, (list, tuple)) and len(sql_results) > 1:
+            return "MÚLTIPLOS_RESULTADOS"
+        
+        return "CONSULTA_GERAL"
+
+    def _get_few_shot_examples(self, query_type: str) -> str:
+        """Retorna exemplos few-shot baseados no tipo de consulta."""
+        
+        examples_map = {
+            "CONTAGEM_SIMPLES": """
+### Exemplo 1:
+**Pergunta:** "Quantas pessoas morreram?"
+**Dados:** {"total_mortes": 2202}
+**Resposta:** "Foram registradas 2.202 mortes no SUS."
+
+### Exemplo 2:
+**Pergunta:** "Quantos casos de diabetes?"
+**Dados:** {"total_casos": 15678}
+**Resposta:** "Foram encontrados 15.678 casos de diabetes nos registros do SUS."
+""",
+            
+            "LISTAGEM_COMPLETA_GEOGRÁFICA": """
+### Exemplo 1:
+**Pergunta:** "Quantas mortes ao total em cada cidade?"
+**Dados:** [{"cidade": "Uruguaiana", "mortes": 359}, {"cidade": "Ijuí", "mortes": 359}, {"cidade": "Passo Fundo", "mortes": 325}, {"cidade": "Porto Alegre", "mortes": 308}]
+**Resposta:** "As mortes por cidade são: Uruguaiana com 359 casos, Ijuí com 359 casos, Passo Fundo com 325 casos e Porto Alegre com 308 casos."
+
+### Exemplo 2:
+**Pergunta:** "Casos por município"
+**Dados:** [["São Paulo", 1524], ["Rio de Janeiro", 987], ["Brasília", 745]]
+**Resposta:** "Os casos por município são: São Paulo (1.524), Rio de Janeiro (987) e Brasília (745)."
+""",
+            
+            "IDENTIFICAÇÃO_GEOGRÁFICA": """
+### Exemplo 1:
+**Pergunta:** "Qual cidade tem mais casos?"
+**Dados:** [{"rank": 1, "cidade": "São Paulo", "casos": 1524}, {"rank": 2, "cidade": "Rio de Janeiro", "casos": 987}]
+**Resposta:** "São Paulo lidera com 1.524 casos registrados."
+
+### Exemplo 2:
+**Pergunta:** "Que município teve mais óbitos?"
+**Dados:** ["Salvador", "842"]
+**Resposta:** "Salvador registrou o maior número de óbitos com 842 casos."
+""",
+            
+            "COMPARAÇÃO_RANKING": """
+### Exemplo 1:
+**Pergunta:** "Ranking das cidades com mais casos"
+**Dados:** [["São Paulo", 1524], ["Rio de Janeiro", 987], ["Belo Horizonte", 756]]
+**Resposta:** "São Paulo lidera o ranking com 1.524 casos, seguida por Rio de Janeiro (987) e Belo Horizonte (756)."
+
+### Exemplo 2:
+**Pergunta:** "Qual a cidade com menor número de casos?"
+**Dados:** [["Pequena Cidade", 12], ["Outra Cidade", 45]]
+**Resposta:** "Pequena Cidade apresentou o menor número com apenas 12 casos."
+""",
+            
+            "ANÁLISE_ESTATÍSTICA": """
+### Exemplo 1:
+**Pergunta:** "Qual a média de casos por município?"
+**Dados:** {"media_casos": 234.5}
+**Resposta:** "A média de casos por município é de 234,5."
+
+### Exemplo 2:
+**Pergunta:** "Percentual de mortalidade"
+**Dados:** {"percentual": 3.2}
+**Resposta:** "O percentual de mortalidade é de 3,2%."
+"""
+        }
+        
+        return examples_map.get(query_type, """
+### Exemplo Geral:
+**Pergunta:** "Informações sobre os dados"
+**Dados:** [dados variados]
+**Resposta:** "Baseado nos dados disponíveis, [resposta direta e factual]."
+""")
+
     def _format_sql_results(self, sql_results: Any) -> str:
         """Formata os resultados SQL para inclusão no prompt."""
+        self.logger.info(f"🔄 Formatando resultados SQL: tipo={type(sql_results).__name__}")
+        
         if sql_results is None:
+            self.logger.info("❌ Resultados SQL são None")
             return "Nenhum resultado encontrado."
         
         if isinstance(sql_results, (list, tuple)):
+            self.logger.info(f"📊 Resultados são lista/tupla com {len(sql_results)} items")
+            
             if len(sql_results) == 0:
+                self.logger.info("📭 Lista de resultados está vazia")
                 return "Nenhum resultado encontrado."
             
             # Limita a quantidade de resultados para evitar prompts muito longos
             limited_results = sql_results[:20]
+            self.logger.info(f"✂️ Limitando resultados para {len(limited_results)} items (de {len(sql_results)} totais)")
+            
+            # Log first few items to understand structure
+            for i, item in enumerate(limited_results[:3]):
+                self.logger.info(f"📋 Item {i}: tipo={type(item).__name__}, valor={str(item)[:100]}{'...' if len(str(item)) > 100 else ''}")
             
             # Handle structured results from query parser
             if isinstance(limited_results[0], dict):
+                self.logger.info("🗂️ Processando resultados como dicionários")
                 # Look for simple query results with a single value
                 result_item = limited_results[0]
+                self.logger.info(f"🔍 Primeiro item do dict: {result_item}")
+                
                 if "result" in result_item:
                     result_value = result_item["result"]
+                    self.logger.info(f"🎯 Encontrou resultado simples: {result_value}")
                     return f"Resultado encontrado: {result_value}"
                 
                 # Handle complex query results
@@ -206,9 +354,11 @@ Responda em português brasileiro, focando na utilidade prática da informação
                     return result_text
             
             elif isinstance(limited_results[0], (list, tuple)):
+                self.logger.info("📊 Processando resultados como tabelas (listas/tuplas)")
                 # Resultados tabulares - analisa se é uma consulta de ranking
                 formatted = []
                 for i, row in enumerate(limited_results):
+                    self.logger.info(f"📝 Linha {i}: {row}")
                     if len(row) == 2:  # Provavelmente cidade/valor
                         if i == 0:
                             formatted.append(f"1º lugar: {row[0]} com {row[1]} casos")
@@ -222,33 +372,61 @@ Responda em português brasileiro, focando na utilidade prática da informação
                 if len(sql_results) > 20:
                     result_text += f"\n... (mostrando 20 de {len(sql_results)} resultados)"
                 
+                self.logger.info(f"✅ Resultado tabular formatado: {result_text[:200]}{'...' if len(result_text) > 200 else ''}")
                 return result_text
             else:
                 # Lista simples
-                return str(limited_results)
+                self.logger.info("❓ Processando como lista simples")
+                formatted_result = str(limited_results)
+                self.logger.info(f"🔤 Resultado como string: {formatted_result[:200]}{'...' if len(formatted_result) > 200 else ''}")
+                return formatted_result
         
-        return str(sql_results)
+        # Fallback para tipos não reconhecidos
+        self.logger.info(f"🔤 Fallback: convertendo {type(sql_results)} para string")
+        final_result = str(sql_results)
+        self.logger.info(f"🔚 Resultado final: {final_result[:200]}{'...' if len(final_result) > 200 else ''}")
+        return final_result
 
     def _call_llm(self, prompt: str) -> str:
         """Realiza chamada para o LLM com retry logic."""
+        prompt_length = len(prompt)
+        estimated_tokens = prompt_length // 4  # Rough token estimation
+        
+        self.logger.info(f"🔄 Iniciando chamada ao LLM conversacional {self.config.model_name}")
+        self.logger.info(f"📏 Tamanho do prompt: {prompt_length} caracteres (~{estimated_tokens} tokens)")
+        self.logger.info(f"⚙️ Configuração: temp={self.config.temperature}, max_tokens={self.config.max_tokens}")
+        
         for attempt in range(self.config.max_retries):
             try:
+                self.logger.info(f"🎯 Tentativa {attempt + 1}/{self.config.max_retries} - Enviando requisição para {self.config.model_name}")
+                start_time = time.time()
+                
                 response = self._make_request(prompt)
+                
+                elapsed_time = time.time() - start_time
+                response_length = len(response) if response else 0
+                
+                self.logger.info(f"✅ LLM conversacional respondeu em {elapsed_time:.2f}s")
+                self.logger.info(f"📤 Resposta recebida: {response_length} caracteres")
+                self.logger.info(f"💬 Primeira linha da resposta: '{response[:100]}{'...' if len(response) > 100 else ''}'")
+                
                 return response
                 
             except LLMTimeoutError:
                 if attempt == self.config.max_retries - 1:
+                    self.logger.error(f"❌ Timeout final na tentativa {attempt + 1}")
                     raise
                 self.logger.warning(
-                    f"Timeout na tentativa {attempt + 1}, tentando novamente..."
+                    f"⏰ Timeout na tentativa {attempt + 1}, tentando novamente..."
                 )
                 time.sleep(2 ** attempt)  # Backoff exponencial
                 
             except LLMCommunicationError as e:
                 if attempt == self.config.max_retries - 1:
+                    self.logger.error(f"❌ Erro de comunicação final na tentativa {attempt + 1}: {e}")
                     raise
                 self.logger.warning(
-                    f"Erro de comunicação na tentativa {attempt + 1}: {e}"
+                    f"⚠️ Erro de comunicação na tentativa {attempt + 1}: {e}"
                 )
                 time.sleep(2 ** attempt)
 
@@ -305,11 +483,14 @@ Responda em português brasileiro, focando na utilidade prática da informação
 
             llm_response = response_data['message']['content']
             
+            # Remove aspas desnecessárias para resposta mais amigável
+            cleaned_response = self._clean_response(llm_response)
+            
             self.logger.info(
                 f"Resposta conversacional gerada em {response_time:.2f}s"
             )
             
-            return llm_response.strip()
+            return cleaned_response
 
         except Timeout:
             raise LLMTimeoutError(
@@ -323,6 +504,53 @@ Responda em português brasileiro, focando na utilidade prática da informação
             raise LLMCommunicationError(
                 f"Erro ao decodificar resposta JSON do LLM: {e}"
             )
+
+    def _clean_response(self, response: str) -> str:
+        """Remove aspas desnecessárias e formatação extra da resposta."""
+        if not response:
+            return response
+        
+        cleaned = response.strip()
+        
+        # Remove aspas duplas no início e fim se presentes
+        if cleaned.startswith('"') and cleaned.endswith('"'):
+            cleaned = cleaned[1:-1]
+        
+        # Remove aspas simples no início e fim se presentes  
+        if cleaned.startswith("'") and cleaned.endswith("'"):
+            cleaned = cleaned[1:-1]
+        
+        # Remove identificadores de template que podem vazar na resposta
+        lines_to_remove = [
+            "Tipo de consulta identificado:",
+            "**RESPOSTA:**",
+            "---",
+            "**Sua resposta deve seguir este padrão:**"
+        ]
+        
+        lines = cleaned.split('\n')
+        filtered_lines = []
+        
+        for line in lines:
+            line_stripped = line.strip()
+            should_remove = False
+            
+            for remove_pattern in lines_to_remove:
+                if remove_pattern in line_stripped:
+                    should_remove = True
+                    break
+            
+            if not should_remove and line_stripped:
+                filtered_lines.append(line.strip())
+        
+        # Reconstrói a resposta limpa
+        final_response = '\n'.join(filtered_lines).strip()
+        
+        # Log da limpeza para debug
+        if final_response != response.strip():
+            self.logger.info(f"🧹 Resposta limpa: '{response.strip()}' → '{final_response}'")
+        
+        return final_response
 
     def get_model_info(self) -> Dict[str, Any]:
         """Retorna informações sobre o modelo conversacional."""

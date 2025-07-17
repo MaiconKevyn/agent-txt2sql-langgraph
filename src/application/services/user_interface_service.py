@@ -96,27 +96,27 @@ class CLIUserInterfaceService(IUserInterfaceService):
     def display_help(self) -> None:
         """Display help information"""
         help_text = """
-=== TXT2SQL Claude - Ajuda ===
-
-COMANDOS DISPONÍVEIS:
-- Digite sua pergunta em linguagem natural
-- 'schema' - Mostra informações do banco de dados
-- 'exemplos' - Mostra exemplos de perguntas
-- 'ajuda' ou 'help' - Mostra esta ajuda
-- 'sair', 'quit' ou 'exit' - Sai do programa
-
-EXEMPLOS DE PERGUNTAS:
-- Quantos pacientes existem?
-- Qual a idade média dos pacientes?
-- Quantas mortes ocorreram em Porto Alegre?
-- Quais são os diagnósticos mais comuns?
-- Qual o custo total por estado?
-
-DICAS:
-- Use nomes de cidades para consultas geográficas
-- Seja específico nas suas perguntas
-- Use termos médicos quando apropriado
-"""
+        === TXT2SQL Claude - Ajuda ===
+        
+        COMANDOS DISPONÍVEIS:
+        - Digite sua pergunta em linguagem natural
+        - 'schema' - Mostra informações do banco de dados
+        - 'exemplos' - Mostra exemplos de perguntas
+        - 'ajuda' ou 'help' - Mostra esta ajuda
+        - 'sair', 'quit' ou 'exit' - Sai do programa
+        
+        EXEMPLOS DE PERGUNTAS:
+        - Quantos pacientes existem?
+        - Qual a idade média dos pacientes?
+        - Quantas mortes ocorreram em Porto Alegre?
+        - Quais são os diagnósticos mais comuns?
+        - Qual o custo total por estado?
+        
+        DICAS:
+        - Use nomes de cidades para consultas geográficas
+        - Seja específico nas suas perguntas
+        - Use termos médicos quando apropriado
+        """
         print(help_text)
     
     def _display_welcome(self) -> None:
