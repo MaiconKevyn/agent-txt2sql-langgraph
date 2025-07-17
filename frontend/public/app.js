@@ -19,7 +19,8 @@ const elements = {
     statusText: document.getElementById('statusText'),
     errorToast: document.getElementById('errorToast'),
     schemaContent: document.getElementById('schemaContent'),
-    exampleBtns: document.querySelectorAll('.example-btn')
+    exampleBtns: document.querySelectorAll('.example-btn'),
+    themeToggle: document.getElementById('themeToggle')
 };
 
 // Initialize App
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     checkServerStatus();
     setWelcomeTime();
+    initializeTheme();
 });
 
 function initializeApp() {
@@ -59,6 +61,9 @@ function setupEventListeners() {
     
     // Clear chat
     elements.clearBtn.addEventListener('click', clearChat);
+    
+    // Theme toggle
+    elements.themeToggle.addEventListener('click', toggleTheme);
     
     // Example buttons
     elements.exampleBtns.forEach(btn => {
@@ -562,10 +567,39 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
+// Theme Management
+function initializeTheme() {
+    // Get saved theme or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+    const icon = elements.themeToggle.querySelector('i');
+    if (theme === 'dark') {
+        icon.className = 'fas fa-moon';
+        elements.themeToggle.title = 'Alternar para Tema Claro';
+    } else {
+        icon.className = 'fas fa-sun';
+        elements.themeToggle.title = 'Alternar para Tema Escuro';
+    }
+}
+
 // Export for potential future use
 window.ChatApp = {
     sendMessage,
     clearChat,
     showSchemaModal,
-    checkServerStatus
+    checkServerStatus,
+    toggleTheme
 };

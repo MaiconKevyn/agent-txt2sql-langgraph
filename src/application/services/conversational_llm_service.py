@@ -21,7 +21,8 @@ from src.domain.exceptions.custom_exceptions import (
 @dataclass
 class ConversationalConfig:
     """Configuração especializada para LLM conversacional."""
-    model_name: str = "llama3.2:latest"  # Use available model
+    # model_name: str = "llama3.2:latest"
+    model_name: str = "mistral"  # Use available model
     temperature: float = 0.8  # Mais criativo para conversação
     max_tokens: int = 1000
     timeout: int = 60
@@ -156,7 +157,8 @@ class ConversationalLLMService:
     ⚠️ INSTRUÇÕES CRÍTICAS - LEIA COM ATENÇÃO:
     1. NUNCA invente cidades, números ou informações que não estão nos resultados
     2. Para perguntas como "qual cidade", responda EXATAMENTE com o nome da cidade que aparece em "1º lugar" nos resultados
-    3. NÃO use conhecimento geral sobre cidades brasileiras - use apenas os dados fornecidos
+    3.Quando perguntado sobre "quais cidades" liste exatamente o numero que pede com a informação correta.
+    4. Utilize apenas os dados fornecidos para gerar a resposta. Não adicione informações externas ou suposições.
     
     Transforme estes dados em uma resposta conversacional amigável e informativa.
     Responda em português brasileiro, focando na utilidade prática da informação.
