@@ -69,8 +69,8 @@ class ConversationalResponseService:
         self.prompt_service = prompt_template_service or SUSPromptTemplateService()
         self.enable_memory = enable_memory
         self.logger = logging.getLogger(__name__)
-        # Prevent duplicate logs by disabling propagation to root logger
-        self.logger.propagate = False
+        # Enable propagation to see detailed logs in output
+        self.logger.propagate = True
         
         # Cache de contextos de conversação
         self.conversation_contexts: Dict[str, ConversationContext] = {}
@@ -103,20 +103,31 @@ class ConversationalResponseService:
         import time
         start_time = time.time()
         
+        self.logger.info("🎭 CONVERSATIONAL RESPONSE SERVICE - Iniciando geração de resposta")
+        self.logger.info(f"📝 Query usuário: '{user_query}'")
+        self.logger.info(f"🗄️ SQL executada: '{sql_query}'")
+        self.logger.info(f"📊 Tipo resultados: {type(sql_results).__name__}")
+        self.logger.info(f"🔢 Quantidade resultados: {len(sql_results) if hasattr(sql_results, '__len__') else 'N/A'}")
+        self.logger.info(f"🆔 Session ID: {session_id}")
+        self.logger.info(f"⚠️ Erro: {error_message if error_message else 'Nenhum'}")
+        
         try:
             # Determina o tipo de prompt mais apropriado
             has_error = bool(error_message)
             prompt_type = self.prompt_service.determine_prompt_type(
                 user_query, sql_results, has_error
             )
+            self.logger.info(f"🎯 Tipo de prompt determinado: {prompt_type}")
             
             # Recupera ou cria contexto da conversação
             conversation_context = self._get_conversation_context(session_id)
+            self.logger.info(f"💭 Contexto conversação: {len(conversation_context.conversation_history)} mensagens no histórico")
             
             # Enriquece o contexto com informações da sessão
             enhanced_context = self._enhance_context(
                 context or {}, conversation_context
             )
+            self.logger.info(f"📈 Contexto enriquecido com {len(enhanced_context)} elementos")
             
             # Gera o prompt especializado
             specialized_prompt = self.prompt_service.get_prompt(
@@ -127,19 +138,24 @@ class ConversationalResponseService:
                 context=enhanced_context,
                 error_message=error_message
             )
+            self.logger.info(f"📝 Prompt especializado gerado: {len(specialized_prompt)} caracteres")
             
             # Gera a resposta conversacional
             if has_error:
+                self.logger.info("❌ Gerando resposta de erro")
                 conversational_message = self._generate_error_response(
                     specialized_prompt, error_message
                 )
             else:
+                self.logger.info("✅ Gerando resposta conversacional normal via LLM")
+                self.logger.info("🔄 Chamando ConversationalLLMService.generate_conversational_response")
                 conversational_message = self.conversational_llm.generate_conversational_response(
                     user_query=user_query,
                     sql_query=sql_query,
                     sql_results=sql_results,
                     context=enhanced_context
                 )
+                self.logger.info(f"💬 Resposta conversacional recebida: '{conversational_message}'")
             
             # Gera sugestões de continuação
             suggestions = self._generate_suggestions(
