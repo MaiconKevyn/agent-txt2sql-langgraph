@@ -42,7 +42,10 @@ Este é o **novo sistema de avaliação simplificado** para modelos Text2SQL, de
 # Listar modelos disponíveis
 python model_runner.py --list-models
 
-# Executar um modelo específico
+# Executar um modelo específico (llama3 - padrão)
+python model_runner.py --models ollama_llama3 --output-dir results
+
+# Executar modelo alternativo (mistral)
 python model_runner.py --models mistral --output-dir results
 
 # Executar múltiplos modelos
@@ -96,8 +99,8 @@ python analysis_reporter.py --input results/evaluation_results_20250713_164421.j
 
 ### **Executar com Modelos Específicos:**
 ```bash
-# 1. Executar modelos selecionados
-python model_runner.py --models ollama_llama3.1 qwen3 mistral --output-dir results
+# 1. Executar modelos selecionados (llama3 como padrão, mistral como alternativa)
+python model_runner.py --models ollama_llama3 qwen3 mistral --output-dir results
 
 # 2. Avaliar (substituir TIMESTAMP pelo gerado)
 python query_evaluator.py --input results/model_results_TIMESTAMP.json --database ../sus_database.db
