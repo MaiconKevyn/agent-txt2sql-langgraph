@@ -3,7 +3,7 @@
 
 import sys
 import os
-sys.path.append('/home/maiconkevyn/PycharmProjects/txt2sql_claude_s')
+sys.path.append('/')
 
 from src.application.config.simple_config import ApplicationConfig
 from src.application.orchestrator.text2sql_orchestrator import Text2SQLOrchestrator

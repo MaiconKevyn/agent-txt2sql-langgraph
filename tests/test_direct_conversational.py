@@ -4,7 +4,7 @@
 import sys
 import os
 import logging
-sys.path.append('/home/maiconkevyn/PycharmProjects/txt2sql_claude_s')
+sys.path.append('/')
 
 # Configure logging to see all levels
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
