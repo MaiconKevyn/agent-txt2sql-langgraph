@@ -1,15 +1,12 @@
-# 🏥 TXT2SQL Claude - Healthcare AI System
+# 🏥 TXT2SQL - Healthcare AI System
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Status](https://img.shields.io/badge/status-Production%20Ready-brightgreen.svg)
-![Architecture](https://img.shields.io/badge/architecture-Clean%20Architecture-orange.svg)
 ![SUS](https://img.shields.io/badge/data-Brazilian%20SUS-yellow.svg)
 
-> **Intelligent Natural Language to SQL converter for Brazilian Healthcare Data (SUS)**
+> **Natural Language to SQL converter for Brazilian Healthcare Data (SUS)**
 > 
-> A production-ready AI system that transforms natural language questions into SQL queries, specifically designed for Brazilian healthcare data analysis. Built with clean architecture principles and featuring intelligent query routing, decomposition, and multi-interface support.
+>AI system that transforms natural language questions into SQL queries, specifically designed for Brazilian healthcare data analysis. Built with clean architecture principles and featuring intelligent query routing, decomposition, and multi-interface support.
 
 ## 📋 Table of Contents
 
@@ -23,8 +20,6 @@
 - [📊 Evaluation & Performance](#-evaluation--performance)
 - [🔧 Configuration](#-configuration)
 - [🐛 Troubleshooting](#-troubleshooting)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
 
 ---
 
@@ -43,10 +38,12 @@ python database_setup.py
 ollama serve
 
 # 4. Install LLM model
-ollama pull llama3
+ollama pull llama3          # Primary model
+ollama pull mistral         # Alternative model
 
-# 5. Run the system
-python txt2sql_agent_clean.py
+# 5. Start the frontend
+cd frontend
+npm run dev
 ```
 
 **First query example:**
@@ -97,7 +94,7 @@ python txt2sql_agent_clean.py
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    TXT2SQL Claude System                        │
+│                    TXT2SQL System                        │
 ├─────────────────────────────────────────────────────────────────┤
 │  CLI Interface  │  REST API  │  Web Interface  │  Python SDK    │
 ├─────────────────────────────────────────────────────────────────┤
@@ -162,8 +159,8 @@ graph TD
 
 #### 1. **Clone Repository**
 ```bash
-git clone https://github.com/your-username/txt2sql_claude_s.git
-cd txt2sql_claude_s
+git clone https://github.com/MaiconKevyn/agent_llama3_txt2sql.git
+cd agent_llama3_txt2sql
 ```
 
 #### 2. **Python Environment Setup**
@@ -201,7 +198,7 @@ ollama serve
 # Install LLM models
 ollama pull llama3          # Primary model
 ollama pull llama3.2        # Conversational model
-ollama pull mistral         # Fallback model (optional)
+ollama pull mistral         # Alternative model
 ```
 
 #### 5. **Web Interface Setup** (Optional)
@@ -225,36 +222,28 @@ python txt2sql_agent_clean.py --health-check
 python txt2sql_agent_clean.py --query "Quantos pacientes existem?"
 ```
 
-### Docker Installation (Alternative)
-
-```bash
-# Build Docker image
-docker build -t txt2sql-claude .
-
-# Run container
-docker run -p 8000:8000 -p 3000:3000 txt2sql-claude
-```
-
 ---
 
 ## 🚀 Usage
 
-### Command Line Interface
+### Frontend Interface
 
-#### **Interactive Mode** (Default)
+#### **Start Frontend** (Recommended)
 ```bash
-python txt2sql_agent_clean.py
+cd frontend
+npm run dev
 ```
 
 Features:
-- 🔍 Query classification indicators
-- 📊 Performance metrics
-- 🎯 Routing confidence scores
-- 🧩 Decomposition status
+- 🎨 Modern web interface
+- 📱 Mobile-friendly design
+- 🔍 Real-time query processing
+- 📊 Visual result presentation
+- 🎯 Query routing indicators
 
-#### **Basic Mode**
+#### **Alternative: Command Line Interface**
 ```bash
-python txt2sql_agent_clean.py --basic
+python txt2sql_agent_clean.py
 ```
 
 #### **Single Query Mode**
@@ -409,7 +398,7 @@ python api_server.py
 
 # Start web server (Terminal 2)
 cd frontend
-npm start
+npm run dev
 ```
 
 ### **Access Application**
@@ -461,8 +450,10 @@ python analysis_reporter.py --input results/evaluation_results_TIMESTAMP.json
 | Model | Exact Match | Semantic Equivalence | SQL Similarity | Success Rate |
 |-------|-------------|---------------------|----------------|--------------|
 | Qwen 3 | 33.3% | 66.7% | 0.720 | 93.3% |
-| Ollama Llama3.1 | 33.3% | 53.3% | 0.681 | 86.7% |
+| Ollama Llama3 | 33.3% | 53.3% | 0.681 | 86.7% |
 | Mistral | 20.0% | 46.7% | 0.650 | 80.0% |
+
+**Note**: Both Llama3 and Mistral are supported as primary models. Llama3 is recommended for better performance, while Mistral serves as a reliable alternative.
 
 #### **System Capabilities**
 - **Database Records**: 24,485 SUS patient records
@@ -487,8 +478,8 @@ Create a `.env` file in the project root:
 
 ```env
 # LLM Configuration
-LLM_MODEL=llama3
-CONVERSATIONAL_MODEL=llama3.2
+LLM_MODEL=llama3                    # Primary model (or use mistral)
+CONVERSATIONAL_MODEL=llama3.2       # Conversational model
 LLM_TIMEOUT=120
 OLLAMA_URL=http://localhost:11434
 
@@ -525,7 +516,7 @@ class ServiceConfig:
     connection_timeout: int = 30
     
     # LLM settings
-    llm_model: str = "llama3"
+    llm_model: str = "llama3"           # Primary model (or "mistral")
     llm_timeout: int = 120
     retry_attempts: int = 3
     
@@ -613,46 +604,10 @@ curl http://localhost:8000/health
 
 Check logs for detailed error information:
 - `txt2sql_errors.log` - Main application logs
-- `evaluation/txt2sql_errors.log` - Evaluation system logs
 - `tests/txt2sql_errors.log` - Test execution logs
 
 ---
 
-## 🤝 Contributing
-
-### **Development Setup**
-
-```bash
-# Clone repository
-git clone https://github.com/your-username/txt2sql_claude_s.git
-cd txt2sql_claude_s
-
-# Create development environment
-python -m venv dev-env
-source dev-env/bin/activate
-
-# Install development dependencies
-pip install -r requirements.txt
-pip install pytest black flake8 mypy
-
-# Run tests
-pytest tests/
-```
-
-### **Code Style**
-
-This project follows clean architecture principles and Python best practices:
-
-```bash
-# Format code
-black src/ tests/
-
-# Lint code
-flake8 src/ tests/
-
-# Type checking
-mypy src/
-```
 
 ### **Adding New Features**
 
@@ -671,27 +626,7 @@ mypy src/
 
 ---
 
-## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Brazilian Ministry of Health** for SUS data access
-- **Ollama Team** for local LLM infrastructure
-- **LangChain** for SQL agent capabilities
-- **FastAPI** for modern API framework
-- **Clean Architecture Community** for architectural guidance
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/txt2sql_claude_s/issues)
-- **Documentation**: [Wiki](https://github.com/your-username/txt2sql_claude_s/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/txt2sql_claude_s/discussions)
 
 ---
 
