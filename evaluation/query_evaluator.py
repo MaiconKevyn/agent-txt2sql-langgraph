@@ -16,7 +16,7 @@ from typing import List, Dict, Any
 
 from utils import (
     EvaluationConfig, QueryEvaluation, FileManager, 
-    DatabaseManager, DataProcessor
+    DatabaseManager, DataProcessor, EnhancedDataComparator
 )
 
 
@@ -69,19 +69,24 @@ class QueryEvaluator:
             if not generated_result['success']:
                 print(f"    ❌ Erro na query gerada: {generated_result['error']}")
         
-        # Comparar resultados
-        comparison = DataProcessor.compare_query_results(expected_result, generated_result)
+        # Comparar resultados com lógica enhanced
+        comparison = EnhancedDataComparator.enhanced_compare_query_results(expected_result, generated_result)
         
         # Calcular similaridade SQL
         sql_similarity = DataProcessor.calculate_sql_similarity(expected_query, generated_query)
         
-        # Status da comparação
+        # Status da comparação com novas métricas
         if comparison['exact_match']:
             print(f"    ✅ Match exato | SQL similarity: {sql_similarity:.3f}")
+        elif comparison['functional_equivalence']:
+            print(f"    ✅ Funcionalmente equivalente | Confidence: {comparison['confidence']:.3f} | SQL similarity: {sql_similarity:.3f}")
         elif comparison['semantic_equivalence']:
-            print(f"    🟡 Semanticamente equivalente | SQL similarity: {sql_similarity:.3f}")
+            print(f"    🟡 Semanticamente equivalente | Confidence: {comparison['confidence']:.3f} | SQL similarity: {sql_similarity:.3f}")
+        elif comparison['data_equivalence']:
+            print(f"    🟡 Dados equivalentes | Confidence: {comparison['confidence']:.3f} | SQL similarity: {sql_similarity:.3f}")
         elif expected_result['success'] and generated_result['success']:
-            print(f"    ❌ Dados diferentes | SQL similarity: {sql_similarity:.3f}")
+            print(f"    ❌ Dados diferentes | Confidence: {comparison['confidence']:.3f} | SQL similarity: {sql_similarity:.3f}")
+            print(f"      Reason: {comparison['reason']}")
             # Mostrar os primeiros resultados para debug
             exp_preview = str(expected_result['data'][:3]) if expected_result['data'] else "[]"
             gen_preview = str(generated_result['data'][:3]) if generated_result['data'] else "[]"
@@ -117,6 +122,10 @@ class QueryEvaluator:
             structure_match=comparison['structure_match'],
             sql_similarity=sql_similarity,
             semantic_equivalence=comparison['semantic_equivalence'],
+            data_equivalence=comparison.get('data_equivalence', False),
+            functional_equivalence=comparison.get('functional_equivalence', False),
+            columns_match=comparison.get('columns_match', False),
+            confidence=comparison.get('confidence', 0.0),
             
             # Metadados
             execution_time=model_result.get("execution_time", 0.0)
@@ -152,12 +161,16 @@ class QueryEvaluator:
         total = len(model_evaluations)
         exact_matches = sum(1 for e in model_evaluations if e.exact_match)
         semantic_matches = sum(1 for e in model_evaluations if e.semantic_equivalence)
+        functional_matches = sum(1 for e in model_evaluations if e.functional_equivalence)
+        data_matches = sum(1 for e in model_evaluations if e.data_equivalence)
         execution_successes = sum(1 for e in model_evaluations if e.expected_success and e.generated_success)
         
         print(f"\n📊 Resumo {model_name}:")
         print(f"  Queries avaliadas: {total}")
         print(f"  Matches exatos: {exact_matches} ({exact_matches/total*100:.1f}%)")
+        print(f"  Equivalência funcional: {functional_matches} ({functional_matches/total*100:.1f}%)")
         print(f"  Equivalência semântica: {semantic_matches} ({semantic_matches/total*100:.1f}%)")
+        print(f"  Equivalência de dados: {data_matches} ({data_matches/total*100:.1f}%)")
         print(f"  Execuções bem-sucedidas: {execution_successes} ({execution_successes/total*100:.1f}%)")
         
         return model_evaluations
@@ -197,9 +210,12 @@ class QueryEvaluator:
                 total = len(model_evaluations)
                 exact_matches = sum(1 for e in model_evaluations if e.exact_match)
                 semantic_matches = sum(1 for e in model_evaluations if e.semantic_equivalence)
+                functional_matches = sum(1 for e in model_evaluations if e.functional_equivalence)
+                data_matches = sum(1 for e in model_evaluations if e.data_equivalence)
                 structure_matches = sum(1 for e in model_evaluations if e.structure_match)
                 execution_successes = sum(1 for e in model_evaluations if e.expected_success and e.generated_success)
                 avg_sql_similarity = sum(e.sql_similarity for e in model_evaluations) / total
+                avg_confidence = sum(e.confidence for e in model_evaluations) / total
                 
                 # Métricas por dificuldade
                 metrics_by_difficulty = {}
@@ -209,7 +225,10 @@ class QueryEvaluator:
                         diff_total = len(diff_evals)
                         diff_exact = sum(1 for e in diff_evals if e.exact_match)
                         diff_semantic = sum(1 for e in diff_evals if e.semantic_equivalence)
+                        diff_functional = sum(1 for e in diff_evals if e.functional_equivalence)
+                        diff_data = sum(1 for e in diff_evals if e.data_equivalence)
                         diff_sql_sim = sum(e.sql_similarity for e in diff_evals) / diff_total
+                        diff_confidence = sum(e.confidence for e in diff_evals) / diff_total
                         
                         metrics_by_difficulty[difficulty] = {
                             "total": diff_total,
@@ -217,7 +236,12 @@ class QueryEvaluator:
                             "exact_match_rate": diff_exact / diff_total,
                             "semantic_matches": diff_semantic,
                             "semantic_match_rate": diff_semantic / diff_total,
-                            "avg_sql_similarity": diff_sql_sim
+                            "functional_matches": diff_functional,
+                            "functional_match_rate": diff_functional / diff_total,
+                            "data_matches": diff_data,
+                            "data_match_rate": diff_data / diff_total,
+                            "avg_sql_similarity": diff_sql_sim,
+                            "avg_confidence": diff_confidence
                         }
                 
                 model_summaries[model_key] = {
@@ -227,11 +251,16 @@ class QueryEvaluator:
                     "exact_match_rate": exact_matches / total,
                     "semantic_matches": semantic_matches,
                     "semantic_match_rate": semantic_matches / total,
+                    "functional_matches": functional_matches,
+                    "functional_match_rate": functional_matches / total,
+                    "data_matches": data_matches,
+                    "data_match_rate": data_matches / total,
                     "structure_matches": structure_matches,
                     "structure_match_rate": structure_matches / total,
                     "execution_successes": execution_successes,
                     "execution_success_rate": execution_successes / total,
                     "avg_sql_similarity": avg_sql_similarity,
+                    "avg_confidence": avg_confidence,
                     "metrics_by_difficulty": metrics_by_difficulty
                 }
         
@@ -268,6 +297,10 @@ class QueryEvaluator:
                     "structure_match": e.structure_match,
                     "sql_similarity": e.sql_similarity,
                     "semantic_equivalence": e.semantic_equivalence,
+                    "data_equivalence": e.data_equivalence,
+                    "functional_equivalence": e.functional_equivalence,
+                    "columns_match": e.columns_match,
+                    "confidence": e.confidence,
                     "execution_time": e.execution_time
                 }
                 for e in all_evaluations

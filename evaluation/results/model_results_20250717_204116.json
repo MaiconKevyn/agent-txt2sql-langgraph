@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "20250713_164421",
+    "timestamp": "20250717_204116",
     "ground_truth_file": "ground_truth.json",
     "models_tested": [
       "ollama_llama3",
@@ -20,7 +20,7 @@
       "generation_rate": 1.0,
       "successful_queries": 15,
       "success_rate": 1.0,
-      "avg_execution_time": 7.63396463394165
+      "avg_execution_time": 6.9398468971252445
     },
     "ollama_llama3.1": {
       "model_name": "Ollama Llama3.1",
@@ -30,17 +30,17 @@
       "generation_rate": 1.0,
       "successful_queries": 15,
       "success_rate": 1.0,
-      "avg_execution_time": 9.692092068990071
+      "avg_execution_time": 8.551082595189412
     },
     "ollama_llama3.2": {
       "model_name": "Ollama Llama3.2",
       "provider": "ollama",
       "total_queries": 15,
-      "queries_generated": 14,
-      "generation_rate": 0.9333333333333333,
-      "successful_queries": 14,
-      "success_rate": 0.9333333333333333,
-      "avg_execution_time": 6.032560920715332
+      "queries_generated": 15,
+      "generation_rate": 1.0,
+      "successful_queries": 15,
+      "success_rate": 1.0,
+      "avg_execution_time": 13.194948514302572
     },
     "mistral": {
       "model_name": "Mistral",
@@ -50,7 +50,7 @@
       "generation_rate": 1.0,
       "successful_queries": 15,
       "success_rate": 1.0,
-      "avg_execution_time": 10.985690641403199
+      "avg_execution_time": 11.835188659032186
     },
     "qwen3": {
       "model_name": "Qwen 3",
@@ -60,7 +60,7 @@
       "generation_rate": 1.0,
       "successful_queries": 15,
       "success_rate": 1.0,
-      "avg_execution_time": 17.578629700342812
+      "avg_execution_time": 21.2870800336202
     }
   },
   "detailed_results": [
@@ -72,8 +72,8 @@
       "question": "Quantos homens foram registrados?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 1;",
-      "execution_time": 12.911828517913818,
+      "generated_query": "SELECT COUNT(*) as total_homens FROM sus_data WHERE SEXO = 1;",
+      "execution_time": 12.507359027862549,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -86,8 +86,8 @@
       "question": "Liste os 5 municípios com o maior número de atendimentos.",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data WHERE MORTE = 0 AND SEXO IN (1,3) GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "execution_time": 23.636202096939087,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
+      "execution_time": 6.3695878982543945,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -100,8 +100,8 @@
       "question": "Qual a média de idade dos pacientes que são de Uruguaiana?",
       "difficulty": "easy",
       "expected_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
-      "generated_query": "SELECT COUNT(*) FROM sus_data;",
-      "execution_time": 8.46242070198059,
+      "generated_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
+      "execution_time": 5.664781093597412,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -115,7 +115,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_atendimentos FROM sus_data;",
       "generated_query": "SELECT COUNT(*) as total_atendimentos FROM sus_data;",
-      "execution_time": 3.9709980487823486,
+      "execution_time": 4.897126913070679,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -129,7 +129,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
       "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "execution_time": 6.928762435913086,
+      "execution_time": 7.516888856887817,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -143,7 +143,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
       "generated_query": "SELECT COUNT(*) as total_mulheres FROM sus_data WHERE SEXO = 3;",
-      "execution_time": 4.1437742710113525,
+      "execution_time": 5.1484973430633545,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -157,7 +157,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
       "generated_query": "SELECT SUM(VAL_TOT) AS valor_total_gasto FROM sus_data;",
-      "execution_time": 5.082634449005127,
+      "execution_time": 6.209335803985596,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -170,8 +170,8 @@
       "question": "Quantos pacientes com mais de 40 anos morreram?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE MORTE = 1 AND IDADE > 40;",
-      "execution_time": 4.828238010406494,
+      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE IDADE > 40 AND MORTE = 1;",
+      "execution_time": 4.734877824783325,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -184,8 +184,8 @@
       "question": "Qual a idade média dos pacientes que morreram?",
       "difficulty": "medium",
       "expected_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
-      "generated_query": "SELECT AVG(IDADE) AS media_idade_mortos FROM sus_data WHERE MORTE = 1;",
-      "execution_time": 4.541590690612793,
+      "generated_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
+      "execution_time": 5.224320650100708,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -198,8 +198,8 @@
       "question": "Quantos casos de doença respiratória?",
       "difficulty": "medium",
       "expected_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "generated_query": "SELECT COUNT(*) as total_doenca_respiratoria FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "execution_time": 6.231842994689941,
+      "generated_query": "SELECT COUNT(*) as total_casos FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
+      "execution_time": 5.767688274383545,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -212,8 +212,8 @@
       "question": "Qual o gasto médio por atendimento em cada cidade?",
       "difficulty": "medium",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data WHERE MORTE = 0 -- apenas considerar pacientes que não morreram GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
-      "execution_time": 5.528611183166504,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 5.839221954345703,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -227,7 +227,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
       "generated_query": "SELECT CASE WHEN SEXO = 1 THEN 'Masculino' ELSE 'Feminino' END as sexo, COUNT(*) as total_atendimentos FROM sus_data GROUP BY sexo;",
-      "execution_time": 4.947930574417114,
+      "execution_time": 6.43315052986145,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -241,7 +241,7 @@
       "difficulty": "hard",
       "expected_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
       "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END as faixa_etaria, COUNT(*) as total_mortos FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortos DESC;",
-      "execution_time": 6.420178651809692,
+      "execution_time": 12.59347414970398,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -251,11 +251,11 @@
       "model_name": "Ollama Llama3",
       "provider": "ollama",
       "query_id": "GT014",
-      "question": "Quais diagnósticos principais mais comuns em pacientes que foram a óbito?",
+      "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
       "difficulty": "hard",
-      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 10;",
-      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC;",
-      "execution_time": 7.415570020675659,
+      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;",
+      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 5.78780460357666,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -268,8 +268,8 @@
       "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
       "difficulty": "hard",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes, ROUND(COUNT(*) * 1.0 / (SELECT COUNT(*) FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = s.CIDADE_RESIDENCIA_PACIENTE), 4) as taxa_mortalidade FROM sus_data s WHERE MORTE = 1 AND total_ocorrencias > 1000 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY taxa_mortalidade DESC;",
-      "execution_time": 9.458886861801147,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND IDADE > 0 GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY total_mortes DESC;",
+      "execution_time": 9.40358853340149,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -283,7 +283,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
       "generated_query": "SELECT COUNT(*) as total_homens FROM sus_data WHERE SEXO = 1;",
-      "execution_time": 10.389850378036499,
+      "execution_time": 12.077515602111816,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -296,8 +296,8 @@
       "question": "Liste os 5 municípios com o maior número de atendimentos.",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data WHERE MORTE = 0 AND DIAG_PRINC LIKE 'J%' -- Doenças respiratórias GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC;",
-      "execution_time": 9.78321623802185,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data WHERE MUNIC_MOV IS NOT NULL AND MORTE = 0 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
+      "execution_time": 12.118805408477783,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -311,7 +311,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
       "generated_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
-      "execution_time": 7.748976707458496,
+      "execution_time": 9.244897603988647,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -325,7 +325,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_atendimentos FROM sus_data;",
       "generated_query": "SELECT COUNT(*) as total_atendimentos FROM sus_data;",
-      "execution_time": 5.0850677490234375,
+      "execution_time": 7.775832414627075,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -339,7 +339,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
       "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "execution_time": 8.328779697418213,
+      "execution_time": 9.830950736999512,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -352,8 +352,8 @@
       "question": "Quantas mulheres foram atendidas?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
-      "generated_query": "SELECT COUNT(*) as total_mulheres FROM sus_data WHERE SEXO = 3;",
-      "execution_time": 4.392141342163086,
+      "generated_query": "SELECT COUNT(*) as total_mulheres FROM sus_data WHERE MORTE = 0 AND SEXO = 3;",
+      "execution_time": 7.582932233810425,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -366,8 +366,8 @@
       "question": "Qual o valor total gasto em atendimentos?",
       "difficulty": "easy",
       "expected_query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
-      "generated_query": "SELECT SUM(VAL_TOT) as custo_total FROM sus_data;",
-      "execution_time": 5.74163818359375,
+      "generated_query": "SELECT SUM(VAL_TOT) AS valor_total_gasto FROM sus_data;",
+      "execution_time": 6.559500217437744,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -380,8 +380,8 @@
       "question": "Quantos pacientes com mais de 40 anos morreram?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE MORTE = 1 AND IDADE > 40;",
-      "execution_time": 4.760859251022339,
+      "generated_query": "SELECT COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND IDADE > 40;",
+      "execution_time": 5.515321731567383,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -394,8 +394,8 @@
       "question": "Qual a idade média dos pacientes que morreram?",
       "difficulty": "medium",
       "expected_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
-      "generated_query": "SELECT AVG(IDADE) AS idade_media_mortes FROM sus_data WHERE MORTE = 1;",
-      "execution_time": 5.689404249191284,
+      "generated_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
+      "execution_time": 5.810252904891968,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -408,8 +408,8 @@
       "question": "Quantos casos de doença respiratória?",
       "difficulty": "medium",
       "expected_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "generated_query": "SELECT COUNT(*) FROM sus_data;",
-      "execution_time": 8.509862184524536,
+      "generated_query": "SELECT COUNT(*) as total_casos FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
+      "execution_time": 5.646618843078613,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -422,8 +422,8 @@
       "question": "Qual o gasto médio por atendimento em cada cidade?",
       "difficulty": "medium",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "generated_query": "SELECT AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 0;",
-      "execution_time": 38.82930827140808,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 9.378759145736694,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -437,7 +437,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
       "generated_query": "SELECT CASE WHEN SEXO = 1 THEN 'Masculino' ELSE 'Feminino' END as sexo, COUNT(*) as total_atendimentos FROM sus_data GROUP BY sexo;",
-      "execution_time": 7.960418462753296,
+      "execution_time": 6.26138710975647,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -450,8 +450,8 @@
       "question": "Qual a faixa etária com mais mortes?",
       "difficulty": "hard",
       "expected_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
-      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END as faixa_etaria, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
-      "execution_time": 7.699707269668579,
+      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
+      "execution_time": 9.674249649047852,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -461,11 +461,11 @@
       "model_name": "Ollama Llama3.1",
       "provider": "ollama",
       "query_id": "GT014",
-      "question": "Quais diagnósticos principais mais comuns em pacientes que foram a óbito?",
+      "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
       "difficulty": "hard",
-      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 10;",
-      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC;",
-      "execution_time": 8.234082698822021,
+      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;",
+      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 8.990109205245972,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -478,8 +478,8 @@
       "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
       "difficulty": "hard",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(CASE WHEN MORTE = 1 THEN 1 ELSE 0 END) AS mortes, ROUND(SUM(CASE WHEN MORTE = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM sus_data WHERE DIAG_PRINC LIKE 'J%' -- Doenças respiratórias (exemplo) GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY taxa_mortalidade DESC;",
-      "execution_time": 12.228068351745605,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(CASE WHEN MORTE = 1 THEN 1 ELSE 0 END) AS mortes, ROUND(SUM(CASE WHEN MORTE = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM sus_data WHERE DIAG_PRINC LIKE 'J%' GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY taxa_mortalidade DESC;",
+      "execution_time": 11.799106121063232,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -492,8 +492,8 @@
       "question": "Quantos homens foram registrados?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 1;",
-      "execution_time": 5.087543487548828,
+      "generated_query": "SELECT COUNT(CASE WHEN SEXO = 1 THEN 1 END) as total_homens FROM sus_data;",
+      "execution_time": 6.758626937866211,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -506,8 +506,8 @@
       "question": "Liste os 5 municípios com o maior número de atendimentos.",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "generated_query": "SELECT c.descricao as cidade, COUNT(*) as total_atendimentos FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim GROUP BY c.descricao ORDER BY total_atendimentos DESC LIMIT 5;",
-      "execution_time": 4.648816347122192,
+      "generated_query": "SELECT MUNIC_RES, COUNT(*) FROM sus_data;",
+      "execution_time": 6.80033802986145,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -520,8 +520,8 @@
       "question": "Qual a média de idade dos pacientes que são de Uruguaiana?",
       "difficulty": "easy",
       "expected_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
-      "generated_query": "SELECT AVG(IDADE) as media_idade FROM sus_data WHERE UF_RESIDENCIA_PACIENTE = 'Uruguaiana' AND MORTE = 1;",
-      "execution_time": 2.6043508052825928,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(IDADE) as media_idade FROM sus_data WHERE UF_RESIDENCIA_PACIENTE = 'Uruguaiana' AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 137.97337770462036,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -535,7 +535,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_atendimentos FROM sus_data;",
       "generated_query": "SELECT SUM(VAL_TOT) AS total_atendimentos FROM sus_data;",
-      "execution_time": 2.1143999099731445,
+      "execution_time": 2.6541945934295654,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -548,8 +548,8 @@
       "question": "Quais são os cinco municípios com mais mortes?",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND UF_RESIDENCIA_PACIENTE IN ( SELECT UF_RESIDENCIA_PACIENTE FROM sus_data GROUP BY UF_RESIDENCIA_PACIENTE HAVING COUNT(DISTINCT MUNIC_MOV) > 5 ) GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC;",
-      "execution_time": 4.190317869186401,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND SEXO = 3 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 4.2712390422821045,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -562,8 +562,8 @@
       "question": "Quantas mulheres foram atendidas?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
-      "generated_query": "SELECT COUNT(*) as total_feminas FROM sus_data WHERE SEXO = 3;",
-      "execution_time": 2.1783082485198975,
+      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 3;",
+      "execution_time": 2.861325740814209,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -576,8 +576,8 @@
       "question": "Qual o valor total gasto em atendimentos?",
       "difficulty": "easy",
       "expected_query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
-      "generated_query": "SELECT SUM(VAL_TOT) as total_gasto FROM sus_data;",
-      "execution_time": 2.058645725250244,
+      "generated_query": "SELECT AVG(VAL_TOT) AS valor_total_gasto FROM sus_data;",
+      "execution_time": 3.5071637630462646,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -590,8 +590,8 @@
       "question": "Quantos pacientes com mais de 40 anos morreram?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;",
-      "generated_query": "SELECT AVG( JULIANDAY(SUBSTR(DT_SAIDA, 1, 4) || '-' || SUBSTR(DT_SAIDA, 5, 2) || '-' || SUBSTR(DT_SAIDA, 7, 2)) - JULIANDAY(SUBSTR(DT_INTER, 1, 4) || '-' || SUBSTR(DT_INTER, 5, 2) || '-' || SUBSTR(DT_INTER, 7, 2)) ) AS tempo_medio_dias FROM sus_data WHERE DIAG_PRINC LIKE 'J%' AND IDADE > 40 AND MORTE = 1;",
-      "execution_time": 4.197241306304932,
+      "generated_query": "SELECT COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND IDADE > 40;",
+      "execution_time": 3.59317946434021,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -604,8 +604,8 @@
       "question": "Qual a idade média dos pacientes que morreram?",
       "difficulty": "medium",
       "expected_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
-      "generated_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE MORTE = 1;",
-      "execution_time": 2.3614325523376465,
+      "generated_query": "SELECT AVG(IDADE) AS idade_media FROM sus_data WHERE MORTE = 1;",
+      "execution_time": 3.8700098991394043,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -618,8 +618,8 @@
       "question": "Quantos casos de doença respiratória?",
       "difficulty": "medium",
       "expected_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "generated_query": "SELECT COUNT(*) as total FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "execution_time": 2.247213125228882,
+      "generated_query": "SELECT COUNT(*) as total_doencas_respiratorias FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
+      "execution_time": 3.6239821910858154,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -632,11 +632,11 @@
       "question": "Qual o gasto médio por atendimento em cada cidade?",
       "difficulty": "medium",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "generated_query": "",
-      "execution_time": 41.19967293739319,
-      "success": false,
-      "error_message": "All retry strategies failed. Last error: An output parsing error occurred. In order to pass this error back to the agent and have it try again, pass `handle_parsing_errors=True` to the AgentExecutor. This is the error: Could not parse LLM output: `Para resolver o problema, precisamos entender a estrutura das tabelas e como podemos relacioná-las para obter os dados desejados.\n\nA tabela `sus_data` contém informações sobre pacientes, incluindo data de internação (`DT_INTER`) e data de saída (`DT_SAIDA`). A tabela `cid_capitulos` contém informações sobre categorias de doenças, incluindo o código da categoria (`codigo_inicio`) e a descrição da categoria (`descricao`).\n\nPara obter os dados de pacientes que foram internados em uma categoria específica de doença durante um período de tempo determinado, precisamos fazer as seguintes etapas:\n\n1.  **Relacionar a tabela `sus_data` com a tabela `cid_capitulos`:** Precisamos relacionar a tabela `sus_data` com a tabela `cid_capitulos` usando o código da categoria (`codigo_inicio`) para obter a descrição da categoria de doença.\n2.  **Filtrar por data:** Precisamos filtrar os dados para incluir apenas pacientes que foram internados durante um período de tempo determinado, especificamente entre abril/2017 e julho/2017.\n3.  **Contar casos:** Finalmente, precisamos contar o número de casos de pacientes que foram internados em cada categoria de doença durante esse período.\n\nAqui está a consulta SQL para resolver o problema:\n\n```sql\nSELECT \n    c.descricao AS categoria_de_doenca,\n    COUNT(s.DT_INTER) AS total_casos\nFROM \n    sus_data s\nJOIN \n    cid_capitulos c ON s.\"DIAG_PRINC\" = c.codigo_inicio\nWHERE \n    s.DT_INTER >= 20170401 AND s.DT_INTER <= 20170731\nGROUP BY \n    c.descricao;\n```\n\nEssa consulta SQL faz as seguintes operações:\n\n*   **Relaciona a tabela `sus_data` com a tabela `cid_capitulos`:** A consulta usa o código da categoria (`codigo_inicio`) para relacionar as duas tabelas.\n*   **Filtrar por data:** A consulta filtra os dados para incluir apenas pacientes que foram internados durante o período de tempo determinado (april/2017 a julho/2017).\n*   **Conta casos:** A consulta contabiliza o número de casos de pacientes que foram internados em cada categoria de doença durante esse período.\n\nA consulta SQL produzirá os seguintes resultados:\n\n| categoria_de_doenca | total_casos |\n| --- | --- |\n| Capitulo I - Algumas Doenças infecciosas e parasitárias | 1 |\n| Capítulo II - Neoplasias [tumores] | 1 |\n\nEssa consulta SQL fornece a informação necessária para entender o número de casos de pacientes que foram internados em cada categoria de doença durante um período específico.`\nFor troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/OUTPUT_PARSING_FAILURE ",
-      "query_generated": false
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) as gasto_medio FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 4.059109449386597,
+      "success": true,
+      "error_message": "",
+      "query_generated": true
     },
     {
       "model_key": "ollama_llama3.2",
@@ -646,8 +646,8 @@
       "question": "Quantos atendimentos por sexo foram registrados?",
       "difficulty": "medium",
       "expected_query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
-      "generated_query": "SELECT CASE WHEN SEXO = 1 THEN 'Homens' ELSE 'Mulheres' END as sexo, COUNT(*) as total_atendimentos FROM sus_data GROUP BY sexo ORDER BY total_atendimentos DESC;",
-      "execution_time": 3.947479248046875,
+      "generated_query": "SELECT CASE WHEN SEXO = 1 THEN 'Homens' ELSE 'Mulheres' END as sexo, COUNT(*) as total_atendimentos FROM sus_data GROUP BY sexo;",
+      "execution_time": 3.5004448890686035,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -660,8 +660,8 @@
       "question": "Qual a faixa etária com mais mortes?",
       "difficulty": "hard",
       "expected_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
-      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END as faixa_etaria, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND SEXO = 3 GROUP BY faixa_etaria ORDER BY total_mortes DESC LIMIT 5;",
-      "execution_time": 3.841411590576172,
+      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END as faixa_etaria, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 4.505004405975342,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -671,11 +671,11 @@
       "model_name": "Ollama Llama3.2",
       "provider": "ollama",
       "query_id": "GT014",
-      "question": "Quais diagnósticos principais mais comuns em pacientes que foram a óbito?",
+      "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
       "difficulty": "hard",
-      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 10;",
-      "generated_query": "SELECT c.descricao as categoria_cid, COUNT(*) as total_mortes FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim WHERE s.MORTE = 1 GROUP BY c.descricao ORDER BY total_mortes DESC LIMIT 10;",
-      "execution_time": 4.901373386383057,
+      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;",
+      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total DESC LIMIT 5;",
+      "execution_time": 4.492889404296875,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -688,8 +688,8 @@
       "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
       "difficulty": "hard",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;",
-      "generated_query": "SELECT c.descricao as cidade, SUM(CASE WHEN s.MORTE = 1 THEN 1 ELSE 0 END) / COUNT(s.IDADE) * 100000 AS taxa_mortalidade FROM sus_data s JOIN cid_capitulos c ON s.DIAG_PRINC BETWEEN c.codigo_inicio AND c.codigo_fim GROUP BY c.descricao HAVING SUM(CASE WHEN s.MORTE = 1 THEN 1 ELSE 0 END) > 1000 ORDER BY taxa_mortalidade DESC;",
-      "execution_time": 4.910207271575928,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 5.4533421993255615,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -702,8 +702,8 @@
       "question": "Quantos homens foram registrados?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 1;",
-      "execution_time": 10.380805253982544,
+      "generated_query": "SELECT COUNT(*) as total_homens FROM sus_data WHERE SEXO = 1;",
+      "execution_time": 12.992043733596802,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -716,8 +716,8 @@
       "question": "Liste os 5 municípios com o maior número de atendimentos.",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data;",
-      "execution_time": 13.012081146240234,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE as cidade, COUNT(*) as total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
+      "execution_time": 9.696653604507446,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -731,7 +731,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
       "generated_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
-      "execution_time": 7.116177320480347,
+      "execution_time": 7.733132600784302,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -744,8 +744,8 @@
       "question": "Quantos atendimentos foram realizados no total?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_atendimentos FROM sus_data;",
-      "generated_query": "SELECT COUNT(*) FROM sus_data;",
-      "execution_time": 5.541375398635864,
+      "generated_query": "SELECT COUNT(*) as total_atendimentos FROM sus_data;",
+      "execution_time": 6.808202505111694,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -758,8 +758,8 @@
       "question": "Quais são os cinco municípios com mais mortes?",
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "execution_time": 11.133121252059937,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE as cidade, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 14.168067216873169,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -772,8 +772,8 @@
       "question": "Quantas mulheres foram atendidas?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
-      "generated_query": "SELECT COUNT(*) as total_atendimentos FROM sus_data WHERE SEXO = 3;",
-      "execution_time": 6.563319206237793,
+      "generated_query": "SELECT COUNT(*) as total_mulheres FROM sus_data WHERE SEXO = 3;",
+      "execution_time": 7.590018033981323,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -786,8 +786,8 @@
       "question": "Qual o valor total gasto em atendimentos?",
       "difficulty": "easy",
       "expected_query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
-      "generated_query": "SELECT SUM(VAL_TOT) as total_gasto FROM sus_data;",
-      "execution_time": 5.616405963897705,
+      "generated_query": "SELECT SUM(VAL_TOT) AS total_gasto FROM sus_data;",
+      "execution_time": 7.269285678863525,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -800,8 +800,8 @@
       "question": "Quantos pacientes com mais de 40 anos morreram?",
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;",
-      "generated_query": "SELECT COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND IDADE > 40;",
-      "execution_time": 8.114284992218018,
+      "generated_query": "SELECT COUNT(*) FROM sus_data;",
+      "execution_time": 12.776873111724854,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -814,8 +814,8 @@
       "question": "Qual a idade média dos pacientes que morreram?",
       "difficulty": "medium",
       "expected_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
-      "generated_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE MORTE = 1;",
-      "execution_time": 8.449063062667847,
+      "generated_query": "SELECT AVG(IDADE) AS idade_media FROM sus_data WHERE MORTE = 1 AND SEXO IN (1, 3);",
+      "execution_time": 13.100103855133057,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -829,7 +829,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
       "generated_query": "SELECT COUNT(*) as total_casos FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "execution_time": 6.9161365032196045,
+      "execution_time": 8.352082014083862,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -842,8 +842,8 @@
       "question": "Qual o gasto médio por atendimento em cada cidade?",
       "difficulty": "medium",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE AS cidade, AVG(VAL_TOT) AS gasto_medio FROM sus_data WHERE MORTE = 0 -- Não incluir mortes para calcular o custo médio GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "execution_time": 10.385797023773193,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE AS cidade, AVG(VAL_TOT) AS gasto_medio FROM sus_data WHERE MORTE = 0 GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 16.676074743270874,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -857,7 +857,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
       "generated_query": "SELECT SEXO, COUNT(*) as total_atendimentos FROM sus_data GROUP BY SEXO;",
-      "execution_time": 6.1217710971832275,
+      "execution_time": 7.300858974456787,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -871,7 +871,7 @@
       "difficulty": "hard",
       "expected_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
       "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
-      "execution_time": 12.57669186592102,
+      "execution_time": 17.67181134223938,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -881,11 +881,11 @@
       "model_name": "Mistral",
       "provider": "ollama",
       "query_id": "GT014",
-      "question": "Quais diagnósticos principais mais comuns em pacientes que foram a óbito?",
+      "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
       "difficulty": "hard",
-      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 10;",
-      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC;",
-      "execution_time": 11.051243543624878,
+      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;",
+      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND DIAG_PRINC LIKE 'J%' GROUP BY DIAG_PRINC ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 14.794657230377197,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -898,8 +898,8 @@
       "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
       "difficulty": "hard",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 AND total_ocorrencias > 1000 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC;",
-      "execution_time": 41.80708599090576,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE as cidade, COUNT(*) as total_atendimentos, SUM(CASE WHEN MORTE = 1 THEN 1 ELSE 0 END) as mortes, AVG(CASE WHEN MORTE = 1 THEN 1.0 ELSE 0.0 END) as taxa_mortalidade FROM sus_data WHERE total_ocorrencias > 1000 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC;",
+      "execution_time": 20.597965240478516,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -913,7 +913,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
       "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 1;",
-      "execution_time": 15.45077133178711,
+      "execution_time": 21.79995608329773,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -927,7 +927,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
       "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
-      "execution_time": 21.48881244659424,
+      "execution_time": 25.459035396575928,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -941,7 +941,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT AVG(IDADE) AS media_idade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
       "generated_query": "SELECT AVG(IDADE) FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
-      "execution_time": 12.186923503875732,
+      "execution_time": 14.664191246032715,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -955,7 +955,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_atendimentos FROM sus_data;",
       "generated_query": "SELECT COUNT(*) FROM sus_data;",
-      "execution_time": 28.835004806518555,
+      "execution_time": 19.417758226394653,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -969,7 +969,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
       "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_mortes DESC LIMIT 5;",
-      "execution_time": 12.378009557723999,
+      "execution_time": 17.73268961906433,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -983,7 +983,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
       "generated_query": "SELECT COUNT(*) FROM sus_data WHERE SEXO = 3;",
-      "execution_time": 9.11656141281128,
+      "execution_time": 15.825218200683594,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -996,8 +996,8 @@
       "question": "Qual o valor total gasto em atendimentos?",
       "difficulty": "easy",
       "expected_query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
-      "generated_query": "SELECT SUM(VAL_TOT) AS total_gasto FROM sus_data;",
-      "execution_time": 8.966010093688965,
+      "generated_query": "SELECT SUM(VAL_TOT) AS valor_total_gasto FROM sus_data;",
+      "execution_time": 11.201831102371216,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1011,7 +1011,7 @@
       "difficulty": "easy",
       "expected_query": "SELECT COUNT(*) AS total_rs FROM sus_data WHERE MORTE == 1 AND IDADE >40;",
       "generated_query": "SELECT COUNT(*) FROM sus_data WHERE IDADE > 40 AND MORTE = 1;",
-      "execution_time": 11.910809755325317,
+      "execution_time": 12.685966491699219,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1025,7 +1025,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
       "generated_query": "SELECT AVG(IDADE) AS idade_media FROM sus_data WHERE MORTE = 1;",
-      "execution_time": 14.318573236465454,
+      "execution_time": 13.119668006896973,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1039,7 +1039,7 @@
       "difficulty": "medium",
       "expected_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
       "generated_query": "SELECT COUNT(*) FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
-      "execution_time": 11.695626974105835,
+      "execution_time": 11.331783533096313,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1052,8 +1052,8 @@
       "question": "Qual o gasto médio por atendimento em cada cidade?",
       "difficulty": "medium",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY gasto_medio DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
-      "execution_time": 14.635680913925171,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) as gasto_medio FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE;",
+      "execution_time": 16.241304636001587,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1066,8 +1066,8 @@
       "question": "Quantos atendimentos por sexo foram registrados?",
       "difficulty": "medium",
       "expected_query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
-      "generated_query": "SELECT CASE WHEN SEXO = 1 THEN 'Masculino' WHEN SEXO = 3 THEN 'Feminino' END AS sexo, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY sexo ORDER BY total_atendimentos DESC;",
-      "execution_time": 20.136741161346436,
+      "generated_query": "SELECT SEXO, COUNT(*) as total_atendimentos FROM sus_data GROUP BY SEXO;",
+      "execution_time": 28.6676025390625,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1080,8 +1080,8 @@
       "question": "Qual a faixa etária com mais mortes?",
       "difficulty": "hard",
       "expected_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor de 18' WHEN IDADE BETWEEN 18 AND 64 THEN '18-64 anos' ELSE 'Acima de 65' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC;",
-      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC LIMIT 1;",
-      "execution_time": 33.04894185066223,
+      "generated_query": "SELECT CASE WHEN IDADE < 18 THEN 'Menor' WHEN IDADE < 65 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY faixa_etaria ORDER BY total_mortes DESC LIMIT 5;",
+      "execution_time": 41.42705202102661,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1091,11 +1091,11 @@
       "model_name": "Qwen 3",
       "provider": "ollama",
       "query_id": "GT014",
-      "question": "Quais diagnósticos principais mais comuns em pacientes que foram a óbito?",
+      "question": "Quais os 5 diagnósticos principais mais comuns em pacientes que foram a óbito?",
       "difficulty": "hard",
-      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 10;",
-      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total DESC LIMIT 10;",
-      "execution_time": 22.1471586227417,
+      "expected_query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_casos DESC LIMIT 5;",
+      "generated_query": "SELECT DIAG_PRINC, COUNT(*) as total FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total DESC LIMIT 5;",
+      "execution_time": 16.925618648529053,
       "success": true,
       "error_message": "",
       "query_generated": true
@@ -1108,8 +1108,8 @@
       "question": "Qual a taxa de mortalidade por cidade com mais de 1000 atendimentos?",
       "difficulty": "hard",
       "expected_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC;",
-      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, (SUM(MORTE) * 100.0 / COUNT(*)) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY taxa_mortalidade DESC;",
-      "execution_time": 27.36381983757019,
+      "generated_query": "SELECT CIDADE_RESIDENCIA_PACIENTE, (COUNT(CASE WHEN MORTE = 1 THEN 1 END) * 100.0 / COUNT(*)) AS taxa_mortalidade FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE IN ( SELECT CIDADE_RESIDENCIA_PACIENTE FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ) GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY taxa_mortalidade DESC;",
+      "execution_time": 52.80652475357056,
       "success": true,
       "error_message": "",
       "query_generated": true

@@ -13,14 +13,21 @@ class ApplicationConfig:
     database_type: str = "sqlite"
     database_path: str = "sus_database.db"
     
-    # LLM configuration
+    # LLM configuration (for SQL generation)
     # llm_provider: str = "huggingface"  # ollama, huggingface
     # llm_model: str = "defog/sqlcoder-7b-2"  # llama3, defog/sqlcoder-7b-2
     llm_provider: str = "ollama"  # ollama, huggingface
-    llm_model: str = "mistral"  # llama3, defog/sqlcoder-7b-2
+    llm_model: str = "qwen3"  # llama3, defog/sqlcoder-7b-2
     llm_temperature: float = 0.0
     llm_timeout: int = 120
     llm_max_retries: int = 3
+    
+    # Conversational LLM configuration (for natural language responses)
+    conversational_llm_model: str = "mistral"  # llama3.2:latest, mistral
+    conversational_llm_temperature: float = 0.8
+    conversational_llm_max_tokens: int = 1000
+    conversational_llm_timeout: int = 60
+    conversational_llm_max_retries: int = 3
     
     # Hugging Face specific configuration
     llm_device: str = "auto"  # auto, cpu, cuda

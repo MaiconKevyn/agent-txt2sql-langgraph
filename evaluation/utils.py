@@ -23,7 +23,7 @@ from contextlib import contextmanager
 @dataclass
 class EvaluationConfig:
     """Configuração centralizada para avaliação"""
-    ground_truth_file: str = "ground_truth.json"
+    ground_truth_file: str = "ground_truth_validation_report.json"
     database_path: str = "../sus_database.db"
     output_dir: str = "results"
     timestamp: str = None
@@ -81,6 +81,10 @@ class QueryEvaluation:
     structure_match: bool = False
     sql_similarity: float = 0.0
     semantic_equivalence: bool = False
+    data_equivalence: bool = False
+    functional_equivalence: bool = False
+    columns_match: bool = False
+    confidence: float = 0.0
     
     # Execution metadata
     execution_time: float = 0.0
@@ -428,3 +432,358 @@ class ConfigManager:
                 print(f"⚠️  Modelo '{model}' não encontrado. Modelos disponíveis: {list(available.keys())}")
         
         return valid_models
+
+
+class EnhancedDataComparator:
+    """Enhanced data comparison engine with semantic understanding"""
+    
+    # Common value mappings for the dataset
+    GENDER_MAPPINGS = {
+        1: ["Masculino", "M", "MASCULINO", "masc", "male"],
+        3: ["Feminino", "F", "FEMININO", "fem", "female"]
+    }
+    
+    AGE_GROUP_MAPPINGS = {
+        "Menor de 18": ["Menor", "MENOR", "menor", "criança", "child", "youth"],
+        "18-64 anos": ["Adulto", "ADULTO", "adulto", "adult", "working age"],
+        "Acima de 65": ["Idoso", "IDOSO", "idoso", "elderly", "senior", "65+"]
+    }
+    
+    COLUMN_ALIASES = {
+        "total": ["total_casos", "total_mortes", "total_mortos", "total_atendimentos", "count", "quantidade"],
+        "sexo": ["SEXO", "gender", "genero"],
+        "faixa_etaria": ["FAIXA_ETARIA", "age_group", "grupo_idade"],
+        "diag_princ": ["DIAG_PRINC", "diagnostico", "diagnosis"]
+    }
+    
+    @staticmethod
+    def normalize_value(value, context_column=None):
+        """
+        Normalize a value based on context and known mappings
+        
+        Args:
+            value: Value to normalize
+            context_column: Column name for context
+            
+        Returns:
+            Normalized value or original if no normalization needed
+        """
+        if value is None:
+            return None
+            
+        # Handle numeric gender codes
+        if context_column and any(alias in context_column.lower() for alias in ["sexo", "gender"]):
+            if isinstance(value, (int, float)) and value in EnhancedDataComparator.GENDER_MAPPINGS:
+                return value  # Keep original numeric for comparison
+            elif isinstance(value, str):
+                # Try to reverse map gender strings to numbers
+                for code, labels in EnhancedDataComparator.GENDER_MAPPINGS.items():
+                    if value.strip().lower() in [l.lower() for l in labels]:
+                        return code
+        
+        # Handle age group labels
+        if context_column and any(alias in context_column.lower() for alias in ["faixa", "age", "idade"]):
+            if isinstance(value, str):
+                value_clean = value.strip()
+                for canonical, aliases in EnhancedDataComparator.AGE_GROUP_MAPPINGS.items():
+                    if value_clean in aliases or value_clean == canonical:
+                        return canonical
+        
+        # Normalize strings
+        if isinstance(value, str):
+            return value.strip().lower()
+            
+        return value
+    
+    @staticmethod
+    def normalize_column_name(column_name):
+        """
+        Normalize column name to canonical form
+        
+        Args:
+            column_name: Original column name
+            
+        Returns:
+            Canonical column name
+        """
+        if not column_name:
+            return column_name
+            
+        column_lower = column_name.lower().strip()
+        
+        # Find canonical form
+        for canonical, aliases in EnhancedDataComparator.COLUMN_ALIASES.items():
+            if column_lower == canonical or column_lower in [alias.lower() for alias in aliases]:
+                return canonical
+                
+        return column_lower
+    
+    @staticmethod
+    def compare_data_rows(expected_data, generated_data, expected_columns, generated_columns):
+        """
+        Compare data rows with semantic understanding
+        
+        Args:
+            expected_data: Expected result rows
+            generated_data: Generated result rows  
+            expected_columns: Expected column names
+            generated_columns: Generated column names
+            
+        Returns:
+            Dict with comparison results
+        """
+        if len(expected_data) != len(generated_data):
+            return {
+                "data_match": False,
+                "functional_match": False,
+                "confidence": 0.0,
+                "reason": "Different row counts"
+            }
+        
+        if not expected_data:
+            return {
+                "data_match": True,
+                "functional_match": True,
+                "confidence": 1.0,
+                "reason": "Both empty"
+            }
+        
+        # Normalize column names for comparison
+        exp_columns_norm = [EnhancedDataComparator.normalize_column_name(col) for col in expected_columns]
+        gen_columns_norm = [EnhancedDataComparator.normalize_column_name(col) for col in generated_columns]
+        
+        # Create column mapping if structure is similar
+        column_mapping = {}
+        if len(expected_columns) == len(generated_columns):
+            for i, exp_col in enumerate(exp_columns_norm):
+                gen_col = gen_columns_norm[i]
+                column_mapping[i] = i  # Positional mapping first
+                
+                # Try to find better mapping by name
+                for j, gen_col_check in enumerate(gen_columns_norm):
+                    if exp_col == gen_col_check:
+                        column_mapping[i] = j
+                        break
+        
+        # Compare each row
+        matches = 0
+        functional_matches = 0
+        total_comparisons = 0
+        
+        for exp_row, gen_row in zip(expected_data, generated_data):
+            if len(exp_row) != len(gen_row):
+                continue
+                
+            row_matches = 0
+            row_functional_matches = 0
+            
+            for i, exp_val in enumerate(exp_row):
+                total_comparisons += 1
+                gen_idx = column_mapping.get(i, i)
+                
+                if gen_idx >= len(gen_row):
+                    continue
+                    
+                gen_val = gen_row[gen_idx]
+                
+                # Get column context for normalization
+                exp_col = expected_columns[i] if i < len(expected_columns) else None
+                
+                # Exact match
+                if exp_val == gen_val:
+                    matches += 1
+                    functional_matches += 1
+                    row_matches += 1
+                    row_functional_matches += 1
+                    continue
+                
+                # Semantic comparison
+                exp_norm = EnhancedDataComparator.normalize_value(exp_val, exp_col)
+                gen_norm = EnhancedDataComparator.normalize_value(gen_val, exp_col)
+                
+                if exp_norm == gen_norm:
+                    functional_matches += 1
+                    row_functional_matches += 1
+                elif isinstance(exp_val, (int, float)) and isinstance(gen_val, (int, float)):
+                    # Numeric tolerance
+                    if abs(exp_val - gen_val) < 0.01:
+                        functional_matches += 1
+                        row_functional_matches += 1
+        
+        if total_comparisons == 0:
+            confidence = 0.0
+        else:
+            data_match_rate = matches / total_comparisons
+            functional_match_rate = functional_matches / total_comparisons
+            confidence = max(data_match_rate, functional_match_rate)
+        
+        return {
+            "data_match": matches == total_comparisons,
+            "functional_match": functional_matches == total_comparisons,
+            "confidence": confidence,
+            "match_rate": matches / total_comparisons if total_comparisons > 0 else 0,
+            "functional_match_rate": functional_matches / total_comparisons if total_comparisons > 0 else 0,
+            "reason": f"Matched {matches}/{total_comparisons} exact, {functional_matches}/{total_comparisons} functional"
+        }
+    
+    @staticmethod
+    def enhanced_compare_query_results(expected_result: Dict, generated_result: Dict) -> Dict[str, Any]:
+        """
+        Enhanced comparison with semantic understanding
+        
+        Args:
+            expected_result: Expected query result
+            generated_result: Generated query result
+            
+        Returns:
+            Enhanced comparison results
+        """
+        # Basic validation
+        if not expected_result['success'] or not generated_result['success']:
+            return {
+                'exact_match': False,
+                'structure_match': False,
+                'semantic_equivalence': False,
+                'data_equivalence': False,
+                'functional_equivalence': False,
+                'confidence': 0.0,
+                'reason': 'execution_error',
+                'expected_rows': expected_result.get('row_count', 0),
+                'generated_rows': generated_result.get('row_count', 0),
+                'expected_columns': expected_result.get('columns', []),
+                'generated_columns': generated_result.get('columns', [])
+            }
+        
+        # Structure comparison
+        structure_match = (
+            expected_result['row_count'] == generated_result['row_count'] and
+            len(expected_result['columns']) == len(generated_result['columns'])
+        )
+        
+        # Column comparison
+        exp_columns_norm = [EnhancedDataComparator.normalize_column_name(col) 
+                           for col in expected_result['columns']]
+        gen_columns_norm = [EnhancedDataComparator.normalize_column_name(col) 
+                           for col in generated_result['columns']]
+        
+        columns_match = set(exp_columns_norm) == set(gen_columns_norm)
+        
+        # Data comparison
+        data_comparison = EnhancedDataComparator.compare_data_rows(
+            expected_result['data'],
+            generated_result['data'], 
+            expected_result['columns'],
+            generated_result['columns']
+        )
+        
+        # Original exact match for backward compatibility
+        expected_hash = DataProcessor.normalize_data_for_comparison(
+            expected_result['data'], expected_result['columns']
+        )
+        generated_hash = DataProcessor.normalize_data_for_comparison(
+            generated_result['data'], generated_result['columns']
+        )
+        exact_match = expected_hash == generated_hash
+        
+        # Enhanced equivalence detection
+        semantic_equivalence = (
+            exact_match or 
+            (data_comparison['functional_match'] and columns_match) or
+            (data_comparison['confidence'] > 0.95 and structure_match)
+        )
+        
+        data_equivalence = data_comparison['data_match'] or data_comparison['confidence'] > 0.9
+        functional_equivalence = data_comparison['functional_match'] or data_comparison['confidence'] > 0.8
+        
+        # Detailed evaluation checkpoints
+        checkpoints = EnhancedDataComparator._generate_evaluation_checkpoints(
+            expected_result, generated_result, data_comparison, 
+            exact_match, semantic_equivalence, data_equivalence, functional_equivalence
+        )
+
+        return {
+            'exact_match': exact_match,
+            'structure_match': structure_match,
+            'semantic_equivalence': semantic_equivalence,
+            'data_equivalence': data_equivalence,
+            'functional_equivalence': functional_equivalence,
+            'columns_match': columns_match,
+            'confidence': data_comparison['confidence'],
+            'match_details': data_comparison,
+            'reason': data_comparison.get('reason', 'compared'),
+            'expected_rows': expected_result['row_count'],
+            'generated_rows': generated_result['row_count'],
+            'expected_columns': expected_result['columns'],
+            'generated_columns': generated_result['columns'],
+            'evaluation_checkpoints': checkpoints
+        }
+    
+    @staticmethod
+    def _generate_evaluation_checkpoints(expected_result, generated_result, data_comparison, 
+                                       exact_match, semantic_equivalence, data_equivalence, functional_equivalence):
+        """
+        Generate detailed evaluation checkpoints for transparency
+        
+        Returns:
+            Dict with detailed checkpoint analysis
+        """
+        checkpoints = {
+            "execution": {
+                "expected_success": expected_result['success'],
+                "generated_success": generated_result['success'],
+                "passed": expected_result['success'] and generated_result['success'],
+                "details": "Both queries executed successfully" if expected_result['success'] and generated_result['success'] 
+                          else f"Expected: {expected_result.get('error', 'N/A')}, Generated: {generated_result.get('error', 'N/A')}"
+            },
+            "row_count": {
+                "expected": expected_result['row_count'],
+                "generated": generated_result['row_count'],
+                "passed": expected_result['row_count'] == generated_result['row_count'],
+                "details": f"Expected {expected_result['row_count']} rows, got {generated_result['row_count']}"
+            },
+            "column_structure": {
+                "expected_count": len(expected_result['columns']),
+                "generated_count": len(generated_result['columns']),
+                "passed": len(expected_result['columns']) == len(generated_result['columns']),
+                "details": f"Expected {len(expected_result['columns'])} columns, got {len(generated_result['columns'])}"
+            },
+            "column_semantics": {
+                "expected_columns": expected_result['columns'],
+                "generated_columns": generated_result['columns'],
+                "normalized_expected": [EnhancedDataComparator.normalize_column_name(col) for col in expected_result['columns']],
+                "normalized_generated": [EnhancedDataComparator.normalize_column_name(col) for col in generated_result['columns']],
+                "passed": set([EnhancedDataComparator.normalize_column_name(col) for col in expected_result['columns']]) == 
+                         set([EnhancedDataComparator.normalize_column_name(col) for col in generated_result['columns']]),
+                "details": "Column names are semantically equivalent" if set([EnhancedDataComparator.normalize_column_name(col) for col in expected_result['columns']]) == set([EnhancedDataComparator.normalize_column_name(col) for col in generated_result['columns']]) else "Column names differ semantically"
+            },
+            "data_exactness": {
+                "passed": exact_match,
+                "confidence": 1.0 if exact_match else data_comparison.get('match_rate', 0.0),
+                "details": "Data matches exactly" if exact_match else f"Exact match rate: {data_comparison.get('match_rate', 0.0):.3f}"
+            },
+            "data_functional": {
+                "passed": functional_equivalence,
+                "confidence": data_comparison.get('functional_match_rate', 0.0),
+                "details": f"Functional match rate: {data_comparison.get('functional_match_rate', 0.0):.3f}"
+            },
+            "business_logic": {
+                "passed": semantic_equivalence,
+                "confidence": data_comparison['confidence'],
+                "details": f"Answers the same business question with confidence {data_comparison['confidence']:.3f}"
+            }
+        }
+        
+        # Overall assessment
+        level = ("exact" if exact_match else 
+                "functional" if functional_equivalence else 
+                "semantic" if semantic_equivalence else 
+                "data" if data_equivalence else "failed")
+                
+        checkpoints["overall"] = {
+            "passed": functional_equivalence or semantic_equivalence,
+            "level": level,
+            "confidence": data_comparison['confidence'],
+            "summary": f"Query evaluation {level} with {data_comparison['confidence']:.1%} confidence"
+        }
+        
+        return checkpoints
