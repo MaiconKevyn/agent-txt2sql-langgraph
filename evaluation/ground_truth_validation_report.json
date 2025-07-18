@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-07-17T20:31:29.479118",
+  "timestamp": "2025-07-17T22:32:23.496293",
   "database_path": "sus_database.db",
   "summary": {
     "total_queries": 50,
@@ -11,7 +11,7 @@
       "id": "GT001",
       "query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
       "valid": true,
-      "execution_time": 0.005,
+      "execution_time": 0.01,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -27,7 +27,7 @@
       "id": "GT002",
       "query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
       "valid": true,
-      "execution_time": 0.004,
+      "execution_time": 0.005,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -43,7 +43,7 @@
       "id": "GT003",
       "query": "SELECT COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -59,7 +59,7 @@
       "id": "GT004",
       "query": "SELECT COUNT(*) AS total_registros FROM sus_data;",
       "valid": true,
-      "execution_time": 0.001,
+      "execution_time": 0.002,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -91,7 +91,7 @@
       "id": "GT006",
       "query": "SELECT MAX(IDADE) AS idade_maxima FROM sus_data;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -155,7 +155,7 @@
       "id": "GT010",
       "query": "SELECT COUNT(*) AS casos_i200 FROM sus_data WHERE DIAG_PRINC = 'I200';",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -171,7 +171,7 @@
       "id": "GT011",
       "query": "SELECT AVG(IDADE) AS idade_media FROM sus_data;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -203,7 +203,7 @@
       "id": "GT013",
       "query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
       "valid": true,
-      "execution_time": 0.009,
+      "execution_time": 0.01,
       "row_count": 2,
       "error": null,
       "sample_result": [
@@ -224,7 +224,7 @@
       "id": "GT014",
       "query": "SELECT SEXO, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY SEXO;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 2,
       "error": null,
       "sample_result": [
@@ -245,7 +245,7 @@
       "id": "GT015",
       "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
       "valid": true,
-      "execution_time": 0.014,
+      "execution_time": 0.015,
       "row_count": 5,
       "error": null,
       "sample_result": [
@@ -295,7 +295,7 @@
       "id": "GT017",
       "query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -311,7 +311,7 @@
       "id": "GT018",
       "query": "SELECT COUNT(*) AS total_uruguaiana FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
       "valid": true,
-      "execution_time": 0.004,
+      "execution_time": 0.005,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -424,7 +424,7 @@
       "id": "GT025",
       "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY faixa_etaria ORDER BY taxa_mortalidade DESC;",
       "valid": true,
-      "execution_time": 0.016,
+      "execution_time": 0.017,
       "row_count": 4,
       "error": null,
       "sample_result": [
@@ -480,7 +480,7 @@
       "id": "GT027",
       "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY taxa_mortalidade DESC;",
       "valid": true,
-      "execution_time": 0.015,
+      "execution_time": 0.016,
       "row_count": 8,
       "error": null,
       "sample_result": [
@@ -511,7 +511,7 @@
       "id": "GT028",
       "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, COUNT(*) AS total_casos, AVG(VAL_TOT) AS custo_medio FROM sus_data GROUP BY faixa_etaria ORDER BY custo_medio DESC;",
       "valid": true,
-      "execution_time": 0.02,
+      "execution_time": 0.021,
       "row_count": 4,
       "error": null,
       "sample_result": [
@@ -539,7 +539,7 @@
       "id": "GT029",
       "query": "SELECT DIAG_PRINC, SEXO, COUNT(*) AS total FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 10) GROUP BY DIAG_PRINC, SEXO ORDER BY DIAG_PRINC, SEXO;",
       "valid": true,
-      "execution_time": 0.022,
+      "execution_time": 0.026,
       "row_count": 19,
       "error": null,
       "sample_result": [
@@ -567,7 +567,7 @@
       "id": "GT030",
       "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS custo_medio, COUNT(*) AS total_casos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING AVG(VAL_TOT) > (SELECT AVG(VAL_TOT) FROM sus_data) AND COUNT(*) >= 100 ORDER BY custo_medio DESC;",
       "valid": true,
-      "execution_time": 0.022,
+      "execution_time": 0.024,
       "row_count": 3,
       "error": null,
       "sample_result": [
@@ -627,7 +627,7 @@
       "id": "GT033",
       "query": "SELECT AVG(VAL_TOT) AS custo_medio_mortes FROM sus_data WHERE MORTE = 1;",
       "valid": true,
-      "execution_time": 0.003,
+      "execution_time": 0.004,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -691,7 +691,7 @@
       "id": "GT037",
       "query": "SELECT CASE WHEN UTI_MES_TO > 0 THEN 'Com UTI' ELSE 'Sem UTI' END AS tipo_atendimento, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CASE WHEN UTI_MES_TO > 0 THEN 'Com UTI' ELSE 'Sem UTI' END;",
       "valid": true,
-      "execution_time": 0.013,
+      "execution_time": 0.014,
       "row_count": 2,
       "error": null,
       "sample_result": [
@@ -716,7 +716,7 @@
       "id": "GT038",
       "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS custo_medio, COUNT(*) AS total_casos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) >= 100 ORDER BY custo_medio DESC LIMIT 3;",
       "valid": true,
-      "execution_time": 0.018,
+      "execution_time": 0.02,
       "row_count": 3,
       "error": null,
       "sample_result": [
@@ -776,7 +776,7 @@
       "id": "GT041",
       "query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 20) GROUP BY DIAG_PRINC HAVING COUNT(*) >= 50 ORDER BY taxa_mortalidade DESC LIMIT 1;",
       "valid": true,
-      "execution_time": 0.023,
+      "execution_time": 0.024,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -811,7 +811,7 @@
       "id": "GT043",
       "query": "SELECT UF_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY UF_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 1;",
       "valid": true,
-      "execution_time": 0.012,
+      "execution_time": 0.013,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -828,7 +828,7 @@
       "id": "GT044",
       "query": "SELECT CASE WHEN IDADE < 1 THEN '0 anos' WHEN IDADE BETWEEN 1 AND 9 THEN '1-9 anos' WHEN IDADE BETWEEN 10 AND 19 THEN '10-19 anos' WHEN IDADE BETWEEN 20 AND 29 THEN '20-29 anos' WHEN IDADE BETWEEN 30 AND 39 THEN '30-39 anos' WHEN IDADE BETWEEN 40 AND 49 THEN '40-49 anos' WHEN IDADE BETWEEN 50 AND 59 THEN '50-59 anos' WHEN IDADE BETWEEN 60 AND 69 THEN '60-69 anos' WHEN IDADE BETWEEN 70 AND 79 THEN '70-79 anos' ELSE '80+ anos' END AS faixa_detalhada, COUNT(*) AS total_casos, AVG(VAL_TOT) AS custo_medio, AVG(IDADE) AS idade_media FROM sus_data GROUP BY faixa_detalhada ORDER BY idade_media;",
       "valid": true,
-      "execution_time": 0.024,
+      "execution_time": 0.025,
       "row_count": 10,
       "error": null,
       "sample_result": [
@@ -859,7 +859,7 @@
       "id": "GT045",
       "query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos, MIN(VAL_TOT) AS custo_min, MAX(VAL_TOT) AS custo_max, (MAX(VAL_TOT) - MIN(VAL_TOT)) AS variacao_custo, AVG(VAL_TOT) AS custo_medio FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 15) GROUP BY DIAG_PRINC ORDER BY variacao_custo DESC;",
       "valid": true,
-      "execution_time": 0.024,
+      "execution_time": 0.025,
       "row_count": 15,
       "error": null,
       "sample_result": [
@@ -896,7 +896,7 @@
       "id": "GT046",
       "query": "SELECT COUNT(*) AS internacoes_longas FROM sus_data WHERE (DT_SAIDA - DT_INTER) > 10;",
       "valid": true,
-      "execution_time": 0.004,
+      "execution_time": 0.005,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -912,7 +912,7 @@
       "id": "GT047",
       "query": "SELECT AVG(DT_SAIDA - DT_INTER) AS media_permanencia FROM sus_data WHERE DT_SAIDA > DT_INTER;",
       "valid": true,
-      "execution_time": 0.005,
+      "execution_time": 0.006,
       "row_count": 1,
       "error": null,
       "sample_result": [
@@ -928,7 +928,7 @@
       "id": "GT048",
       "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, AVG(DT_SAIDA - DT_INTER) AS media_permanencia, COUNT(*) AS total_casos FROM sus_data WHERE DT_SAIDA > DT_INTER GROUP BY faixa_etaria ORDER BY media_permanencia DESC;",
       "valid": true,
-      "execution_time": 0.02,
+      "execution_time": 0.021,
       "row_count": 4,
       "error": null,
       "sample_result": [
@@ -956,7 +956,7 @@
       "id": "GT049",
       "query": "SELECT CASE WHEN (DT_SAIDA - DT_INTER) <= 1 THEN '1 dia' WHEN (DT_SAIDA - DT_INTER) BETWEEN 2 AND 7 THEN '2-7 dias' WHEN (DT_SAIDA - DT_INTER) BETWEEN 8 AND 15 THEN '8-15 dias' ELSE '16+ dias' END AS tempo_permanencia, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data WHERE DT_SAIDA > DT_INTER GROUP BY tempo_permanencia ORDER BY tempo_permanencia;",
       "valid": true,
-      "execution_time": 0.02,
+      "execution_time": 0.024,
       "row_count": 4,
       "error": null,
       "sample_result": [
@@ -987,7 +987,7 @@
       "id": "GT050",
       "query": "SELECT AVG(IDADE) AS idade_media, COUNT(CASE WHEN SEXO = 1 THEN 1 END) AS homens, COUNT(CASE WHEN SEXO = 3 THEN 1 END) AS mulheres, SUM(MORTE) AS total_mortes, AVG(UTI_MES_TO) AS media_uti_dias, COUNT(*) AS total_casos FROM sus_data WHERE VAL_TOT >= (SELECT VAL_TOT FROM sus_data ORDER BY VAL_TOT DESC LIMIT 1 OFFSET (SELECT CAST(COUNT(*) * 0.01 AS INTEGER) FROM sus_data));",
       "valid": true,
-      "execution_time": 0.012,
+      "execution_time": 0.015,
       "row_count": 1,
       "error": null,
       "sample_result": [

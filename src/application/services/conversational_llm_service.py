@@ -522,13 +522,13 @@ Tipo de consulta identificado: **{query_type}**
         
         cleaned = response.strip()
         
-        # Remove aspas duplas no início e fim se presentes
-        if cleaned.startswith('"') and cleaned.endswith('"'):
-            cleaned = cleaned[1:-1]
+        # Remove aspas duplas no início e fim se presentes (múltiplas iterações para casos aninhados)
+        while cleaned.startswith('"') and cleaned.endswith('"') and len(cleaned) > 2:
+            cleaned = cleaned[1:-1].strip()
         
         # Remove aspas simples no início e fim se presentes  
-        if cleaned.startswith("'") and cleaned.endswith("'"):
-            cleaned = cleaned[1:-1]
+        while cleaned.startswith("'") and cleaned.endswith("'") and len(cleaned) > 2:
+            cleaned = cleaned[1:-1].strip()
         
         # Remove identificadores de template que podem vazar na resposta
         lines_to_remove = [
@@ -555,6 +555,10 @@ Tipo de consulta identificado: **{query_type}**
         
         # Reconstrói a resposta limpa
         final_response = '\n'.join(filtered_lines).strip()
+        
+        # Última limpeza: remover aspas duplas que possam ter sobrado
+        while final_response.startswith('"') and final_response.endswith('"') and len(final_response) > 2:
+            final_response = final_response[1:-1].strip()
         
         # Log da limpeza para debug
         if final_response != response.strip():
