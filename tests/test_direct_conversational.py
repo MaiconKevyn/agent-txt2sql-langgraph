@@ -10,14 +10,19 @@ sys.path.append('/')
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s - %(name)s - %(message)s')
 
 from src.application.services.conversational_response_service import ConversationalResponseService
+from src.application.services.conversational_llm_service import ConversationalConfig, ConversationalLLMService
+from src.application.config.simple_config import ApplicationConfig
 
 def test_direct_conversational():
     """Testa o conversational service diretamente"""
     
     print("🚀 Testando ConversationalResponseService diretamente...")
     
-    # Criar service
-    service = ConversationalResponseService()
+    # Criar service com configuração centralizada
+    app_config = ApplicationConfig()
+    conv_config = ConversationalConfig.from_application_config(app_config)
+    conv_llm_service = ConversationalLLMService(conv_config)
+    service = ConversationalResponseService(conv_llm_service)
     
     # Dados simulados
     user_query = "Quantas pessoas morreram?"

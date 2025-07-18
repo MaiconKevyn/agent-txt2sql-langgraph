@@ -1,0 +1,1008 @@
+{
+  "timestamp": "2025-07-17T22:32:23.496293",
+  "database_path": "sus_database.db",
+  "summary": {
+    "total_queries": 50,
+    "valid_queries": 50,
+    "invalid_queries": 0
+  },
+  "results": [
+    {
+      "id": "GT001",
+      "query": "SELECT COUNT(*) AS total_homens FROM sus_data WHERE SEXO = 1;",
+      "valid": true,
+      "execution_time": 0.01,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_homens": 31041
+        }
+      ],
+      "difficulty": "easy",
+      "category": "contagem_basica",
+      "question": "Quantos pacientes do sexo masculino foram registrados?"
+    },
+    {
+      "id": "GT002",
+      "query": "SELECT COUNT(*) AS total_mulheres FROM sus_data WHERE SEXO = 3;",
+      "valid": true,
+      "execution_time": 0.005,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_mulheres": 27614
+        }
+      ],
+      "difficulty": "easy",
+      "category": "contagem_basica",
+      "question": "Quantos pacientes do sexo feminino foram atendidos?"
+    },
+    {
+      "id": "GT003",
+      "query": "SELECT COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_mortes": 2202
+        }
+      ],
+      "difficulty": "easy",
+      "category": "contagem_basica",
+      "question": "Quantos atendimentos resultaram em óbito?"
+    },
+    {
+      "id": "GT004",
+      "query": "SELECT COUNT(*) AS total_registros FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.002,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_registros": 58655
+        }
+      ],
+      "difficulty": "easy",
+      "category": "contagem_basica",
+      "question": "Qual o total de registros no banco de dados?"
+    },
+    {
+      "id": "GT005",
+      "query": "SELECT MIN(IDADE) AS idade_minima FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_minima": 0
+        }
+      ],
+      "difficulty": "easy",
+      "category": "estatistica_simples",
+      "question": "Qual a idade mínima registrada?"
+    },
+    {
+      "id": "GT006",
+      "query": "SELECT MAX(IDADE) AS idade_maxima FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_maxima": 99
+        }
+      ],
+      "difficulty": "easy",
+      "category": "estatistica_simples",
+      "question": "Qual a idade máxima registrada?"
+    },
+    {
+      "id": "GT007",
+      "query": "SELECT SUM(VAL_TOT) AS valor_total FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "valor_total": 150768469.06
+        }
+      ],
+      "difficulty": "easy",
+      "category": "estatistica_simples",
+      "question": "Qual o valor total gasto em todos os atendimentos?"
+    },
+    {
+      "id": "GT008",
+      "query": "SELECT COUNT(*) AS pacientes_idosos FROM sus_data WHERE IDADE > 65;",
+      "valid": true,
+      "execution_time": 0.003,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "pacientes_idosos": 14437
+        }
+      ],
+      "difficulty": "easy",
+      "category": "filtro_simples",
+      "question": "Quantos pacientes têm mais de 65 anos?"
+    },
+    {
+      "id": "GT009",
+      "query": "SELECT COUNT(*) AS pacientes_menores FROM sus_data WHERE IDADE < 18;",
+      "valid": true,
+      "execution_time": 0.003,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "pacientes_menores": 8616
+        }
+      ],
+      "difficulty": "easy",
+      "category": "filtro_simples",
+      "question": "Quantos pacientes são menores de 18 anos?"
+    },
+    {
+      "id": "GT010",
+      "query": "SELECT COUNT(*) AS casos_i200 FROM sus_data WHERE DIAG_PRINC = 'I200';",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "casos_i200": 353
+        }
+      ],
+      "difficulty": "easy",
+      "category": "filtro_especifico",
+      "question": "Quantos casos de diagnóstico I200 foram registrados?"
+    },
+    {
+      "id": "GT011",
+      "query": "SELECT AVG(IDADE) AS idade_media FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_media": 46.70495268945529
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_simples",
+      "question": "Qual a idade média dos pacientes?"
+    },
+    {
+      "id": "GT012",
+      "query": "SELECT AVG(VAL_TOT) AS custo_medio FROM sus_data;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "custo_medio": 2570.4282509589975
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_simples",
+      "question": "Qual o custo médio por atendimento?"
+    },
+    {
+      "id": "GT013",
+      "query": "SELECT SEXO, COUNT(*) AS total FROM sus_data GROUP BY SEXO;",
+      "valid": true,
+      "execution_time": 0.01,
+      "row_count": 2,
+      "error": null,
+      "sample_result": [
+        {
+          "SEXO": 1,
+          "total": 31041
+        },
+        {
+          "SEXO": 3,
+          "total": 27614
+        }
+      ],
+      "difficulty": "medium",
+      "category": "agrupamento_simples",
+      "question": "Quantos atendimentos foram feitos em cada sexo?"
+    },
+    {
+      "id": "GT014",
+      "query": "SELECT SEXO, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY SEXO;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 2,
+      "error": null,
+      "sample_result": [
+        {
+          "SEXO": 1,
+          "total_mortes": 1236
+        },
+        {
+          "SEXO": 3,
+          "total_mortes": 966
+        }
+      ],
+      "difficulty": "medium",
+      "category": "agrupamento_filtrado",
+      "question": "Qual a distribuição de óbitos por sexo?"
+    },
+    {
+      "id": "GT015",
+      "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 5;",
+      "valid": true,
+      "execution_time": 0.015,
+      "row_count": 5,
+      "error": null,
+      "sample_result": [
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Uruguaiana",
+          "total_atendimentos": 9288
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Ijuí",
+          "total_atendimentos": 8809
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Passo Fundo",
+          "total_atendimentos": 8787
+        }
+      ],
+      "difficulty": "medium",
+      "category": "ranking",
+      "question": "Quais são os 5 municípios com mais atendimentos?"
+    },
+    {
+      "id": "GT016",
+      "query": "SELECT DIAG_PRINC, COUNT(*) AS frequencia FROM sus_data GROUP BY DIAG_PRINC ORDER BY frequencia DESC LIMIT 5;",
+      "valid": true,
+      "execution_time": 0.015,
+      "row_count": 5,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "I200",
+          "frequencia": 353
+        },
+        {
+          "DIAG_PRINC": "I219",
+          "frequencia": 339
+        },
+        {
+          "DIAG_PRINC": "I743",
+          "frequencia": 329
+        }
+      ],
+      "difficulty": "medium",
+      "category": "ranking",
+      "question": "Quais são os 5 diagnósticos mais frequentes?"
+    },
+    {
+      "id": "GT017",
+      "query": "SELECT AVG(IDADE) AS idade_media_mortos FROM sus_data WHERE MORTE = 1;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_media_mortos": 62.759309718437784
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_filtrada",
+      "question": "Qual a idade média dos pacientes que morreram?"
+    },
+    {
+      "id": "GT018",
+      "query": "SELECT COUNT(*) AS total_uruguaiana FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Uruguaiana';",
+      "valid": true,
+      "execution_time": 0.005,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_uruguaiana": 9288
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_geografico",
+      "question": "Quantos pacientes de Uruguaiana foram atendidos?"
+    },
+    {
+      "id": "GT019",
+      "query": "SELECT AVG(IDADE) AS idade_media_poa FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Porto Alegre';",
+      "valid": true,
+      "execution_time": 0.005,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_media_poa": 46.597214326321776
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_geografica",
+      "question": "Qual a idade média dos pacientes de Porto Alegre?"
+    },
+    {
+      "id": "GT020",
+      "query": "SELECT COUNT(*) AS casos_respiratorios FROM sus_data WHERE DIAG_PRINC LIKE 'J%';",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "casos_respiratorios": 2785
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_categoria_cid",
+      "question": "Quantos casos de doenças respiratórias (CID J) foram registrados?"
+    },
+    {
+      "id": "GT021",
+      "query": "SELECT COUNT(*) AS casos_cancer FROM sus_data WHERE DIAG_PRINC LIKE 'C%';",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "casos_cancer": 6532
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_categoria_cid",
+      "question": "Quantos casos de neoplasias (CID C) foram registrados?"
+    },
+    {
+      "id": "GT022",
+      "query": "SELECT SUM(VAL_TOT) AS custo_total_poa FROM sus_data WHERE CIDADE_RESIDENCIA_PACIENTE = 'Porto Alegre';",
+      "valid": true,
+      "execution_time": 0.005,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "custo_total_poa": 18064649.81
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_geografica",
+      "question": "Qual o custo total de atendimentos em Porto Alegre?"
+    },
+    {
+      "id": "GT023",
+      "query": "SELECT COUNT(*) AS mortes_40_64 FROM sus_data WHERE MORTE = 1 AND IDADE BETWEEN 40 AND 64;",
+      "valid": true,
+      "execution_time": 0.003,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "mortes_40_64": 623
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_complexo",
+      "question": "Quantos pacientes entre 40 e 64 anos morreram?"
+    },
+    {
+      "id": "GT024",
+      "query": "SELECT DIAG_PRINC, COUNT(*) AS total FROM sus_data WHERE IDADE >= 65 GROUP BY DIAG_PRINC ORDER BY total DESC LIMIT 1;",
+      "valid": true,
+      "execution_time": 0.007,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "S720",
+          "total": 231
+        }
+      ],
+      "difficulty": "medium",
+      "category": "ranking_filtrado",
+      "question": "Qual o diagnóstico mais comum em pacientes idosos (65+ anos)?"
+    },
+    {
+      "id": "GT025",
+      "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY faixa_etaria ORDER BY taxa_mortalidade DESC;",
+      "valid": true,
+      "execution_time": 0.017,
+      "row_count": 4,
+      "error": null,
+      "sample_result": [
+        {
+          "faixa_etaria": "65+ anos",
+          "total_casos": 15471,
+          "total_mortes": 1278,
+          "taxa_mortalidade": 8.26
+        },
+        {
+          "faixa_etaria": "40-64 anos",
+          "total_casos": 21756,
+          "total_mortes": 623,
+          "taxa_mortalidade": 2.86
+        },
+        {
+          "faixa_etaria": "0-17 anos",
+          "total_casos": 8616,
+          "total_mortes": 130,
+          "taxa_mortalidade": 1.51
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual a faixa etária com maior taxa de mortalidade?"
+    },
+    {
+      "id": "GT026",
+      "query": "SELECT DIAG_PRINC, COUNT(*) AS total_mortes FROM sus_data WHERE MORTE = 1 GROUP BY DIAG_PRINC ORDER BY total_mortes DESC LIMIT 5;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 5,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "R570",
+          "total_mortes": 43
+        },
+        {
+          "DIAG_PRINC": "I469",
+          "total_mortes": 41
+        },
+        {
+          "DIAG_PRINC": "J960",
+          "total_mortes": 39
+        }
+      ],
+      "difficulty": "hard",
+      "category": "ranking_filtrado",
+      "question": "Quais os 5 diagnósticos mais comuns em pacientes que morreram?"
+    },
+    {
+      "id": "GT027",
+      "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) > 1000 ORDER BY taxa_mortalidade DESC;",
+      "valid": true,
+      "execution_time": 0.016,
+      "row_count": 8,
+      "error": null,
+      "sample_result": [
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Porto Alegre",
+          "total_atendimentos": 7036,
+          "total_mortes": 308,
+          "taxa_mortalidade": 4.38
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Ijuí",
+          "total_atendimentos": 8809,
+          "total_mortes": 359,
+          "taxa_mortalidade": 4.08
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Uruguaiana",
+          "total_atendimentos": 9288,
+          "total_mortes": 359,
+          "taxa_mortalidade": 3.87
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual a taxa de mortalidade por cidade para cidades com mais de 1000 atendimentos?"
+    },
+    {
+      "id": "GT028",
+      "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, COUNT(*) AS total_casos, AVG(VAL_TOT) AS custo_medio FROM sus_data GROUP BY faixa_etaria ORDER BY custo_medio DESC;",
+      "valid": true,
+      "execution_time": 0.021,
+      "row_count": 4,
+      "error": null,
+      "sample_result": [
+        {
+          "faixa_etaria": "65+ anos",
+          "total_casos": 15471,
+          "custo_medio": 2928.8534671320535
+        },
+        {
+          "faixa_etaria": "0-17 anos",
+          "total_casos": 8616,
+          "custo_medio": 2843.3323549210772
+        },
+        {
+          "faixa_etaria": "40-64 anos",
+          "total_casos": 21756,
+          "custo_medio": 2701.6940113072255
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual o custo médio de atendimento por faixa etária?"
+    },
+    {
+      "id": "GT029",
+      "query": "SELECT DIAG_PRINC, SEXO, COUNT(*) AS total FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 10) GROUP BY DIAG_PRINC, SEXO ORDER BY DIAG_PRINC, SEXO;",
+      "valid": true,
+      "execution_time": 0.026,
+      "row_count": 19,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "C61 ",
+          "SEXO": 1,
+          "total": 255
+        },
+        {
+          "DIAG_PRINC": "C770",
+          "SEXO": 1,
+          "total": 159
+        },
+        {
+          "DIAG_PRINC": "C770",
+          "SEXO": 3,
+          "total": 111
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual a distribuição de diagnósticos por sexo para os 10 diagnósticos mais comuns?"
+    },
+    {
+      "id": "GT030",
+      "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS custo_medio, COUNT(*) AS total_casos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING AVG(VAL_TOT) > (SELECT AVG(VAL_TOT) FROM sus_data) AND COUNT(*) >= 100 ORDER BY custo_medio DESC;",
+      "valid": true,
+      "execution_time": 0.024,
+      "row_count": 3,
+      "error": null,
+      "sample_result": [
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Santa Maria",
+          "custo_medio": 3003.6444698205546,
+          "total_casos": 5517
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Uruguaiana",
+          "custo_medio": 2676.4487080103363,
+          "total_casos": 9288
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Caxias do Sul",
+          "custo_medio": 2652.6960747252747,
+          "total_casos": 6825
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Quais cidades têm custo médio de atendimento acima da média geral?"
+    },
+    {
+      "id": "GT031",
+      "query": "SELECT COUNT(*) AS homens_mortos FROM sus_data WHERE SEXO = 1 AND MORTE = 1;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "homens_mortos": 1236
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_complexo",
+      "question": "Quantos homens morreram?"
+    },
+    {
+      "id": "GT032",
+      "query": "SELECT COUNT(*) AS mulheres_mortas FROM sus_data WHERE SEXO = 3 AND MORTE = 1;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "mulheres_mortas": 966
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_complexo",
+      "question": "Quantas mulheres morreram?"
+    },
+    {
+      "id": "GT033",
+      "query": "SELECT AVG(VAL_TOT) AS custo_medio_mortes FROM sus_data WHERE MORTE = 1;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "custo_medio_mortes": 5070.989713896458
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_filtrada",
+      "question": "Qual o custo médio dos atendimentos que resultaram em óbito?"
+    },
+    {
+      "id": "GT034",
+      "query": "SELECT COUNT(*) AS total_uti FROM sus_data WHERE UTI_MES_TO > 0;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "total_uti": 7086
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_simples",
+      "question": "Quantos atendimentos tiveram UTI?"
+    },
+    {
+      "id": "GT035",
+      "query": "SELECT AVG(UTI_MES_TO) AS media_dias_uti FROM sus_data WHERE UTI_MES_TO > 0;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "media_dias_uti": 6.468106124753034
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_filtrada",
+      "question": "Qual a média de dias de UTI dos pacientes que usaram UTI?"
+    },
+    {
+      "id": "GT036",
+      "query": "SELECT COUNT(*) AS atendimentos_caros FROM sus_data WHERE VAL_TOT > 10000;",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "atendimentos_caros": 2870
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_simples",
+      "question": "Quantos atendimentos custaram mais de 10000 reais?"
+    },
+    {
+      "id": "GT037",
+      "query": "SELECT CASE WHEN UTI_MES_TO > 0 THEN 'Com UTI' ELSE 'Sem UTI' END AS tipo_atendimento, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data GROUP BY CASE WHEN UTI_MES_TO > 0 THEN 'Com UTI' ELSE 'Sem UTI' END;",
+      "valid": true,
+      "execution_time": 0.014,
+      "row_count": 2,
+      "error": null,
+      "sample_result": [
+        {
+          "tipo_atendimento": "Com UTI",
+          "total_casos": 7086,
+          "total_mortes": 1105,
+          "taxa_mortalidade": 15.59
+        },
+        {
+          "tipo_atendimento": "Sem UTI",
+          "total_casos": 51569,
+          "total_mortes": 1097,
+          "taxa_mortalidade": 2.13
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual a taxa de mortalidade para pacientes que usaram UTI vs os que não usaram?"
+    },
+    {
+      "id": "GT038",
+      "query": "SELECT CIDADE_RESIDENCIA_PACIENTE, AVG(VAL_TOT) AS custo_medio, COUNT(*) AS total_casos FROM sus_data GROUP BY CIDADE_RESIDENCIA_PACIENTE HAVING COUNT(*) >= 100 ORDER BY custo_medio DESC LIMIT 3;",
+      "valid": true,
+      "execution_time": 0.02,
+      "row_count": 3,
+      "error": null,
+      "sample_result": [
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Santa Maria",
+          "custo_medio": 3003.6444698205546,
+          "total_casos": 5517
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Uruguaiana",
+          "custo_medio": 2676.4487080103363,
+          "total_casos": 9288
+        },
+        {
+          "CIDADE_RESIDENCIA_PACIENTE": "Caxias do Sul",
+          "custo_medio": 2652.6960747252747,
+          "total_casos": 6825
+        }
+      ],
+      "difficulty": "medium",
+      "category": "ranking",
+      "question": "Quais são as 3 cidades com maior custo médio de atendimento?"
+    },
+    {
+      "id": "GT039",
+      "query": "SELECT COUNT(*) AS casos_cardiovasculares FROM sus_data WHERE DIAG_PRINC LIKE 'I%';",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "casos_cardiovasculares": 6923
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_categoria_cid",
+      "question": "Quantos casos de doenças cardiovasculares (CID I) foram registrados?"
+    },
+    {
+      "id": "GT040",
+      "query": "SELECT AVG(IDADE) AS idade_media_cardio FROM sus_data WHERE DIAG_PRINC LIKE 'I%';",
+      "valid": true,
+      "execution_time": 0.004,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_media_cardio": 60.39043767152968
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_filtrada",
+      "question": "Qual a idade média dos pacientes com doenças cardiovasculares?"
+    },
+    {
+      "id": "GT041",
+      "query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 20) GROUP BY DIAG_PRINC HAVING COUNT(*) >= 50 ORDER BY taxa_mortalidade DESC LIMIT 1;",
+      "valid": true,
+      "execution_time": 0.024,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "B342",
+          "total_casos": 208,
+          "total_mortes": 37,
+          "taxa_mortalidade": 17.79
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual o diagnóstico mais letal (maior taxa de mortalidade) entre os 20 diagnósticos mais comuns?"
+    },
+    {
+      "id": "GT042",
+      "query": "SELECT COUNT(*) AS recem_nascidos FROM sus_data WHERE IDADE = 0;",
+      "valid": true,
+      "execution_time": 0.003,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "recem_nascidos": 509
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_simples",
+      "question": "Quantos pacientes recém-nascidos (0 anos) foram atendidos?"
+    },
+    {
+      "id": "GT043",
+      "query": "SELECT UF_RESIDENCIA_PACIENTE, COUNT(*) AS total_atendimentos FROM sus_data GROUP BY UF_RESIDENCIA_PACIENTE ORDER BY total_atendimentos DESC LIMIT 1;",
+      "valid": true,
+      "execution_time": 0.013,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "UF_RESIDENCIA_PACIENTE": "Rio Grande do Sul",
+          "total_atendimentos": 58655
+        }
+      ],
+      "difficulty": "medium",
+      "category": "ranking",
+      "question": "Qual o estado com mais atendimentos?"
+    },
+    {
+      "id": "GT044",
+      "query": "SELECT CASE WHEN IDADE < 1 THEN '0 anos' WHEN IDADE BETWEEN 1 AND 9 THEN '1-9 anos' WHEN IDADE BETWEEN 10 AND 19 THEN '10-19 anos' WHEN IDADE BETWEEN 20 AND 29 THEN '20-29 anos' WHEN IDADE BETWEEN 30 AND 39 THEN '30-39 anos' WHEN IDADE BETWEEN 40 AND 49 THEN '40-49 anos' WHEN IDADE BETWEEN 50 AND 59 THEN '50-59 anos' WHEN IDADE BETWEEN 60 AND 69 THEN '60-69 anos' WHEN IDADE BETWEEN 70 AND 79 THEN '70-79 anos' ELSE '80+ anos' END AS faixa_detalhada, COUNT(*) AS total_casos, AVG(VAL_TOT) AS custo_medio, AVG(IDADE) AS idade_media FROM sus_data GROUP BY faixa_detalhada ORDER BY idade_media;",
+      "valid": true,
+      "execution_time": 0.025,
+      "row_count": 10,
+      "error": null,
+      "sample_result": [
+        {
+          "faixa_detalhada": "0 anos",
+          "total_casos": 509,
+          "custo_medio": 6823.876090373281,
+          "idade_media": 0.0
+        },
+        {
+          "faixa_detalhada": "1-9 anos",
+          "total_casos": 5097,
+          "custo_medio": 2866.798020404159,
+          "idade_media": 4.28977830096135
+        },
+        {
+          "faixa_detalhada": "10-19 anos",
+          "total_casos": 3991,
+          "custo_medio": 1971.6632974191932,
+          "idade_media": 14.89927336507141
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Qual a correlação entre idade e custo de atendimento por faixa etária detalhada?"
+    },
+    {
+      "id": "GT045",
+      "query": "SELECT DIAG_PRINC, COUNT(*) AS total_casos, MIN(VAL_TOT) AS custo_min, MAX(VAL_TOT) AS custo_max, (MAX(VAL_TOT) - MIN(VAL_TOT)) AS variacao_custo, AVG(VAL_TOT) AS custo_medio FROM sus_data WHERE DIAG_PRINC IN (SELECT DIAG_PRINC FROM sus_data GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 15) GROUP BY DIAG_PRINC ORDER BY variacao_custo DESC;",
+      "valid": true,
+      "execution_time": 0.025,
+      "row_count": 15,
+      "error": null,
+      "sample_result": [
+        {
+          "DIAG_PRINC": "I200",
+          "total_casos": 353,
+          "custo_min": 44.22,
+          "custo_max": 64785.22,
+          "variacao_custo": 64741.0,
+          "custo_medio": 7000.463796033995
+        },
+        {
+          "DIAG_PRINC": "C770",
+          "total_casos": 270,
+          "custo_min": 112.14,
+          "custo_max": 56186.33,
+          "variacao_custo": 56074.19,
+          "custo_medio": 3223.4683703703704
+        },
+        {
+          "DIAG_PRINC": "M511",
+          "total_casos": 237,
+          "custo_min": 44.22,
+          "custo_max": 26773.89,
+          "variacao_custo": 26729.67,
+          "custo_medio": 5475.044345991561
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_complexa",
+      "question": "Quais diagnósticos têm maior variação de custo (diferença entre máximo e mínimo) entre os 15 mais comuns?"
+    },
+    {
+      "id": "GT046",
+      "query": "SELECT COUNT(*) AS internacoes_longas FROM sus_data WHERE (DT_SAIDA - DT_INTER) > 10;",
+      "valid": true,
+      "execution_time": 0.005,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "internacoes_longas": 13032
+        }
+      ],
+      "difficulty": "medium",
+      "category": "filtro_temporal",
+      "question": "Quantos atendimentos duraram mais de 10 dias (diferença entre data de saída e internação)?"
+    },
+    {
+      "id": "GT047",
+      "query": "SELECT AVG(DT_SAIDA - DT_INTER) AS media_permanencia FROM sus_data WHERE DT_SAIDA > DT_INTER;",
+      "valid": true,
+      "execution_time": 0.006,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "media_permanencia": 128.6911911911912
+        }
+      ],
+      "difficulty": "medium",
+      "category": "estatistica_temporal",
+      "question": "Qual a média de permanência hospitalar (em dias) dos pacientes?"
+    },
+    {
+      "id": "GT048",
+      "query": "SELECT CASE WHEN IDADE < 18 THEN '0-17 anos' WHEN IDADE BETWEEN 18 AND 39 THEN '18-39 anos' WHEN IDADE BETWEEN 40 AND 64 THEN '40-64 anos' ELSE '65+ anos' END AS faixa_etaria, AVG(DT_SAIDA - DT_INTER) AS media_permanencia, COUNT(*) AS total_casos FROM sus_data WHERE DT_SAIDA > DT_INTER GROUP BY faixa_etaria ORDER BY media_permanencia DESC;",
+      "valid": true,
+      "execution_time": 0.021,
+      "row_count": 4,
+      "error": null,
+      "sample_result": [
+        {
+          "faixa_etaria": "0-17 anos",
+          "media_permanencia": 163.6395551386842,
+          "total_casos": 7463
+        },
+        {
+          "faixa_etaria": "65+ anos",
+          "media_permanencia": 137.27929995696456,
+          "total_casos": 13942
+        },
+        {
+          "faixa_etaria": "40-64 anos",
+          "media_permanencia": 126.79293455606502,
+          "total_casos": 19192
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_temporal_complexa",
+      "question": "Qual a média de permanência hospitalar por faixa etária?"
+    },
+    {
+      "id": "GT049",
+      "query": "SELECT CASE WHEN (DT_SAIDA - DT_INTER) <= 1 THEN '1 dia' WHEN (DT_SAIDA - DT_INTER) BETWEEN 2 AND 7 THEN '2-7 dias' WHEN (DT_SAIDA - DT_INTER) BETWEEN 8 AND 15 THEN '8-15 dias' ELSE '16+ dias' END AS tempo_permanencia, COUNT(*) AS total_casos, SUM(MORTE) AS total_mortes, ROUND((SUM(MORTE) * 100.0 / COUNT(*)), 2) AS taxa_mortalidade FROM sus_data WHERE DT_SAIDA > DT_INTER GROUP BY tempo_permanencia ORDER BY tempo_permanencia;",
+      "valid": true,
+      "execution_time": 0.024,
+      "row_count": 4,
+      "error": null,
+      "sample_result": [
+        {
+          "tempo_permanencia": "1 dia",
+          "total_casos": 13149,
+          "total_mortes": 279,
+          "taxa_mortalidade": 2.12
+        },
+        {
+          "tempo_permanencia": "16+ dias",
+          "total_casos": 10828,
+          "total_mortes": 651,
+          "taxa_mortalidade": 6.01
+        },
+        {
+          "tempo_permanencia": "2-7 dias",
+          "total_casos": 22872,
+          "total_mortes": 708,
+          "taxa_mortalidade": 3.1
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_temporal_complexa",
+      "question": "Qual a relação entre tempo de permanência e taxa de mortalidade?"
+    },
+    {
+      "id": "GT050",
+      "query": "SELECT AVG(IDADE) AS idade_media, COUNT(CASE WHEN SEXO = 1 THEN 1 END) AS homens, COUNT(CASE WHEN SEXO = 3 THEN 1 END) AS mulheres, SUM(MORTE) AS total_mortes, AVG(UTI_MES_TO) AS media_uti_dias, COUNT(*) AS total_casos FROM sus_data WHERE VAL_TOT >= (SELECT VAL_TOT FROM sus_data ORDER BY VAL_TOT DESC LIMIT 1 OFFSET (SELECT CAST(COUNT(*) * 0.01 AS INTEGER) FROM sus_data));",
+      "valid": true,
+      "execution_time": 0.015,
+      "row_count": 1,
+      "error": null,
+      "sample_result": [
+        {
+          "idade_media": 41.92674616695059,
+          "homens": 354,
+          "mulheres": 233,
+          "total_mortes": 50,
+          "media_uti_dias": 7.229982964224872,
+          "total_casos": 587
+        }
+      ],
+      "difficulty": "hard",
+      "category": "analise_estatistica_avancada",
+      "question": "Qual o perfil completo dos atendimentos mais caros (top 1% em valor)?"
+    }
+  ]
+}

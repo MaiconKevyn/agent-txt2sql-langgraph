@@ -21,14 +21,24 @@ from src.domain.exceptions.custom_exceptions import (
 @dataclass
 class ConversationalConfig:
     """Configuração especializada para LLM conversacional."""
-    # model_name: str = "llama3.2:latest"
-    model_name: str = "mistral"
-    temperature: float = 0.8
-    max_tokens: int = 1000
-    timeout: int = 60
-    max_retries: int = 3
+    model_name: str
+    temperature: float
+    max_tokens: int
+    timeout: int
+    max_retries: int
     system_role: str = "assistant"
     stream: bool = False
+    
+    @classmethod
+    def from_application_config(cls, app_config):
+        """Create ConversationalConfig from ApplicationConfig"""
+        return cls(
+            model_name=app_config.conversational_llm_model,
+            temperature=app_config.conversational_llm_temperature,
+            max_tokens=app_config.conversational_llm_max_tokens,
+            timeout=app_config.conversational_llm_timeout,
+            max_retries=app_config.conversational_llm_max_retries
+        )
 
 
 class ConversationalLLMService:
@@ -39,11 +49,11 @@ class ConversationalLLMService:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
-        config: Optional[ConversationalConfig] = None
+        config: ConversationalConfig,
+        base_url: str = "http://localhost:11434"
     ):
         self.base_url = base_url.rstrip('/')
-        self.config = config or ConversationalConfig()
+        self.config = config
         self.logger = logging.getLogger(__name__)
         # Enable propagation to see detailed logs in output
         self.logger.propagate = True
@@ -512,13 +522,13 @@ Tipo de consulta identificado: **{query_type}**
         
         cleaned = response.strip()
         
-        # Remove aspas duplas no início e fim se presentes
-        if cleaned.startswith('"') and cleaned.endswith('"'):
-            cleaned = cleaned[1:-1]
+        # Remove aspas duplas no início e fim se presentes (múltiplas iterações para casos aninhados)
+        while cleaned.startswith('"') and cleaned.endswith('"') and len(cleaned) > 2:
+            cleaned = cleaned[1:-1].strip()
         
         # Remove aspas simples no início e fim se presentes  
-        if cleaned.startswith("'") and cleaned.endswith("'"):
-            cleaned = cleaned[1:-1]
+        while cleaned.startswith("'") and cleaned.endswith("'") and len(cleaned) > 2:
+            cleaned = cleaned[1:-1].strip()
         
         # Remove identificadores de template que podem vazar na resposta
         lines_to_remove = [
@@ -545,6 +555,10 @@ Tipo de consulta identificado: **{query_type}**
         
         # Reconstrói a resposta limpa
         final_response = '\n'.join(filtered_lines).strip()
+        
+        # Última limpeza: remover aspas duplas que possam ter sobrado
+        while final_response.startswith('"') and final_response.endswith('"') and len(final_response) > 2:
+            final_response = final_response[1:-1].strip()
         
         # Log da limpeza para debug
         if final_response != response.strip():

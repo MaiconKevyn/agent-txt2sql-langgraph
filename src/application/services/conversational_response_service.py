@@ -65,7 +65,14 @@ class ConversationalResponseService:
         prompt_template_service: Optional[SUSPromptTemplateService] = None,
         enable_memory: bool = True
     ):
-        self.conversational_llm = conversational_llm_service or ConversationalLLMService()
+        if conversational_llm_service is None:
+            # Create with default config - ideally this should come from dependency injection
+            from src.application.config.simple_config import ApplicationConfig
+            app_config = ApplicationConfig()
+            conv_config = ConversationalConfig.from_application_config(app_config)
+            self.conversational_llm = ConversationalLLMService(conv_config)
+        else:
+            self.conversational_llm = conversational_llm_service
         self.prompt_service = prompt_template_service or SUSPromptTemplateService()
         self.enable_memory = enable_memory
         self.logger = logging.getLogger(__name__)

@@ -103,7 +103,11 @@ class Text2SQLOrchestrator:
         self._conversational_service = None
         if self._config.enable_conversational_response:
             try:
-                self._conversational_service = ConversationalResponseService()
+                # Create conversational LLM service with centralized config
+                from ..services.conversational_llm_service import ConversationalConfig, ConversationalLLMService
+                conv_config = ConversationalConfig.from_application_config(self._app_config)
+                conv_llm_service = ConversationalLLMService(conv_config)
+                self._conversational_service = ConversationalResponseService(conv_llm_service)
             except Exception as e:
                 if not self._config.conversational_fallback:
                     raise
