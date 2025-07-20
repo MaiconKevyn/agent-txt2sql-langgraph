@@ -54,13 +54,13 @@ python model_runner.py --models mistral ollama_llama3 qwen3 --output-dir results
 # Executar todos os modelos disponíveis
 python model_runner.py --all-models --output-dir results
 ```
-
+python query_evaluator.py --input results/model_results_20250713_164421.json --database ../sus_database.db
 **Output**: `results/model_results_TIMESTAMP.json`
 
 ### **Passo 2: Avaliar Queries**
 ```bash
 # Executar queries no banco e comparar resultados
-python query_evaluator.py --input results/model_results_TIMESTAMP.json --database ../sus_database.db
+python query_evaluator.py --input model_results_20250718_230410.json --database ../sus_database.db
 
 # Exemplo com timestamp específico (substitua o timestamp)
 python query_evaluator.py --input results/model_results_20250713_164421.json --database ../sus_database.db
@@ -74,7 +74,7 @@ python query_evaluator.py --input results/model_results_20250713_164421.json --d
 python analysis_reporter.py --input results/evaluation_results_TIMESTAMP.json
 
 # Exemplo com timestamp específico (substitua o timestamp)
-python analysis_reporter.py --input results/evaluation_results_20250713_164421.json
+python analysis_reporter.py --input evaluation_results_20250718_230410.json
 ```
 
 **Outputs**: 

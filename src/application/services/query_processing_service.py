@@ -819,64 +819,51 @@ IMPORTANTE - Regras para consultas por categoria de doença CID-10:
 - Palavras-chave para mortes: "mortes", "óbitos", "morreram", "faleceram", "deaths"
 - Exemplo: "quantas mortes por doenças respiratórias?" → adicionar AND s.MORTE = 1
 
-CRÍTICO - Regras para DATAS (DT_INTER e DT_SAIDA):
-- FORMATO OBRIGATÓRIO: As datas são armazenadas como INTEGER no formato YYYYMMDD
-- DT_INTER = data de internação, DT_SAIDA = data de saída
-- NUNCA use formato de data como '2017-04-01' ou DATE functions
-- SEMPRE use números inteiros: 20170401 (para 01/04/2017)
+CRÍTICO - Regras para DATAS:
+- Use SEMPRE as colunas DATE: DT_INTER e DT_SAIDA (agora formato YYYY-MM-DD)
+- DT_INTER = data de internação, DT_SAIDA = data de saída  
+- Use formato SQL padrão: '2017-04-01' e funções DATE nativas do SQLite
 
-CONVERSÕES DE DATA - LINGUAGEM NATURAL PARA INTEGER:
-- "janeiro 2017" = DT_INTER >= 20170101 AND DT_INTER <= 20170131
-- "abril 2017" = DT_INTER >= 20170401 AND DT_INTER <= 20170430
-- "2017" = DT_INTER >= 20170101 AND DT_INTER <= 20171231
-- "entre abril e julho 2017" = DT_INTER >= 20170401 AND DT_INTER <= 20170731
-- "primeiro semestre 2020" = DT_INTER >= 20200101 AND DT_INTER <= 20200630
+CONVERSÕES DE DATA - LINGUAGEM NATURAL PARA DATE:
+- "janeiro 2017" = DT_INTER >= '2017-01-01' AND DT_INTER <= '2017-01-31'
+- "abril 2017" = DT_INTER >= '2017-04-01' AND DT_INTER <= '2017-04-30'
+- "2017" = DT_INTER >= '2017-01-01' AND DT_INTER <= '2017-12-31'
+- "entre abril e julho 2017" = DT_INTER >= '2017-04-01' AND DT_INTER <= '2017-07-31'
+- "primeiro semestre 2020" = DT_INTER >= '2020-01-01' AND DT_INTER <= '2020-06-30'
 
 EXEMPLOS CORRETOS DE QUERIES DE DATA:
-- "quantos casos em 2017?" → WHERE DT_INTER >= 20170101 AND DT_INTER <= 20171231
-- "casos em agosto 2017" → WHERE DT_INTER >= 20170801 AND DT_INTER <= 20170831
-- "entre janeiro e março 2020" → WHERE DT_INTER >= 20200101 AND DT_INTER <= 20200331
+- "quantos casos em 2017?" → WHERE DT_INTER >= '2017-01-01' AND DT_INTER <= '2017-12-31'
+- "casos em agosto 2017" → WHERE DT_INTER >= '2017-08-01' AND DT_INTER <= '2017-08-31'
+- "entre janeiro e março 2020" → WHERE DT_INTER >= '2020-01-01' AND DT_INTER <= '2020-03-31'
 
-EXTRAIR ANO/MÊS DE DATAS INTEGER:
-- Para extrair ANO: CAST(DT_INTER/10000 AS INTEGER) ou DT_INTER/10000
-- Para extrair MÊS: CAST((DT_INTER/100) % 100 AS INTEGER)
-- Para agrupar por ano: GROUP BY DT_INTER/10000
-- Para agrupar por mês: GROUP BY DT_INTER/100
+EXTRAIR ANO/MÊS DE DATAS:
+- Para extrair ANO: strftime('%Y', DT_INTER)
+- Para extrair MÊS: strftime('%m', DT_INTER)
+- Para agrupar por ano: GROUP BY strftime('%Y', DT_INTER)
+- Para agrupar por mês: GROUP BY strftime('%Y-%m', DT_INTER)
 
 CRÍTICO - Cálculo de TEMPO DE INTERNAÇÃO:
-- TEMPO DE INTERNAÇÃO requer conversão de YYYYMMDD para datas reais
+- TEMPO DE INTERNAÇÃO é MUITO SIMPLES com as colunas DATE
 - UTI_MES_TO é APENAS tempo de UTI, NÃO tempo total de internação  
-- NUNCA use DT_SAIDA - DT_INTER (subtração aritmética incorreta)
-- Use JULIANDAY para conversão correta: 
-  JULIANDAY(SUBSTR(DT_SAIDA,1,4)||'-'||SUBSTR(DT_SAIDA,5,2)||'-'||SUBSTR(DT_SAIDA,7,2)) -
-  JULIANDAY(SUBSTR(DT_INTER,1,4)||'-'||SUBSTR(DT_INTER,5,2)||'-'||SUBSTR(DT_INTER,7,2))
+- Use cálculo direto com as colunas DATE: JULIANDAY(DT_SAIDA) - JULIANDAY(DT_INTER)
 - UTI_MES_TO = dias específicos em UTI (parte da internação)
 
 EXEMPLO TEMPO MÉDIO CORRETO:
-USE JULIANDAY para conversão de datas YYYYMMDD:
-SELECT AVG(
-    JULIANDAY(SUBSTR(DT_SAIDA,1,4)||'-'||SUBSTR(DT_SAIDA,5,2)||'-'||SUBSTR(DT_SAIDA,7,2)) -
-    JULIANDAY(SUBSTR(DT_INTER,1,4)||'-'||SUBSTR(DT_INTER,5,2)||'-'||SUBSTR(DT_INTER,7,2))
-) AS tempo_medio_dias FROM sus_data WHERE DIAG_PRINC LIKE 'J%';
-Resultado esperado: ~6.1 dias (conversão correta)
-INCORRETO: DT_SAIDA - DT_INTER = ~121 dias (subtração aritmética)
+USE as colunas DATE para cálculo simples:
+SELECT AVG(JULIANDAY(DT_SAIDA) - JULIANDAY(DT_INTER)) AS tempo_medio_dias 
+FROM sus_data WHERE DIAG_PRINC LIKE 'J%';
+Resultado esperado: ~6.2 dias (conversão correta)
 
 NUNCA FAÇA:
-❌ DT_INTER BETWEEN '2017-04-01' AND '2017-07-31'
 ❌ AVG(UTI_MES_TO) para tempo de internação (isso é só UTI!)
 ❌ UTI_MES_TO como tempo total de internação
-❌ strftime('%Y', DT_INTER)
-❌ YEAR(DT_INTER)
-❌ DATE(DT_INTER)
 ❌ DATEDIFF function - SQLite não tem
-❌ DT_SAIDA - DT_INTER (subtração aritmética incorreta)
 ❌ // comentarios (use -- para comentários SQL)
 
 SEMPRE FAÇA:
-✅ DT_INTER >= 20170401 AND DT_INTER <= 20170731
-✅ DT_INTER/10000 = 2017 (para filtrar por ano)
+✅ DT_INTER >= '2017-04-01' AND DT_INTER <= '2017-07-31'
+✅ strftime('%Y', DT_INTER) = '2017' (para filtrar por ano)
 ✅ -- comentários SQL (não //)
-✅ DT_INTER >= 20170401 (para datas a partir de abril/2017)
 
 IMPORTANTE - Regras para queries COUNT:
 - NUNCA adicione LIMIT em queries COUNT(*) - COUNT sempre retorna 1 linha
@@ -967,26 +954,26 @@ IMPORTANTE - Regras para queries COUNT:
         
         self.logger.info("🔧 Fixing YEAR() function for SQLite compatibility")
         
-        # Replace YEAR(JULIANDAY(DT_INTER)) with DT_INTER/10000
+        # Replace YEAR(JULIANDAY(DT_INTER)) with strftime('%Y', DT_INTER)
         sql_query = re.sub(
             r'YEAR\s*\(\s*JULIANDAY\s*\(\s*DT_INTER\s*\)\s*\)',
-            'DT_INTER/10000',
+            "strftime('%Y', DT_INTER)",
             sql_query,
             flags=re.IGNORECASE
         )
         
-        # Replace YEAR(DT_INTER) with DT_INTER/10000
+        # Replace YEAR(DT_INTER) with strftime('%Y', DT_INTER)
         sql_query = re.sub(
             r'YEAR\s*\(\s*DT_INTER\s*\)',
-            'DT_INTER/10000',
+            "strftime('%Y', DT_INTER)",
             sql_query,
             flags=re.IGNORECASE
         )
         
-        # Replace any remaining YEAR() patterns with DT_INTER/10000
+        # Replace any remaining YEAR() patterns with strftime('%Y', DT_INTER)
         sql_query = re.sub(
             r'YEAR\s*\([^)]+\)',
-            'DT_INTER/10000',
+            "strftime('%Y', DT_INTER)",
             sql_query,
             flags=re.IGNORECASE
         )
@@ -1041,11 +1028,20 @@ IMPORTANTE - Regras para queries COUNT:
         
         3. 🚨 CRÍTICO - FUNÇÕES SQLite:
         - ❌ NUNCA use YEAR(), MONTH(), DAY() - NÃO EXISTEM no SQLite!
-        - ✅ Para extrair ano: USE APENAS DT_INTER/10000
-        - ✅ Para extrair mês: USE APENAS (DT_INTER/100) % 100
-        - ✅ Para agrupar por ano: GROUP BY DT_INTER/10000
+        - ✅ Para extrair ano: USE strftime('%Y', DT_INTER)
+        - ✅ Para extrair mês: USE strftime('%m', DT_INTER)
+        - ✅ Para agrupar por ano: GROUP BY strftime('%Y', DT_INTER)
         
-        4. 🚨 CRÍTICO - REGRAS PARA CUSTOS E ATENDIMENTOS:
+        4. 🚨 CRÍTICO - REGRAS PARA CONSULTAS DE DIAGNÓSTICO:
+        - Para "diagnósticos mais numerosos": SEMPRE usar DIAG_PRINC (código específico), NUNCA capítulos CID
+        - TEMPLATE OBRIGATÓRIO para tempo por diagnóstico:
+          SELECT DIAG_PRINC, COUNT(*) as total_casos, ROUND(AVG(JULIANDAY(DT_SAIDA) - JULIANDAY(DT_INTER)), 1) as tempo_medio_dias
+          FROM sus_data WHERE DT_INTER IS NOT NULL AND DT_SAIDA IS NOT NULL
+          GROUP BY DIAG_PRINC ORDER BY COUNT(*) DESC LIMIT 5;
+        - ❌ NUNCA faça JOIN com cid_capitulos para consultas de diagnósticos específicos
+        - ❌ NUNCA use GROUP BY sem especificar as colunas
+        
+        5. 🚨 CRÍTICO - REGRAS PARA CUSTOS E ATENDIMENTOS:
         - ❌ NUNCA filtre por MORTE = 0 em consultas sobre "gastos", "custos" ou "atendimentos"
         - ✅ Gastos/custos/atendimentos SEMPRE incluem todos os casos (MORTE = 0 e MORTE = 1)
         - ✅ Apenas filtre por MORTE quando explicitamente perguntado sobre "mortes" ou "óbitos"

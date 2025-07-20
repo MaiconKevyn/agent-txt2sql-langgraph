@@ -58,6 +58,37 @@ def create_cid_capitulos_table(conn: sqlite3.Connection) -> int:
     print(f"CID chapters table created with {records_inserted} records")
     return records_inserted
 
+def convert_date_columns(df):
+    """Convert INTEGER date columns (YYYYMMDD) to proper DATE format"""
+    
+    def convert_integer_to_date(date_int):
+        """Convert YYYYMMDD integer to YYYY-MM-DD string"""
+        if pd.isna(date_int):
+            return None
+        try:
+            date_str = str(int(date_int)).zfill(8)
+            if len(date_str) != 8:
+                return None
+            year = date_str[:4]
+            month = date_str[4:6] 
+            day = date_str[6:8]
+            # Validate date
+            pd.to_datetime(f"{year}-{month}-{day}")
+            return f"{year}-{month}-{day}"
+        except (ValueError, TypeError):
+            return None
+    
+    # Convert date columns if they exist
+    if 'DT_INTER' in df.columns:
+        df['dt_inter_date'] = df['DT_INTER'].apply(convert_integer_to_date)
+        print(f"Converted DT_INTER: {df['dt_inter_date'].notna().sum()} valid dates")
+    
+    if 'DT_SAIDA' in df.columns:
+        df['dt_saida_date'] = df['DT_SAIDA'].apply(convert_integer_to_date)
+        print(f"Converted DT_SAIDA: {df['dt_saida_date'].notna().sum()} valid dates")
+    
+    return df
+
 def create_database_from_csv():
     """Create SQLite database with SUS data and CID chapters"""
     
@@ -68,12 +99,36 @@ def create_database_from_csv():
     
     df = pd.read_csv(csv_path)
     
+    # Convert date columns to proper DATE format
+    df = convert_date_columns(df)
+    
     # Connect to SQLite database
     db_path = "sus_database.db"
     conn = sqlite3.connect(db_path)
     
     try:
-        # Create SUS data table
+        # Create SUS data table with explicit column types
+        cursor = conn.cursor()
+        
+        # Create table with proper DATE columns
+        columns_sql = []
+        for col in df.columns:
+            if col in ['dt_inter_date', 'dt_saida_date']:
+                columns_sql.append(f"{col} DATE")
+            elif df[col].dtype in ['int64', 'int32']:
+                columns_sql.append(f"{col} INTEGER")
+            elif df[col].dtype in ['float64', 'float32']:
+                columns_sql.append(f"{col} REAL")
+            else:
+                columns_sql.append(f"{col} TEXT")
+        
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS sus_data (
+                {', '.join(columns_sql)}
+            )
+        """)
+        
+        # Insert data using pandas
         df.to_sql('sus_data', conn, if_exists='replace', index=False)
         print(f"SUS data table created with {len(df)} records")
         

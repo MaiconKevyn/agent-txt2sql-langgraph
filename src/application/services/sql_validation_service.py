@@ -384,10 +384,7 @@ class ComprehensiveSQLValidationService(ISQLValidationService):
                 # Replace arithmetic subtraction with JULIANDAY
                 corrected_sql = re.sub(
                     r'AVG\s*\(\s*DT_SAIDA\s*-\s*DT_INTER\s*\)',
-                    '''AVG(
-    JULIANDAY(SUBSTR(DT_SAIDA, 1, 4) || '-' || SUBSTR(DT_SAIDA, 5, 2) || '-' || SUBSTR(DT_SAIDA, 7, 2)) -
-    JULIANDAY(SUBSTR(DT_INTER, 1, 4) || '-' || SUBSTR(DT_INTER, 5, 2) || '-' || SUBSTR(DT_INTER, 7, 2))
-)''',
+                    'AVG(JULIANDAY(DT_SAIDA) - JULIANDAY(DT_INTER))',
                     corrected_sql,
                     flags=re.IGNORECASE
                 )

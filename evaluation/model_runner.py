@@ -329,7 +329,7 @@ def main():
     parser = argparse.ArgumentParser(description="Executor de modelos LLM para Text2SQL")
     parser.add_argument("--models", nargs="+", 
                        help="Modelos para testar (ex: ollama_llama3 mistral)")
-    parser.add_argument("--ground-truth", default="ground_truth.json",
+    parser.add_argument("--ground-truth", default="ground_truth_improved.json",
                        help="Arquivo ground truth")
     parser.add_argument("--output-dir", default="results",
                        help="Diretório de saída")
