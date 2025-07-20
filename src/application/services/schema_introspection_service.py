@@ -4,7 +4,7 @@ Schema Introspection Service - Single Responsibility: Handle database schema ana
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from .database_connection_service import IDatabaseConnectionService
+from ...infrastructure.database.connection_service import IDatabaseConnectionService
 
 
 @dataclass

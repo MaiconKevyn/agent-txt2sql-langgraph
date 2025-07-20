@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..config.simple_config import ApplicationConfig, OrchestratorConfig
-from ..services.database_connection_service import DatabaseConnectionFactory
+from ...infrastructure.database.connection_service import DatabaseConnectionFactory
 from ..services.llm_communication_service import LLMCommunicationFactory, LLMConfig
 from ..services.schema_introspection_service import SchemaIntrospectionFactory
 from ..services.user_interface_service import UserInterfaceFactory
@@ -17,7 +17,7 @@ from ..services.sql_validation_service import SQLValidationFactory
 from ...domain.repositories.cid_repository import ICIDRepository
 from ...domain.services.cid_semantic_search_service import ICIDSemanticSearchService, CIDSemanticSearchService
 from ...infrastructure.repositories.sqlite_cid_repository import SQLiteCIDRepository
-from ..services.database_connection_service import IDatabaseConnectionService
+from ...infrastructure.database.connection_service import IDatabaseConnectionService
 from ..services.llm_communication_service import ILLMCommunicationService
 from ..services.schema_introspection_service import ISchemaIntrospectionService
 from ..services.user_interface_service import (

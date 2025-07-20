@@ -1,5 +1,67 @@
 """
-Query Processing Service - Single Responsibility: Handle all query processing logic
+Query Processing Service - Application Layer (Coordenador Principal)
+
+🎯 OBJETIVO:
+Orquestrador central que coordena todo o workflow de processamento de consultas,
+implementando estratégias de fallback e gerenciando a comunicação entre serviços especializados.
+
+🔄 POSIÇÃO NO FLUXO (COORDENADOR):
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ User Interface  │ -> │ Query Processing│ -> │ Response        │
+│ / Orchestrator  │    │ Service (COORD) │    │ Generation      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │ coordena
+                    ┌─────────┼─────────┐
+                    ▼         ▼         ▼
+            ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+            │SQL Generation│ │Query Execution│ │Schema/Error │
+            │   Service   │ │   Service   │ │  Services   │
+            └─────────────┘ └─────────────┘ └─────────────┘
+
+📥 ENTRADAS (DE ONDE VEM):
+- Text2SQLOrchestrator: QueryRequest - pergunta estruturada do usuário
+- API/CLI Interface: raw user queries via orchestrator
+- Session Context: histórico e metadados de consultas anteriores
+
+📤 SAÍDAS (PARA ONDE VAI):
+- Text2SQLOrchestrator: QueryResult - resultado completo com metadados
+- ConversationalResponseService: dados estruturados para resposta
+- Logging/Analytics: estatísticas de performance e debugging
+
+🧩 RESPONSABILIDADES (COORDENAÇÃO):
+1. 🎯 Gerenciar estratégias de processamento (primary + fallbacks)
+2. 🔄 Implementar retry intelligente com múltiplas abordagens
+3. 📊 Delegação inteligente para serviços especializados
+4. 🛡️ Validação e recuperação de erros
+5. 📈 Coleta de métricas e histórico de queries
+6. ⚡ Otimização de workflow baseado em contexto
+
+🔗 DEPENDÊNCIAS (ORQUESTRA):
+- ISQLGenerationService: Para geração de SQL
+- IQueryExecutionService: Para execução segura
+- ILLMCommunicationService: Para comunicação com LLMs
+- ISchemaIntrospectionService: Para contexto do banco
+- IErrorHandlingService: Para tratamento de erros
+- ISQLValidationService: Para validação avançada
+
+🎭 ESTRATÉGIAS IMPLEMENTADAS:
+1. 🎯 Direct LLM Primary: Estratégia principal otimizada
+2. 🦙 Llama3 Fallback: Fallback com modelo específico
+3. 🧠 Error-Aware Retry: Retry com contexto de erro anterior
+4. 🔄 Multi-Strategy Retry: Sistema de fallback em cascata
+5. 📊 Simplified Approach: Para queries complexas que falham
+
+📊 MÉTRICAS COLETADAS:
+- Tempo de execução por estratégia
+- Taxa de sucesso de cada método
+- Padrões de fallback mais utilizados
+- Histórico completo para análise
+
+🛡️ ROBUSTEZ:
+- Fallback inteligente se método primário falhar
+- Recovery automático com contexto de erro
+- Timeout handling em todas as operações
+- Preservação de funcionalidade mesmo com falhas parciais
 """
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, List
@@ -10,10 +72,12 @@ import re
 import logging
 
 from .llm_communication_service import ILLMCommunicationService, LLMResponse
-from .database_connection_service import IDatabaseConnectionService
+from ...infrastructure.database.connection_service import IDatabaseConnectionService
 from .schema_introspection_service import ISchemaIntrospectionService
 from .error_handling_service import IErrorHandlingService, ErrorCategory
 from .sql_validation_service import ISQLValidationService, SQLValidationFactory
+from .sql_generation_service import ISQLGenerationService, SQLGenerationFactory
+from .query_execution_service import IQueryExecutionService, QueryExecutionFactory
 
 
 @dataclass
@@ -74,6 +138,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
         error_service: IErrorHandlingService,
+        sql_generation_service: Optional[ISQLGenerationService] = None,
+        query_execution_service: Optional[IQueryExecutionService] = None,
         sql_validator: Optional[ISQLValidationService] = None,
         use_direct_llm_primary: bool = True  # Always use Direct LLM as primary (LangChain removed)
     ):
@@ -85,6 +151,8 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             db_service: Database connection service
             schema_service: Schema introspection service
             error_service: Error handling service
+            sql_generation_service: SQL generation service (optional)
+            query_execution_service: Query execution service (optional)
             sql_validator: SQL validation service (optional)
             use_direct_llm_primary: Always True (LangChain removed, direct LLM only)
         """
@@ -92,6 +160,15 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._db_service = db_service
         self._schema_service = schema_service
         self._error_service = error_service
+        
+        # Initialize new services or create them
+        self._sql_generation_service = sql_generation_service or SQLGenerationFactory.create_service(
+            llm_service, schema_service
+        )
+        self._query_execution_service = query_execution_service or QueryExecutionFactory.create_service(
+            db_service, error_service
+        )
+        
         self._sql_validator = sql_validator or SQLValidationFactory.create_comprehensive_validator()
         self._use_direct_llm_primary = use_direct_llm_primary
         self._query_history: List[QueryResult] = []
@@ -119,37 +196,6 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
     
-    def _log_sql_query(self, sql_query: str, prefix: str = "SQL", max_line_length: int = 120) -> None:
-        """
-        Log SQL query with proper formatting for readability
-        
-        Args:
-            sql_query: SQL query to log
-            prefix: Log message prefix 
-            max_line_length: Maximum length per line before wrapping
-        """
-        if not sql_query or sql_query.strip() == "":
-            self.logger.info(f"{prefix}: [EMPTY QUERY]")
-            return
-        
-        # Clean and format SQL
-        clean_sql = sql_query.strip()
-        
-        # If SQL is short, log in single line
-        if len(clean_sql) <= max_line_length:
-            self.logger.info(f"{prefix}: {clean_sql}")
-            return
-        
-        # For longer SQL, log with proper formatting
-        self.logger.info(f"{prefix} (multi-line):")
-        self.logger.info(f"  {clean_sql}")
-        
-        # Also log a compact version for easy searching
-        compact_sql = ' '.join(clean_sql.split())
-        if len(compact_sql) <= 200:
-            self.logger.info(f"{prefix} (compact): {compact_sql}")
-        else:
-            self.logger.info(f"{prefix} (compact): {compact_sql[:200]}... [+{len(compact_sql)-200} chars]")
     
     
     def process_natural_language_query(self, request: QueryRequest) -> QueryResult:
@@ -272,43 +318,18 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         """Enhanced direct LLM method that's aware of previous errors"""
         self.logger.info("🎯 Using error-aware direct LLM approach")
         
-        # Get schema context
-        schema_context = self._schema_service.get_schema_context()
-        
         # Create enhanced prompt that addresses common SQL generation errors
-        enhanced_prompt = f"""
-{schema_context.formatted_context}
-
-PERGUNTA DO USUÁRIO: {request.user_query}
-
-INSTRUÇÕES CRÍTICAS PARA GERAÇÃO DE SQL:
-1. 🚨 SEMPRE inclua a coluna no SELECT quando usar GROUP BY
-2. 🚨 NUNCA termine uma cláusula WHERE com AND - sempre complete a condição
-3. 🚨 Para perguntas sobre cidades, use CIDADE_RESIDENCIA_PACIENTE (nomes), não MUNIC_RES (códigos)
-4. 🚨 Para consultas com múltiplos filtros, verifique TODOS os critérios (idade, sexo, morte)
-5. 🚨 Use sintaxe SQL válida: SELECT campos FROM tabela WHERE condições GROUP BY campos ORDER BY campos
-
-EXEMPLO DE SQL CORRETO PARA REFERÊNCIA:
-SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as total_mortes 
-FROM sus_data 
-WHERE MORTE = 1 AND SEXO = 3 AND IDADE < 40 
-GROUP BY CIDADE_RESIDENCIA_PACIENTE 
-ORDER BY total_mortes DESC;
-
-Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
-"""
+        enhanced_prompt = self._sql_generation_service.create_sql_prompt(request.user_query, enhanced=True)
         
         # Call LLM with enhanced prompt
         llm_response = self._llm_service.send_prompt(enhanced_prompt)
         
         # Extract and process SQL
-        sql_query = self._extract_sql_from_direct_response(llm_response.content)
-        self._log_sql_query(sql_query, "🔧 Error-aware LLM generated SQL")
+        sql_query = self._sql_generation_service.extract_sql_from_response(llm_response.content)
+        self._query_execution_service.log_sql_query(sql_query, "🔧 Error-aware LLM generated SQL")
         
-        # Clean problematic SQL comments
-        sql_query = self._clean_sql_comments(sql_query)
-        
-        sql_query = self._fix_case_sensitivity_issues(sql_query)
+        # Clean and fix SQL
+        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query)
         
         # Execute with validation
         execution_result = self.execute_sql_query(sql_query)
@@ -400,14 +421,11 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
             self.logger.info(f"✅ Llama3 fallback response received (length: {len(llm_response.content)})")
             
             # Extract and clean SQL query
-            sql_query = self._extract_sql_from_response(llm_response.content)
-            self._log_sql_query(sql_query, "🦙 Llama3 Fallback SQL")
+            sql_query = self._sql_generation_service.extract_sql_from_response(llm_response.content)
+            self._query_execution_service.log_sql_query(sql_query, "🦙 Llama3 Fallback SQL")
             
-            # Clean problematic SQL comments
-            sql_query = self._clean_sql_comments(sql_query)
-            
-            # Apply common fixes
-            sql_query = self._fix_case_sensitivity_issues(sql_query)
+            # Clean and fix SQL
+            sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query)
             
             # Execute the SQL query
             execution_result = self.execute_sql_query(sql_query)
@@ -497,12 +515,8 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         provider = model_info.get('provider', 'Unknown')
         self.logger.info(f"🎯 Using direct LLM as primary method: {model_name} ({provider})")
         
-        # Get schema context
-        schema_context = self._schema_service.get_schema_context()
-        self.logger.info("📊 Retrieved schema context for primary method")
-        
         # Create specialized prompt for direct SQL generation
-        direct_prompt = self._create_direct_sql_prompt(request.user_query, schema_context)
+        direct_prompt = self._sql_generation_service.create_sql_prompt(request.user_query, enhanced=False)
         self.logger.info("🎨 Created direct SQL prompt")
         
         # Call LLM directly to generate SQL
@@ -510,15 +524,12 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
         self.logger.info(f"🤖 {model_name} response received (length: {len(llm_response.content)})")
         
         # Extract SQL from LLM response
-        sql_query = self._extract_sql_from_direct_response(llm_response.content)
-        self._log_sql_query(sql_query, "🔧 Extracted SQL from direct response")
+        sql_query = self._sql_generation_service.extract_sql_from_response(llm_response.content)
+        self._query_execution_service.log_sql_query(sql_query, "🔧 Extracted SQL from direct response")
         
-        # Clean problematic SQL comments
-        sql_query = self._clean_sql_comments(sql_query)
-        
-        # Fix case sensitivity issues
-        sql_query = self._fix_case_sensitivity_issues(sql_query)
-        self.logger.info("🛠️ Applied case sensitivity fixes to direct SQL")
+        # Clean and fix SQL
+        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query)
+        self.logger.info("🛠️ Applied SQL cleaning and fixes")
         
         # 🚨 VALIDATION CHECKPOINT 1: Comprehensive SQL validation
         validation_result = self._sql_validator.validate_sql(sql_query, request.user_query)
@@ -662,112 +673,11 @@ Agora gere uma consulta SQL VÁLIDA para responder à pergunta do usuário:
     
     def validate_sql_query(self, sql_query: str) -> QueryValidationResult:
         """Validate SQL query for safety and correctness"""
-        warnings = []
-        blocked_reasons = []
-        
-        # Basic SQL injection protection
-        dangerous_keywords = [
-            "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE",
-            "EXEC", "EXECUTE", "xp_", "sp_", "BULK", "OPENROWSET"
-        ]
-        
-        sql_upper = sql_query.upper()
-        
-        for keyword in dangerous_keywords:
-            if keyword in sql_upper:
-                blocked_reasons.append(f"Palavra-chave perigosa detectada: {keyword}")
-        
-        # 🚨 CRITICAL: Check for arithmetic date subtraction (incorrect method)
-        if 'AVG' in sql_upper and 'DT_SAIDA' in sql_upper and 'DT_INTER' in sql_upper:
-            if 'JULIANDAY' not in sql_upper and 'DT_SAIDA - DT_INTER' in sql_upper.replace(' ', ''):
-                blocked_reasons.append("❌ Subtração aritmética de datas detectada! Use JULIANDAY para cálculos de tempo corretos.")
-                self.logger.error("🚨 BLOCKED: Arithmetic date subtraction detected")
-        
-        # Check for suspicious patterns
-        suspicious_patterns = [
-            r"--",  # SQL comments
-            r"/\*.*\*/",  # Block comments
-            r";.*DROP",  # Multiple statements with DROP
-            r";.*DELETE",  # Multiple statements with DELETE
-        ]
-        
-        for pattern in suspicious_patterns:
-            if re.search(pattern, sql_query, re.IGNORECASE):
-                warnings.append(f"Padrão suspeito detectado: {pattern}")
-        
-        # Check for SELECT-only queries (safer)
-        if not sql_upper.strip().startswith("SELECT"):
-            warnings.append("Consulta não é uma operação SELECT")
-        
-        # Validate date calculations for hospitalization time
-        if 'AVG' in sql_upper and 'DT_SAIDA' in sql_upper and 'DT_INTER' in sql_upper and 'JULIANDAY' in sql_upper:
-            warnings.append("✅ Cálculo de data correto com JULIANDAY detectado")
-        
-        is_safe = len(blocked_reasons) == 0
-        is_valid = is_safe and len(warnings) < 3  # Allow some warnings
-        
-        return QueryValidationResult(
-            is_valid=is_valid,
-            is_safe=is_safe,
-            warnings=warnings,
-            blocked_reasons=blocked_reasons
-        )
+        return self._query_execution_service.validate_sql_query(sql_query)
     
     def execute_sql_query(self, sql_query: str) -> QueryResult:
         """Execute SQL query directly (with validation)"""
-        start_time = time.time()
-        
-        try:
-            self._log_sql_query(sql_query, "⚡ Executing SQL")
-            
-            # Validate query first
-            validation = self.validate_sql_query(sql_query)
-            self.logger.info(f"🔒 Query validation: safe={validation.is_safe}")
-            
-            if not validation.is_safe:
-                raise ValueError(f"Query blocked for safety: {', '.join(validation.blocked_reasons)}")
-            
-            # Execute query
-            conn = self._db_service.get_raw_connection()
-            cursor = conn.cursor()
-            cursor.execute(sql_query)
-            self.logger.info("📊 SQL executed successfully")
-            
-            # Fetch results
-            results = cursor.fetchall()
-            column_names = [description[0] for description in cursor.description] if cursor.description else []
-            
-            # Convert to list of dictionaries
-            result_dicts = [dict(zip(column_names, row)) for row in results]
-            
-            execution_time = time.time() - start_time
-            self.logger.info(f"✅ Query returned {len(result_dicts)} rows in {execution_time:.2f}s")
-            
-            return QueryResult(
-                sql_query=sql_query,
-                results=result_dicts,
-                success=True,
-                execution_time=execution_time,
-                row_count=len(result_dicts),
-                metadata={
-                    "validation_warnings": validation.warnings,
-                    "direct_execution": True
-                }
-            )
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            self.logger.error(f"❌ SQL execution failed: {str(e)}")
-            error_info = self._error_service.handle_error(e, ErrorCategory.DATABASE)
-            
-            return QueryResult(
-                sql_query=sql_query,
-                results=[],
-                success=False,
-                execution_time=execution_time,
-                row_count=0,
-                error_message=error_info.message
-            )
+        return self._query_execution_service.execute_sql_query(sql_query)
     
     def _create_enhanced_prompt(self, user_query: str, schema_context) -> str:
         """Create enhanced prompt with schema context"""
@@ -1436,8 +1346,13 @@ class QueryProcessingFactory:
         sql_validator: Optional[ISQLValidationService] = None
     ) -> IQueryProcessingService:
         """Create comprehensive query processing service"""
+        # Create sub-services
+        sql_generation_service = SQLGenerationFactory.create_service(llm_service, schema_service)
+        query_execution_service = QueryExecutionFactory.create_service(db_service, error_service)
+        
         return ComprehensiveQueryProcessingService(
-            llm_service, db_service, schema_service, error_service, sql_validator
+            llm_service, db_service, schema_service, error_service,
+            sql_generation_service, query_execution_service, sql_validator
         )
     
     @staticmethod
@@ -1451,7 +1366,7 @@ class QueryProcessingFactory:
     ) -> IQueryProcessingService:
         """Create query processing service based on type"""
         if service_type.lower() == "comprehensive":
-            return ComprehensiveQueryProcessingService(
+            return QueryProcessingFactory.create_comprehensive_service(
                 llm_service, db_service, schema_service, error_service, sql_validator
             )
         else:
