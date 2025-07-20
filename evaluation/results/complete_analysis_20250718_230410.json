@@ -1,0 +1,172 @@
+{
+  "metadata": {
+    "timestamp": "20250718_230410",
+    "input_file": "20250718_230410",
+    "database_path": "../sus_database.db",
+    "models_evaluated": [
+      "ollama_llama3",
+      "deepseek-r1",
+      "magistral",
+      "mistral",
+      "qwen3"
+    ],
+    "total_evaluations": 250
+  },
+  "statistical_analysis": {
+    "descriptive_stats": {
+      "total_evaluations": 250,
+      "models_count": 5,
+      "difficulties": {
+        "medium": 135,
+        "hard": 65,
+        "easy": 50
+      },
+      "overall_exact_match_rate": 0.08,
+      "overall_semantic_match_rate": 0.436,
+      "overall_sql_similarity": 0.5101306381643929
+    },
+    "model_statistics": {
+      "Mistral": {
+        "exact_match_mean": 0.08,
+        "exact_match_std": 0.274,
+        "exact_match_count": "50",
+        "semantic_mean": 0.58,
+        "sql_similarity_mean": 0.641,
+        "execution_time_mean": 11.678
+      },
+      "Ollama Llama3": {
+        "exact_match_mean": 0.18,
+        "exact_match_std": 0.388,
+        "exact_match_count": "50",
+        "semantic_mean": 0.62,
+        "sql_similarity_mean": 0.652,
+        "execution_time_mean": 6.774
+      },
+      "Qwen 3": {
+        "exact_match_mean": 0.12,
+        "exact_match_std": 0.328,
+        "exact_match_count": "50",
+        "semantic_mean": 0.7,
+        "sql_similarity_mean": 0.697,
+        "execution_time_mean": 52.453
+      },
+      "deepseek-r1": {
+        "exact_match_mean": 0.02,
+        "exact_match_std": 0.141,
+        "exact_match_count": "50",
+        "semantic_mean": 0.26,
+        "sql_similarity_mean": 0.342,
+        "execution_time_mean": 78.612
+      },
+      "magistral": {
+        "exact_match_mean": 0.0,
+        "exact_match_std": 0.0,
+        "exact_match_count": "50",
+        "semantic_mean": 0.02,
+        "sql_similarity_mean": 0.22,
+        "execution_time_mean": 2.09
+      }
+    },
+    "difficulty_analysis": {
+      "easy": {
+        "exact_match_rate": 0.14,
+        "semantic_rate": 0.78,
+        "sql_similarity": 0.7015904095904095
+      },
+      "medium": {
+        "exact_match_rate": 0.08148148148148149,
+        "semantic_rate": 0.4888888888888889,
+        "sql_similarity": 0.5446953421790023
+      },
+      "hard": {
+        "exact_match_rate": 0.03076923076923077,
+        "semantic_rate": 0.06153846153846154,
+        "sql_similarity": 0.29106565949865243
+      }
+    },
+    "correlations": {
+      "sql_similarity": {
+        "sql_similarity": 1.0,
+        "execution_time": -0.031551004313850904,
+        "exact_match": 0.4680316810270209,
+        "semantic_equivalence": 0.8483438064289033,
+        "structure_match": 0.5290145201317431
+      },
+      "execution_time": {
+        "sql_similarity": -0.031551004313850904,
+        "execution_time": 1.0,
+        "exact_match": -0.0446127046551635,
+        "semantic_equivalence": -0.11867884252442872,
+        "structure_match": -0.09183594080497445
+      },
+      "exact_match": {
+        "sql_similarity": 0.4680316810270209,
+        "execution_time": -0.0446127046551635,
+        "exact_match": 1.0,
+        "semantic_equivalence": 0.33538789763902993,
+        "structure_match": 0.18754579313781816
+      },
+      "semantic_equivalence": {
+        "sql_similarity": 0.8483438064289033,
+        "execution_time": -0.11867884252442872,
+        "exact_match": 0.33538789763902993,
+        "semantic_equivalence": 1.0,
+        "structure_match": 0.5591906996586655
+      },
+      "structure_match": {
+        "sql_similarity": 0.5290145201317431,
+        "execution_time": -0.09183594080497445,
+        "exact_match": 0.18754579313781816,
+        "semantic_equivalence": 0.5591906996586655,
+        "structure_match": 1.0
+      }
+    },
+    "anova_test": {
+      "f_statistic": 22.31424766977365,
+      "p_value": 1.00175090890484e-15,
+      "significant": "True"
+    },
+    "patterns": {
+      "high_similarity_low_match": {
+        "count": 73,
+        "percentage": 29.2,
+        "examples": [
+          {
+            "query_id": "GT001",
+            "model_name": "Ollama Llama3",
+            "sql_similarity": 0.8
+          },
+          {
+            "query_id": "GT002",
+            "model_name": "Ollama Llama3",
+            "sql_similarity": 0.8181818181818182
+          },
+          {
+            "query_id": "GT008",
+            "model_name": "Ollama Llama3",
+            "sql_similarity": 0.8181818181818182
+          }
+        ]
+      },
+      "model_variability": {
+        "most_variable": {
+          "deepseek-r1": 0.2795420684780452,
+          "Ollama Llama3": 0.2572341344626211,
+          "Mistral": 0.24160221459616144
+        },
+        "most_consistent": {
+          "Mistral": 0.24160221459616144,
+          "Qwen 3": 0.23333231832629506,
+          "magistral": 0.11924747403653822
+        }
+      },
+      "difficulty_performance": {
+        "easy": 0.78,
+        "medium": 0.4888888888888889,
+        "hard": 0.06153846153846154
+      }
+    }
+  },
+  "text_report": "================================================================================\nRELATÓRIO CONSOLIDADO DE AVALIAÇÃO DE MODELOS TEXT2SQL\n================================================================================\nTimestamp: 20250718_230410\nBanco de dados: ../sus_database.db\nTotal de avaliações: 250\n\n📊 ESTATÍSTICAS GERAIS:\n--------------------------------------------------\nTotal de modelos avaliados: 5\nTaxa geral de matches exatos: 8.0%\nTaxa geral de equivalência semântica: 43.6%\nSimilaridade SQL média: 0.510\n\n📈 DISTRIBUIÇÃO POR DIFICULDADE:\n--------------------------------------------------\nMEDIUM: 135 queries\nHARD: 65 queries\nEASY: 50 queries\n\n🏆 RANKING POR EQUIVALÊNCIA SEMÂNTICA:\n--------------------------------------------------\n1. Qwen 3: 70.0% (35/50)\n2. Ollama Llama3: 62.0% (31/50)\n3. Mistral: 58.0% (29/50)\n4. deepseek-r1: 26.0% (13/50)\n5. magistral: 2.0% (1/50)\n\n🎯 RANKING POR MATCHES EXATOS:\n--------------------------------------------------\n1. Ollama Llama3: 18.0% (9/50)\n2. Qwen 3: 12.0% (6/50)\n3. Mistral: 8.0% (4/50)\n4. deepseek-r1: 2.0% (1/50)\n5. magistral: 0.0% (0/50)\n\n📊 ANÁLISE ESTATÍSTICA:\n--------------------------------------------------\nANOVA F-statistic: 22.314\nP-value: 0.000000\n   → Diferenças estatisticamente significativas entre modelos\n\n🔍 PADRÕES IDENTIFICADOS:\n--------------------------------------------------\nQueries com alta similaridade SQL mas baixo match: 73 (29.2%)\nModelo mais inconsistente: deepseek-r1\nModelo mais consistente: Mistral\n\n💡 RECOMENDAÇÕES:\n--------------------------------------------------\n🏭 Para produção (melhor equivalência semântica): Qwen 3\n🎯 Para precisão máxima (melhor matches exatos): Ollama Llama3\nℹ️  Diferentes modelos se destacam em diferentes aspectos\n\n================================================================================",
+  "generation_timestamp": "20250718_230410"
+}
