@@ -4,6 +4,8 @@ Serviço de comunicação com LLM especializado em conversação e domínio SUS.
 
 import json
 import logging
+import re
+import sqlite3
 import time
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -135,6 +137,14 @@ class ConversationalLLMService:
         # Few-shot examples baseados no tipo de consulta
         examples = self._get_few_shot_examples(query_type)
         
+        # Buscar descrições CID dos resultados
+        cid_descriptions = self._get_cid_descriptions(sql_results)
+        cid_context = ""
+        if cid_descriptions:
+            cid_context = "\n### Descrições dos Códigos CID encontrados:\n"
+            for code, description in cid_descriptions.items():
+                cid_context += f"- {code}: {description}\n"
+
         # Chain-of-Thought prompting structure
         prompt = f"""# ESPECIALISTA EM ANÁLISE DE DADOS SUS
 
@@ -171,7 +181,7 @@ Transformar dados SQL em resposta conversacional precisa e útil.
 ```
 {results_text}
 ```
-
+{cid_context}
 ### Contexto Adicional:
 ```json
 {json.dumps(context or {}, ensure_ascii=False, indent=2)}
@@ -185,27 +195,58 @@ Transformar dados SQL em resposta conversacional precisa e útil.
 - Incluir números específicos e nomes exatos (cidades, valores)
 - Manter linguagem clara e profissional
 - Para rankings, destacar o primeiro colocado
+- 🩺 CÓDIGOS CID: SEMPRE incluir a descrição completa quando mencionar códigos CID (ex: "I200 (Angina instável)", "I743 (Embolia e trombose de artérias dos membros inferiores)")
+- 📋 MÚLTIPLOS ITENS: Quando a resposta contém vários códigos CID ou múltiplos itens, use listas numeradas ou bullet points para melhor visualização:
+  * Para códigos CID múltiplos: "Os códigos CID para asfixia são: 1) R090 (Asfixia), 2) T71 (Asfixia), 3) P210 (Asfixia grave ao nascer)"
+  * Para rankings: "As cidades com mais casos são: 1. São Paulo (1.524 casos), 2. Rio de Janeiro (987 casos), 3. Brasília (745 casos)"
 
 ### ❌ NÃO FAZER:
 - Inventar dados não presentes nos resultados
 - Adicionar contextualizações não solicitadas
-- Usar cabeçalhos ou formatação complexa
+- Usar cabeçalhos ou formatação complexa desnecessária
 - Especular ou fazer suposições
 - Responder "a cidade" ao invés do nome específico
+- Listar múltiplos itens em formato de parágrafo corrido quando uma lista seria mais clara
 
-## TEMPLATE DE RESPOSTA
-Tipo de consulta identificado: **{query_type}**
+## FORMATO DE RESPOSTA
+Responda de forma direta e natural em português brasileiro, focando na utilidade prática.
 
-**Sua resposta deve seguir este padrão:**
-- Seja direta e factual
-- Uma frase ou parágrafo curto
-- Português brasileiro natural
-- Foque na utilidade prática
-
----
-**RESPOSTA:**"""
+IMPORTANTE: Sua resposta deve conter APENAS a informação solicitada, sem incluir instruções, templates ou metadados."""
         
         return prompt
+
+    def _get_cid_descriptions(self, sql_results: Any) -> Dict[str, str]:
+        """Busca descrições dos códigos CID que aparecem nos resultados."""
+        try:
+            # Extrair códigos CID dos resultados
+            cid_codes = set()
+            results_text = str(sql_results)
+            
+            # Padrões para códigos CID (letra + números)
+            cid_pattern = r'\b[A-Z]\d{2,3}\b'
+            matches = re.findall(cid_pattern, results_text)
+            cid_codes.update(matches)
+            
+            if not cid_codes:
+                return {}
+            
+            # Conectar ao banco e buscar descrições
+            conn = sqlite3.connect('sus_database.db')
+            cursor = conn.cursor()
+            
+            descriptions = {}
+            for code in cid_codes:
+                cursor.execute('SELECT descricao FROM cid_detalhado WHERE codigo = ?', (code,))
+                result = cursor.fetchone()
+                if result:
+                    descriptions[code] = result[0]
+            
+            conn.close()
+            return descriptions
+            
+        except Exception as e:
+            self.logger.warning(f"Erro ao buscar descrições CID: {e}")
+            return {}
 
     def _classify_query_type(self, user_query: str, sql_results: Any) -> str:
         """Classifica o tipo de consulta para usar template específico."""
@@ -228,6 +269,8 @@ Tipo de consulta identificado: **{query_type}**
         elif any(word in user_query_lower for word in ['maior', 'menor', 'mais', 'menos', 'ranking']):
             return "COMPARAÇÃO_RANKING"
         
+        elif any(word in user_query_lower for word in ['tempo médio', 'tempo medio', 'maior tempo', 'menor tempo', 'internação', 'internacao']):
+            return "TEMPO_INTERNACAO"
         elif any(word in user_query_lower for word in ['média', 'mediana', 'percentual', '%']):
             return "ANÁLISE_ESTATÍSTICA"
         
@@ -251,18 +294,28 @@ Tipo de consulta identificado: **{query_type}**
 **Pergunta:** "Quantos casos de diabetes?"
 **Dados:** {"total_casos": 15678}
 **Resposta:** "Foram encontrados 15.678 casos de diabetes nos registros do SUS."
+
+### Exemplo 3:
+**Pergunta:** "Qual é o CID para Asfixia?"
+**Dados:** [{"codigo": "R090", "descricao": "Asfixia"}, {"codigo": "T71", "descricao": "Asfixia"}, {"codigo": "P210", "descricao": "Asfixia grave ao nascer"}]
+**Resposta:** "Os códigos CID para asfixia são: 1) R090 (Asfixia), 2) T71 (Asfixia), 3) P210 (Asfixia grave ao nascer)."
+
+### Exemplo 4:
+**Pergunta:** "Qual é o diagnóstico que possui o maior tempo médio de internação?"
+**Dados:** [["F20", 11, 66.6]]
+**Resposta:** "O diagnóstico F20 (Esquizofrenia) possui o maior tempo médio de internação com 66,6 dias."
 """,
             
             "LISTAGEM_COMPLETA_GEOGRÁFICA": """
 ### Exemplo 1:
 **Pergunta:** "Quantas mortes ao total em cada cidade?"
 **Dados:** [{"cidade": "Uruguaiana", "mortes": 359}, {"cidade": "Ijuí", "mortes": 359}, {"cidade": "Passo Fundo", "mortes": 325}, {"cidade": "Porto Alegre", "mortes": 308}]
-**Resposta:** "As mortes por cidade são: Uruguaiana com 359 casos, Ijuí com 359 casos, Passo Fundo com 325 casos e Porto Alegre com 308 casos."
+**Resposta:** "As mortes por cidade são: 1) Uruguaiana com 359 casos, 2) Ijuí com 359 casos, 3) Passo Fundo com 325 casos, 4) Porto Alegre com 308 casos."
 
 ### Exemplo 2:
 **Pergunta:** "Casos por município"
 **Dados:** [["São Paulo", 1524], ["Rio de Janeiro", 987], ["Brasília", 745]]
-**Resposta:** "Os casos por município são: São Paulo (1.524), Rio de Janeiro (987) e Brasília (745)."
+**Resposta:** "Os casos por município são: 1. São Paulo (1.524), 2. Rio de Janeiro (987), 3. Brasília (745)."
 """,
             
             "IDENTIFICAÇÃO_GEOGRÁFICA": """
@@ -289,6 +342,18 @@ Tipo de consulta identificado: **{query_type}**
 **Resposta:** "Pequena Cidade apresentou o menor número com apenas 12 casos."
 """,
             
+            "TEMPO_INTERNACAO": """
+### Exemplo 1:
+**Pergunta:** "Qual é o diagnóstico que possui o maior tempo médio de internação?"
+**Dados:** [["F20", 11, 66.6]]
+**Resposta:** "O diagnóstico F20 (Esquizofrenia) possui o maior tempo médio de internação com 66,6 dias (baseado em 11 casos)."
+
+### Exemplo 2:
+**Pergunta:** "Qual o tempo médio de internação em 2017?"
+**Dados:** [["2017", 15.3]]
+**Resposta:** "O tempo médio de internação em 2017 foi de 15,3 dias."
+""",
+
             "ANÁLISE_ESTATÍSTICA": """
 ### Exemplo 1:
 **Pergunta:** "Qual a média de casos por município?"
@@ -306,7 +371,7 @@ Tipo de consulta identificado: **{query_type}**
 ### Exemplo Geral:
 **Pergunta:** "Informações sobre os dados"
 **Dados:** [dados variados]
-**Resposta:** "Baseado nos dados disponíveis, [resposta direta e factual]."
+**Resposta:** "Baseado nos dados disponíveis, encontrei as seguintes informações relevantes."
 """)
 
     def _format_sql_results(self, sql_results: Any) -> str:
@@ -533,9 +598,28 @@ Tipo de consulta identificado: **{query_type}**
         # Remove identificadores de template que podem vazar na resposta
         lines_to_remove = [
             "Tipo de consulta identificado:",
-            "**RESPOSTA:**",
+            "**RESPOSTA:**", 
             "---",
-            "**Sua resposta deve seguir este padrão:**"
+            "**Sua resposta deve seguir este padrão:**",
+            "Resposta:",
+            "- Seja direta e factual",
+            "- Uma frase ou parágrafo curto", 
+            "- Português brasileiro natural",
+            "- Foque na utilidade prática"
+        ]
+        
+        # Remove placeholders em colchetes e parênteses que podem vazar
+        placeholder_patterns = [
+            r'\[.*número.*exato.*\]',
+            r'\[.*resposta.*direta.*\]', 
+            r'\[.*factual.*\]',
+            r'\[.*dados.*variados.*\]',
+            r'\[.*informações.*relevantes.*\]',
+            r'\(valor do campo.*\)',
+            r'\[valor.*\]',
+            r'\[.*número.*\]',
+            r'- \(.*campo.*\)',
+            r'`.*idade_media.*`'
         ]
         
         lines = cleaned.split('\n')
@@ -550,11 +634,23 @@ Tipo de consulta identificado: **{query_type}**
                     should_remove = True
                     break
             
+            # Remove linhas que são apenas números isolados (resquícios de listas de template)
+            if line_stripped and line_stripped.replace('.', '').replace(')', '').isdigit():
+                should_remove = True
+            
             if not should_remove and line_stripped:
                 filtered_lines.append(line.strip())
         
         # Reconstrói a resposta limpa
         final_response = '\n'.join(filtered_lines).strip()
+        
+        # Remove placeholders em colchetes usando regex
+        import re
+        for pattern in placeholder_patterns:
+            final_response = re.sub(pattern, '', final_response, flags=re.IGNORECASE)
+        
+        # Remove espaços extras resultantes da remoção de placeholders
+        final_response = ' '.join(final_response.split())
         
         # Última limpeza: remover aspas duplas que possam ter sobrado
         while final_response.startswith('"') and final_response.endswith('"') and len(final_response) > 2:

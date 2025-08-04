@@ -220,24 +220,18 @@ Melhorias sobre versão anterior:
         # Single query mode
         if args.query:
             print(f"🔍 Processando consulta: {args.query}")
-            result = orchestrator.process_single_query(args.query)
+            result = orchestrator.process_conversational_query(args.query)
             
-            if result.success:
-                # Check if this is a COUNT query (single result with single value)
-                if result.results and len(result.results) == 1 and len(result.results[0]) == 1:
-                    value = list(result.results[0].values())[0]
-                    # For COUNT queries, show the actual count value, not row count
-                    if "COUNT(" in result.sql_query.upper():
-                        print(f"✅ Resultado: {value} registros encontrados")
-                    else:
-                        print(f"✅ Resultado: {result.row_count} registros encontrados")
-                        print(f"📊 Valor: {value}")
-                else:
-                    print(f"✅ Resultado: {result.row_count} registros encontrados")
-                print(f"⏱️ Tempo de execução: {result.execution_time:.2f}s")
-                print(f"🔧 SQL: {result.sql_query}")
+            if result["success"]:
+                # Show conversational response
+                print(f"✅ {result['response']}")
+                print(f"⏱️ Tempo de execução: {result['execution_time']:.2f}s")
+                
+                # Show SQL for debugging if available
+                if result.get("metadata") and result["metadata"].get("sql_query"):
+                    print(f"🔧 SQL: {result['metadata']['sql_query']}")
             else:
-                print(f"❌ Erro: {result.error_message}")
+                print(f"❌ Erro: {result['error_message']}")
                 sys.exit(1)
             return
         

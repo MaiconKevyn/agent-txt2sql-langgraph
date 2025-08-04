@@ -205,6 +205,18 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    <div class="schema-controls">
+                        <label for="tableSelect">Selecione uma tabela:</label>
+                        <select id="tableSelect" class="table-select">
+                            <option value="">Esquema completo</option>
+                            <option value="sus_data">sus_data - Dados SUS</option>
+                            <option value="cid_detalhado">cid_detalhado - Códigos CID</option>
+                        </select>
+                        <button id="loadSchemaBtn" class="load-schema-btn">
+                            <i class="fas fa-sync-alt"></i>
+                            Carregar
+                        </button>
+                    </div>
                     <pre id="schemaContent">Carregando esquema...</pre>
                 </div>
             </div>

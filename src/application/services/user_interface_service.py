@@ -30,7 +30,7 @@ class SimpleUserInterface:
         try:
             return input(f"\n💬 {prompt} ").strip()
         except (EOFError, KeyboardInterrupt):
-            return ""
+            raise KeyboardInterrupt("Usuário interrompeu a sessão")
 
     def display_response(self, response: FormattedResponse) -> None:
         """Display formatted response to user"""
