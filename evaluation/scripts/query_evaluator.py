@@ -14,6 +14,9 @@ import argparse
 from pathlib import Path
 from typing import List, Dict, Any
 
+# Adicionar diretório raiz ao path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from utils import (
     EvaluationConfig, QueryEvaluation, FileManager, 
     DatabaseManager, DataProcessor, EnhancedDataComparator

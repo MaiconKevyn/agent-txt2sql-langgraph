@@ -397,16 +397,6 @@ class ConfigManager:
                 "model": "llama3",
                 "name": "Ollama Llama3"
             },
-            "deepseek-r1": {
-                "provider": "ollama", 
-                "model": "deepseek-r1",
-                "name": "deepseek-r1"
-            },
-            "magistral": {
-                "provider": "ollama",
-                "model": "magistral",
-                "name": "magistral"
-            },
             "mistral": {
                 "provider": "ollama",
                 "model": "mistral",

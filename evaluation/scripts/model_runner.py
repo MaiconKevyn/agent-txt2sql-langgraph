@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 # Adicionar diretório raiz ao path
+sys.path.append(str(Path(__file__).parent.parent.parent))
 sys.path.append(str(Path(__file__).parent.parent))
 
 from utils import EvaluationConfig, ModelResult, FileManager, ConfigManager

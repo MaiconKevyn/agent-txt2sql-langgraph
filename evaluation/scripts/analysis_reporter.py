@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Dict, List, Any
 from scipy import stats
 
+# Adicionar diretório raiz ao path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from utils import FileManager
 
 
