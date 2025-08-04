@@ -210,9 +210,10 @@ class HuggingFaceLLMCommunicationService(ILLMCommunicationService):
             
             if quantization_config:
                 model_kwargs["quantization_config"] = quantization_config
-                model_kwargs["device_map"] = "auto"
+                model_kwargs["device_map"] = None  # Force CPU only
+                model_kwargs["low_cpu_mem_usage"] = True
             else:
-                model_kwargs["device_map"] = device
+                model_kwargs["device_map"] = None
             
             self._model = AutoModelForCausalLM.from_pretrained(
                 self._config.model_name,

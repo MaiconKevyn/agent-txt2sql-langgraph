@@ -172,16 +172,26 @@ class Text2SQLOrchestrator:
             timeout=self._app_config.llm_timeout,
             max_retries=self._app_config.llm_max_retries
         )
-        self._llm_service = LLMCommunicationFactory.create_service(
-            self._app_config.llm_provider,
-            model_name=self._app_config.llm_model,
-            temperature=self._app_config.llm_temperature,
-            timeout=self._app_config.llm_timeout,
-            max_retries=self._app_config.llm_max_retries,
-            device=getattr(self._app_config, 'llm_device', 'auto'),
-            load_in_8bit=getattr(self._app_config, 'llm_load_in_8bit', False),
-            load_in_4bit=getattr(self._app_config, 'llm_load_in_4bit', True)
-        )
+        # Handle Mistral fine-tuned service specially
+        if self._app_config.llm_provider == "mistral_finetuned":
+            from ..services.mistral_fine_tuned_service import MistralFineTunedFactory
+            self._llm_service = MistralFineTunedFactory.create_service(
+                model_path=getattr(self._app_config, 'mistral_model_path', '/home/maiconkevyn/PycharmProjects/llama3-fine-tuning/models/sus_mistral_final'),
+                temperature=self._app_config.llm_temperature,
+                max_new_tokens=getattr(self._app_config, 'mistral_max_new_tokens', 200),
+                device=getattr(self._app_config, 'llm_device', 'auto')
+            )
+        else:
+            self._llm_service = LLMCommunicationFactory.create_service(
+                self._app_config.llm_provider,
+                model_name=self._app_config.llm_model,
+                temperature=self._app_config.llm_temperature,
+                timeout=self._app_config.llm_timeout,
+                max_retries=self._app_config.llm_max_retries,
+                device=getattr(self._app_config, 'llm_device', 'auto'),
+                load_in_8bit=getattr(self._app_config, 'llm_load_in_8bit', False),
+                load_in_4bit=getattr(self._app_config, 'llm_load_in_4bit', True)
+            )
         
         # Initialize schema service
         self._schema_service = SchemaIntrospectionFactory.create_service(
@@ -615,12 +625,23 @@ class Text2SQLOrchestrator:
                     value = list(result.results[0].values())[0]
                     content = f"Resultado: {value}"
                 else:
-                    # Multiple results - show summary
-                    content = f"Encontrados {result.row_count} registros"
-                    if result.row_count <= 5:
-                        content += f"\n\nResultados:\n"
-                        for i, row in enumerate(result.results[:5], 1):
-                            content += f"{i}. {row}\n"
+                    # Multiple results or single result with multiple columns
+                    if result.row_count <= 10:
+                        content = f"Resultados ({result.row_count} registro{'s' if result.row_count > 1 else ''}):\n"
+                        for i, row in enumerate(result.results[:10], 1):
+                            # Format each row nicely
+                            row_items = []
+                            for key, value in row.items():
+                                row_items.append(f"{key}: {value}")
+                            content += f"{i}. {', '.join(row_items)}\n"
+                    else:
+                        content = f"Encontrados {result.row_count} registros (mostrando os primeiros 10):\n"
+                        for i, row in enumerate(result.results[:10], 1):
+                            # Format each row nicely
+                            row_items = []
+                            for key, value in row.items():
+                                row_items.append(f"{key}: {value}")
+                            content += f"{i}. {', '.join(row_items)}\n"
             else:
                 content = f"Resultado: {result.row_count} registros encontrados"
             

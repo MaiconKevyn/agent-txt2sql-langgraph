@@ -78,6 +78,7 @@ from .error_handling_service import IErrorHandlingService, ErrorCategory
 from .sql_validation_service import ISQLValidationService, SQLValidationFactory
 from .sql_generation_service import ISQLGenerationService, SQLGenerationFactory
 from .query_execution_service import IQueryExecutionService, QueryExecutionFactory
+from .table_selection_service import ITableSelectionService, TableSelectionFactory
 
 
 @dataclass
@@ -141,7 +142,9 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         sql_generation_service: Optional[ISQLGenerationService] = None,
         query_execution_service: Optional[IQueryExecutionService] = None,
         sql_validator: Optional[ISQLValidationService] = None,
-        use_direct_llm_primary: bool = True  # Always use Direct LLM as primary (LangChain removed)
+        table_selection_service: Optional[ITableSelectionService] = None,
+        use_direct_llm_primary: bool = True,  # Always use Direct LLM as primary (LangChain removed)
+        enable_intelligent_table_selection: bool = True  # Enable intelligent table selection
     ):
         """
         Initialize query processing service
@@ -154,12 +157,15 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
             sql_generation_service: SQL generation service (optional)
             query_execution_service: Query execution service (optional)
             sql_validator: SQL validation service (optional)
+            table_selection_service: Table selection service (optional)
             use_direct_llm_primary: Always True (LangChain removed, direct LLM only)
+            enable_intelligent_table_selection: Enable intelligent table selection
         """
         self._llm_service = llm_service
         self._db_service = db_service
         self._schema_service = schema_service
         self._error_service = error_service
+        self._enable_intelligent_table_selection = enable_intelligent_table_selection
         
         # Initialize new services or create them
         self._sql_generation_service = sql_generation_service or SQLGenerationFactory.create_service(
@@ -168,6 +174,14 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._query_execution_service = query_execution_service or QueryExecutionFactory.create_service(
             db_service, error_service
         )
+        
+        # Initialize table selection service if enabled
+        if self._enable_intelligent_table_selection:
+            self._table_selection_service = table_selection_service or TableSelectionFactory.create_sus_service(
+                llm_service
+            )
+        else:
+            self._table_selection_service = None
         
         self._sql_validator = sql_validator or SQLValidationFactory.create_comprehensive_validator()
         self._use_direct_llm_primary = use_direct_llm_primary
@@ -329,7 +343,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._query_execution_service.log_sql_query(sql_query, "🔧 Error-aware LLM generated SQL")
         
         # Clean and fix SQL
-        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query)
+        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query, request.user_query)
         
         # Execute with validation
         execution_result = self.execute_sql_query(sql_query)
@@ -508,16 +522,72 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         return prompt
     
     def _process_with_direct_llm_primary(self, request: QueryRequest, start_time: float) -> QueryResult:
-        """Primary method: Direct LLM call + SQL execution (more reliable)"""
+        """Primary method: Intelligent table selection + Direct LLM call + SQL execution"""
         # Log which model is being used
         model_info = self._llm_service.get_model_info()
         model_name = model_info.get('model_name', 'Unknown')
         provider = model_info.get('provider', 'Unknown')
         self.logger.info(f"🎯 Using direct LLM as primary method: {model_name} ({provider})")
         
-        # Create specialized prompt for direct SQL generation
-        direct_prompt = self._sql_generation_service.create_sql_prompt(request.user_query, enhanced=False)
-        self.logger.info("🎨 Created direct SQL prompt")
+        # 🧠 STEP 1: Intelligent Table Selection (NEW)
+        selected_tables = []
+        table_selection_metadata = {}
+        
+        if self._enable_intelligent_table_selection and self._table_selection_service:
+            try:
+                self.logger.info("🎯 Starting intelligent table selection...")
+                table_selection_result = self._table_selection_service.select_tables_for_query(request.user_query)
+                
+                selected_tables = table_selection_result.selected_tables
+                table_selection_metadata = {
+                    "intelligent_table_selection": True,
+                    "selected_tables": selected_tables,
+                    "selection_confidence": table_selection_result.confidence,
+                    "selection_justification": table_selection_result.justification,
+                    "fallback_used": table_selection_result.fallback_used,
+                    "relevance_scores": {k: v.value for k, v in table_selection_result.relevance_scores.items()}
+                }
+                
+                self.logger.info(f"✅ Selected tables: {selected_tables} (confidence: {table_selection_result.confidence:.2f})")
+                self.logger.info(f"📝 Justification: {table_selection_result.justification}")
+                
+            except Exception as e:
+                self.logger.warning(f"⚠️ Table selection failed: {str(e)}. Using fallback to all tables.")
+                selected_tables = []  # Will use default schema
+                table_selection_metadata = {
+                    "intelligent_table_selection": False,
+                    "selection_error": str(e),
+                    "fallback_to_all_tables": True
+                }
+        else:
+            self.logger.info("📊 Using traditional full schema (table selection disabled)")
+            table_selection_metadata = {
+                "intelligent_table_selection": False,
+                "reason": "disabled"
+            }
+        
+        # 🧠 STEP 2: Get Specific Schema Context based on selected tables
+        if selected_tables:
+            try:
+                # Use specific schema for selected tables
+                schema_context = self._schema_service.get_specific_schema_context(selected_tables)
+                self.logger.info(f"📋 Using specific schema for tables: {selected_tables}")
+                table_selection_metadata["schema_type"] = "specific"
+                table_selection_metadata["schema_tables_used"] = selected_tables
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to get specific schema: {str(e)}. Using full schema.")
+                schema_context = self._schema_service.get_schema_context()
+                table_selection_metadata["schema_fallback"] = True
+                table_selection_metadata["schema_type"] = "full"
+        else:
+            # Use full schema (traditional approach)
+            schema_context = self._schema_service.get_schema_context()
+            table_selection_metadata["schema_type"] = "full"
+        
+        # 🧠 STEP 3: Create optimized prompt with specific schema
+        # Pass the specific schema context to the SQL generation service
+        direct_prompt = self._sql_generation_service.create_sql_prompt(request.user_query, enhanced=False, schema_context=schema_context)
+        self.logger.info("🎨 Created optimized SQL prompt with intelligent table selection")
         
         # Call LLM directly to generate SQL
         llm_response = self._llm_service.send_prompt(direct_prompt)
@@ -528,7 +598,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
         self._query_execution_service.log_sql_query(sql_query, "🔧 Extracted SQL from direct response")
         
         # Clean and fix SQL
-        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query)
+        sql_query = self._sql_generation_service.clean_and_fix_sql(sql_query, request.user_query)
         self.logger.info("🛠️ Applied SQL cleaning and fixes")
         
         # 🚨 VALIDATION CHECKPOINT 1: Comprehensive SQL validation
@@ -655,6 +725,7 @@ class ComprehensiveQueryProcessingService(IQueryProcessingService):
                 "schema_context_used": True,
                 "method": "direct_llm_primary",
                 "method_priority": "primary",
+                **table_selection_metadata,  # Include table selection metadata
                 **(execution_result.metadata or {})
             }
         )
@@ -1343,16 +1414,23 @@ class QueryProcessingFactory:
         db_service: IDatabaseConnectionService,
         schema_service: ISchemaIntrospectionService,
         error_service: IErrorHandlingService,
-        sql_validator: Optional[ISQLValidationService] = None
+        sql_validator: Optional[ISQLValidationService] = None,
+        enable_intelligent_table_selection: bool = True
     ) -> IQueryProcessingService:
-        """Create comprehensive query processing service"""
+        """Create comprehensive query processing service with intelligent table selection"""
         # Create sub-services
         sql_generation_service = SQLGenerationFactory.create_service(llm_service, schema_service)
         query_execution_service = QueryExecutionFactory.create_service(db_service, error_service)
         
+        # Create table selection service if enabled
+        table_selection_service = None
+        if enable_intelligent_table_selection:
+            table_selection_service = TableSelectionFactory.create_sus_service(llm_service)
+        
         return ComprehensiveQueryProcessingService(
             llm_service, db_service, schema_service, error_service,
-            sql_generation_service, query_execution_service, sql_validator
+            sql_generation_service, query_execution_service, sql_validator,
+            table_selection_service, True, enable_intelligent_table_selection
         )
     
     @staticmethod

@@ -295,7 +295,7 @@ class EvaluationPipeline:
         
         print(f"\n🎉 Avaliação completa! Melhor modelo: {summary['best_model_name']}")
     
-    def run_full_pipeline(self, models: List[str], ground_truth: str = "ground_truth_improved.json") -> str:
+    def run_full_pipeline(self, models: List[str], ground_truth: str = "ground_truth.json") -> str:
         """
         Executa pipeline completo
         
@@ -352,7 +352,7 @@ def main():
     parser = argparse.ArgumentParser(description="Pipeline simplificado de avaliação Text2SQL")
     parser.add_argument("--models", nargs="+", required=True,
                        help="Modelos para testar (ex: ollama_llama3 mistral qwen3)  # python run_evaluation.py --models ollama_llama3 mistral")
-    parser.add_argument("--ground-truth", default="ground_truth_improved.json",
+    parser.add_argument("--ground-truth", default="ground_truth.json",
                        help="Arquivo ground truth  # python run_evaluation.py --models ollama_llama3 --ground-truth custom_queries.json")
     parser.add_argument("--output-dir", default="results",
                        help="Diretório de saída  # python run_evaluation.py --models ollama_llama3 --output-dir my_results")

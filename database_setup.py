@@ -58,6 +58,61 @@ def create_cid_capitulos_table(conn: sqlite3.Connection) -> int:
     print(f"CID chapters table created with {records_inserted} records")
     return records_inserted
 
+
+def create_cid_categorias_table(conn: sqlite3.Connection) -> int:
+    """Create CID categories table and import data from CID-10-CATEGORIAS.csv"""
+    
+    # Read CID categories CSV
+    cid_csv_path = Path("data/CID-10-CATEGORIAS.csv")
+    
+    if not cid_csv_path.exists():
+        print(f"Warning: CID categories CSV file not found at {cid_csv_path}")
+        return 0
+    
+    # Read CSV with proper encoding for special characters
+    df_cid = pd.read_csv(cid_csv_path, encoding='latin-1', delimiter=';')
+    
+    # Clean column names (remove any BOM or extra spaces)
+    df_cid.columns = df_cid.columns.str.strip().str.replace('\ufeff', '')
+    
+    # Create CID categories table with proper schema
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cid_categorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            categoria TEXT UNIQUE NOT NULL,
+            descricao TEXT NOT NULL,
+            descricao_abrev TEXT
+        )
+    """)
+    
+    # Clean and filter valid records
+    df_cid = df_cid.dropna(subset=['CAT', 'DESCRICAO'])
+    df_cid['CAT'] = df_cid['CAT'].str.strip()
+    df_cid['DESCRICAO'] = df_cid['DESCRICAO'].str.strip()
+    
+    # Insert data from DataFrame
+    records_inserted = 0
+    for _, row in df_cid.iterrows():
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO cid_categorias 
+                (categoria, descricao, descricao_abrev)
+                VALUES (?, ?, ?)
+            """, (
+                row['CAT'],
+                row['DESCRICAO'],
+                row.get('DESCRABREV', '').strip() if pd.notna(row.get('DESCRABREV')) else ''
+            ))
+            records_inserted += 1
+        except Exception as e:
+            print(f"Error inserting CID category record {row.get('CAT', 'unknown')}: {e}")
+    
+    conn.commit()
+    print(f"CID categories table created with {records_inserted} records")
+    return records_inserted
+
+
 def convert_date_columns(df):
     """Convert INTEGER date columns (YYYYMMDD) to proper DATE format"""
     
@@ -135,8 +190,11 @@ def create_database_from_csv():
         # Create CID chapters table
         cid_records = create_cid_capitulos_table(conn)
         
-        # Get table info for both tables
-        tables = ['sus_data', 'cid_capitulos']
+        # Create CID categories table
+        cid_cat_records = create_cid_categorias_table(conn)
+        
+        # Get table info for all tables
+        tables = ['sus_data', 'cid_capitulos', 'cid_categorias']
         for table in tables:
             cursor = conn.cursor()
             cursor.execute(f"PRAGMA table_info({table})")

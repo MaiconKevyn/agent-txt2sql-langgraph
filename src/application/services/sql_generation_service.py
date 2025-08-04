@@ -54,7 +54,7 @@ class ISQLGenerationService(ABC):
         pass
     
     @abstractmethod
-    def create_sql_prompt(self, user_query: str, enhanced: bool = False) -> str:
+    def create_sql_prompt(self, user_query: str, enhanced: bool = False, schema_context=None) -> str:
         """Create appropriate prompt for SQL generation"""
         pass
     
@@ -64,7 +64,7 @@ class ISQLGenerationService(ABC):
         pass
     
     @abstractmethod
-    def clean_and_fix_sql(self, sql_query: str) -> str:
+    def clean_and_fix_sql(self, sql_query: str, user_query: str = None) -> str:
         """Clean and fix common SQL issues"""
         pass
 
@@ -101,7 +101,7 @@ class SQLGenerationService(ISQLGenerationService):
             sql_query = self.extract_sql_from_response(llm_response.content)
             
             # Clean and fix common issues
-            cleaned_sql = self.clean_and_fix_sql(sql_query)
+            cleaned_sql = self.clean_and_fix_sql(sql_query, user_query)
             
             return cleaned_sql
             
@@ -109,9 +109,11 @@ class SQLGenerationService(ISQLGenerationService):
             self.logger.error(f"SQL generation failed: {str(e)}")
             return "SELECT COUNT(*) FROM sus_data;"  # Safe fallback
     
-    def create_sql_prompt(self, user_query: str, enhanced: bool = False) -> str:
+    def create_sql_prompt(self, user_query: str, enhanced: bool = False, schema_context=None) -> str:
         """Create appropriate prompt for SQL generation"""
-        schema_context = self._schema_service.get_schema_context()
+        # Use provided schema context or fall back to full schema
+        if schema_context is None:
+            schema_context = self._schema_service.get_schema_context()
         
         if enhanced:
             return self._create_enhanced_sql_prompt(user_query, schema_context)
@@ -122,7 +124,7 @@ class SQLGenerationService(ISQLGenerationService):
         """Extract SQL from LLM response"""
         return self._extract_sql_from_direct_response(llm_response)
     
-    def clean_and_fix_sql(self, sql_query: str) -> str:
+    def clean_and_fix_sql(self, sql_query: str, user_query: str = None) -> str:
         """Clean and fix common SQL issues"""
         # Clean SQL comments
         cleaned_sql = self._clean_sql_comments(sql_query)
@@ -130,8 +132,17 @@ class SQLGenerationService(ISQLGenerationService):
         # Fix case sensitivity issues
         cleaned_sql = self._fix_case_sensitivity_issues(cleaned_sql)
         
+        # Fix gender code issues (common LLM confusion)
+        cleaned_sql = self._fix_gender_code_issues(cleaned_sql, user_query)
+        
+        # Fix missing JOIN issues (common when using multiple tables)
+        cleaned_sql = self._fix_missing_joins(cleaned_sql)
+        
         # Fix SQLite specific issues
         cleaned_sql = self._fix_sqlite_year_extraction(cleaned_sql)
+        
+        # Add LIMIT 1 for queries asking for "the most" or "maior"
+        cleaned_sql = self._fix_missing_limit_for_top_queries(cleaned_sql, user_query)
         
         return cleaned_sql
     
@@ -171,6 +182,12 @@ class SQLGenerationService(ISQLGenerationService):
         
         🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE SQL 🚨
         
+        0. PARA PERGUNTAS SOBRE CÓDIGOS CID ESPECÍFICOS (ex: "o que é I200?"):
+           - SEMPRE consulte a tabela cid_detalhado primeiro!
+           - Use: SELECT codigo, descricao FROM cid_detalhado WHERE codigo = 'I200'
+           - Para incluir contagem: JOIN com sus_data
+           - NUNCA invente descrições - use APENAS dados da tabela!
+        
         1. PARA CONSULTAS DE RANKING/TOP (ex: "top 5 cidades"):
            - Use filtros diretos no WHERE, não CASE statements
            - SEMPRE inclua LIMIT com o número solicitado
@@ -189,6 +206,16 @@ class SQLGenerationService(ISQLGenerationService):
         ORDER BY total_mortes DESC 
         LIMIT 5;
         
+        ✅ EXEMPLO CID: "o que é o diagnóstico I200?"
+        SELECT codigo, descricao FROM cid_detalhado WHERE codigo = 'I200';
+        
+        ✅ EXEMPLO CID COM CASOS: "quantos casos de I200?"
+        SELECT cd.codigo, cd.descricao, COUNT(sd.DIAG_PRINC) as total_casos
+        FROM cid_detalhado cd 
+        LEFT JOIN sus_data sd ON cd.codigo = sd.DIAG_PRINC
+        WHERE cd.codigo = 'I200'
+        GROUP BY cd.codigo, cd.descricao;
+        
         2. PARA TEMPO DE INTERNAÇÃO:
         SEMPRE use JULIANDAY para calcular diferenças de data!
         NUNCA use subtração aritmética direta (DT_SAIDA - DT_INTER)!
@@ -202,9 +229,21 @@ class SQLGenerationService(ISQLGenerationService):
         - ✅ Para extrair mês: USE strftime('%m', DT_INTER)
         - ✅ Para agrupar por ano: GROUP BY strftime('%Y', DT_INTER)
         
+        🌡️ PARA CONSULTAS SAZONAIS (estações do ano - Brasil):
+        - INVERNO: meses 6, 7, 8, 9 (jun-set): CAST(SUBSTR(CAST(DT_INTER AS TEXT), 5, 2) AS INTEGER) IN (6, 7, 8, 9)
+        - VERÃO: meses 12, 1, 2, 3 (dez-mar): CAST(SUBSTR(CAST(DT_INTER AS TEXT), 5, 2) AS INTEGER) IN (12, 1, 2, 3)
+        - OUTONO: meses 3, 4, 5, 6 (mar-jun): CAST(SUBSTR(CAST(DT_INTER AS TEXT), 5, 2) AS INTEGER) IN (3, 4, 5, 6)
+        - PRIMAVERA: meses 9, 10, 11, 12 (set-dez): CAST(SUBSTR(CAST(DT_INTER AS TEXT), 5, 2) AS INTEGER) IN (9, 10, 11, 12)
+        
+        ✅ EXEMPLO SAZONAL: "Quais os cinco diagnósticos mais comuns no inverno"
+        SELECT DIAG_PRINC, COUNT(*) as total 
+        FROM sus_data 
+        WHERE CAST(SUBSTR(CAST(DT_INTER AS TEXT), 5, 2) AS INTEGER) IN (6, 7, 8, 9)
+        GROUP BY DIAG_PRINC 
+        ORDER BY total DESC 
+        LIMIT 5;
+        
         4. OUTRAS INSTRUÇÕES:
-        - Para doenças respiratórias: WHERE DIAG_PRINC LIKE 'J%'
-        - Para filtros de data: DT_INTER >= 20170401 AND DT_INTER <= 20170430
         - SEXO = 3 para mulheres, SEXO = 1 para homens
         - MORTE = 1 para mortes confirmadas
         - Gere APENAS o SQL necessário, sem explicações
@@ -405,6 +444,52 @@ class SQLGenerationService(ISQLGenerationService):
         
         return fixed_query
     
+    def _fix_gender_code_issues(self, sql_query: str, user_query: str = None) -> str:
+        """Fix common gender code issues in SUS queries"""
+        if not sql_query:
+            return sql_query
+        
+        # If no user query provided, cannot fix gender issues
+        if not user_query:
+            return sql_query
+        
+        user_query_lower = user_query.lower()
+        
+        # Pattern 1: User query mentions "homens/masculino" but SQL uses SEXO = 3 (should be SEXO = 1)
+        if any(word in user_query_lower for word in ['homens', 'masculino', 'male', 'do sexo masculino']):
+            if 'SEXO = 3' in sql_query:
+                self.logger.info("🔧 Fixing gender code: changing SEXO = 3 to SEXO = 1 for males based on user query")
+                sql_query = sql_query.replace('SEXO = 3', 'SEXO = 1')
+        
+        # Pattern 2: User query mentions "mulheres/feminino" but SQL uses SEXO = 1 (should be SEXO = 3)  
+        elif any(word in user_query_lower for word in ['mulheres', 'feminino', 'female', 'do sexo feminino']):
+            if 'SEXO = 1' in sql_query:
+                self.logger.info("🔧 Fixing gender code: changing SEXO = 1 to SEXO = 3 for females based on user query")
+                sql_query = sql_query.replace('SEXO = 1', 'SEXO = 3')
+        
+        return sql_query
+    
+    def _fix_missing_joins(self, sql_query: str) -> str:
+        """Fix missing JOIN clauses when query references columns from multiple tables"""
+        if not sql_query:
+            return sql_query
+        
+        import re
+        
+        # Pattern: Query references cd.codigo or cd.descricao but has no JOIN with cid_detalhado
+        if ('cd.codigo' in sql_query or 'cd.descricao' in sql_query) and 'JOIN cid_detalhado' not in sql_query:
+            # Check if sus_data is in FROM clause
+            if 'FROM sus_data' in sql_query:
+                self.logger.info("🔧 Fixing missing JOIN: adding cid_detalhado JOIN to query")
+                # Insert JOIN after the FROM clause
+                sql_query = re.sub(
+                    r'FROM sus_data s',
+                    'FROM sus_data s JOIN cid_detalhado cd ON s.DIAG_PRINC = cd.codigo',
+                    sql_query
+                )
+        
+        return sql_query
+    
     def _fix_sqlite_year_extraction(self, sql_query: str) -> str:
         """Fix YEAR() function calls for SQLite compatibility"""
         if not sql_query or 'YEAR(' not in sql_query.upper():
@@ -437,6 +522,48 @@ class SQLGenerationService(ISQLGenerationService):
         )
         
         self.logger.info(f"✅ SQLite YEAR() fix applied")
+        return sql_query
+    
+    def _fix_missing_limit_for_top_queries(self, sql_query: str, user_query: str = None) -> str:
+        """Add LIMIT 1 for queries asking for 'the most', 'maior', etc."""
+        if not sql_query or not user_query:
+            return sql_query
+        
+        user_query_lower = user_query.lower()
+        
+        # Check if user is asking for "the most", "maior", "menor", etc. (singular)
+        top_query_patterns = [
+            'qual é a cidade', 'qual é o diagnóstico', 'qual é o procedimento',
+            'qual cidade', 'qual diagnóstico', 'qual procedimento',
+            'cidade com mais', 'diagnóstico com mais', 'diagnóstico mais comum',
+            'maior', 'menor', 'mais comum', 'mais frequente'
+        ]
+        
+        is_top_query = any(pattern in user_query_lower for pattern in top_query_patterns)
+        
+        # Check if it's asking for multiple (plural forms)
+        plural_patterns = [
+            'quais são as cidades', 'quais são os diagnósticos', 
+            'quais cidades', 'quais diagnósticos',
+            'top 5', 'top 10', 'primeiros', 'maiores', 'menores'
+        ]
+        
+        is_plural_query = any(pattern in user_query_lower for pattern in plural_patterns)
+        
+        # Only add LIMIT 1 if it's a top query but not explicitly plural
+        if is_top_query and not is_plural_query:
+            # Check if LIMIT is already present
+            if 'LIMIT' not in sql_query.upper():
+                # Check if it has ORDER BY (required for meaningful LIMIT)
+                if 'ORDER BY' in sql_query.upper():
+                    # Add LIMIT 1 before the semicolon
+                    if sql_query.strip().endswith(';'):
+                        sql_query = sql_query.strip()[:-1] + ' LIMIT 1;'
+                    else:
+                        sql_query = sql_query.strip() + ' LIMIT 1;'
+                    
+                    self.logger.info(f"🔧 Added LIMIT 1 for top query: {user_query}")
+        
         return sql_query
 
 

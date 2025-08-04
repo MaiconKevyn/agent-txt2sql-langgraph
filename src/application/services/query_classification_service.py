@@ -119,6 +119,10 @@ class QueryClassificationService(IQueryClassificationService):
             r'\b(20\d{2}|19\d{2})\b',  # Years
             r'\b(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b',
             
+            # Seasonal patterns (Brazilian seasons)
+            r'\b(inverno|verão|outono|primavera|estação)\b',
+            r'\b(frio|quente|seco|chuvoso)\b',
+            
             # Geographic patterns
             r'\b(estado|cidade|município|região|local|onde|Porto Alegre|Rio Grande do Sul|RS)\b',
             
@@ -126,6 +130,12 @@ class QueryClassificationService(IQueryClassificationService):
             r'\b(pacientes?|casos?|internações?|mortes?|óbitos?|alta|UTI)\b',
             r'\b(diagnóstico|doença|condição|CID|procedimento|custo|valor)\b',
             r'\b(sexo|idade|masculino|feminino|homens|mulheres)\b',
+            
+            # CID code patterns (specific codes should be database queries)
+            r'\b[A-Z]\d{2,3}\b',  # CID codes like I200, I21, C61
+            r'\bI20\d?\b',        # Angina codes specifically
+            r'\bI21\d?\b',        # Myocardial infarction codes
+            r'\b(buscar|encontrar|procurar).*(código|diagnóstico|CID)\b',
             
             # List/show patterns
             r'\b(listar|mostrar|exibir|apresentar|relacionar)\b',
@@ -249,8 +259,19 @@ class QueryClassificationService(IQueryClassificationService):
         
         # Special rules for high-confidence classification
         
-        # Strong conversational indicators
-        if re.search(r'\b(o que é|que significa|explique|CID[- ]?[A-Z]\d{2})\b', query_lower, re.IGNORECASE):
+        # CID code queries should be database queries (override conversational detection)
+        if re.search(r'\b(diagnóstico|código|CID).{0,10}[A-Za-z]\d{1,3}\b', query_lower, re.IGNORECASE) or \
+           re.search(r'\b[A-Za-z]\d{1,3}\b', query_lower):
+            return QueryClassification(
+                query_type=QueryType.DATABASE_QUERY,
+                confidence_score=1.0,
+                reasoning="Pergunta sobre código CID específico detectada",
+                detected_patterns=["cid_code_query"],
+                suggested_reroute="database_cid_lookup"
+            )
+        
+        # Strong conversational indicators (but not for CID codes)
+        if re.search(r'\b(o que é|que significa|explique)\b', query_lower, re.IGNORECASE) and not re.search(r'\b[A-Za-z]\d{1,3}\b', query_lower):
             return QueryClassification(
                 query_type=QueryType.CONVERSATIONAL_QUERY,
                 confidence_score=0.9,

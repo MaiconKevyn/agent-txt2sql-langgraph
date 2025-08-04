@@ -208,9 +208,9 @@ class SUSTableSelectionService(ITableSelectionService):
         except Exception as e:
             self.logger.error(f"❌ Error in table selection: {str(e)}")
             
-            # Fallback: retornar todas as tabelas
+            # Fallback: retornar apenas tabelas suportadas
             return TableSelectionResult(
-                selected_tables=["sus_data", "cid_capitulos", "cid_detalhado", "cid_categorias"],
+                selected_tables=["sus_data", "cid_detalhado"],
                 relevance_scores={
                     "sus_data": TableRelevance.ESSENTIAL,
                     "cid_detalhado": TableRelevance.HELPFUL
@@ -252,9 +252,13 @@ class SUSTableSelectionService(ITableSelectionService):
         
         CRITÉRIOS DE SELEÇÃO:
         - **sus_data**: Para estatísticas, contagens, dados demográficos, mortalidade, custos, análises temporais/geográficas
-        - **cid_capitulos**: Para análises por categoria GERAL de doença (doenças respiratórias, neoplasias, etc.)
-        - **cid_detalhado**: Para explicação de códigos CID ESPECÍFICOS (o que significa I200, J441, etc.)
-        - **cid_categorias**: Para agrupamentos intermediários de diagnósticos
+        - **cid_detalhado**: Para explicação de códigos CID ESPECÍFICOS (o que significa I200, J441, etc.) E para mostrar DIAGNÓSTICOS ESPECÍFICOS com descrições legíveis
+        
+        REGRAS IMPORTANTES:
+        - Para perguntas sobre "diagnóstico mais comum", "qual diagnóstico", "diagnósticos específicos": SEMPRE USE cid_detalhado + sus_data
+        - Para explicar "o que significa código X": USE cid_detalhado apenas
+        - Para estatísticas simples sem necessidade de descrição: USE sus_data apenas
+        - SEMPRE prefira mostrar diagnósticos com descrições legíveis usando cid_detalhado
         
         RESPONDA EXATAMENTE NO FORMATO JSON:
         {{
@@ -269,7 +273,7 @@ class SUSTableSelectionService(ITableSelectionService):
         }}
         
         IMPORTANTE:
-        - Use APENAS os nomes: sus_data, cid_capitulos, cid_detalhado, cid_categorias
+        - Use APENAS os nomes: sus_data, cid_detalhado
         - Confidence entre 0.0 e 1.0
         - Relevance: "essential", "helpful", ou "unnecessary"
         - Seja seletivo - NÃO inclua tabelas desnecessárias"""
@@ -305,7 +309,7 @@ class SUSTableSelectionService(ITableSelectionService):
                     relevance_scores[table] = TableRelevance.HELPFUL
             
             # Validar tabelas selecionadas
-            valid_tables = ["sus_data", "cid_capitulos", "cid_detalhado", "cid_categorias"]
+            valid_tables = ["sus_data", "cid_detalhado"]
             selected_tables = [t for t in selected_tables if t in valid_tables]
             
             # Se nenhuma tabela válida foi selecionada, usar sus_data como padrão
@@ -377,11 +381,7 @@ class SUSTableSelectionService(ITableSelectionService):
             selected_tables.append("sus_data")
             relevance_scores["sus_data"] = TableRelevance.ESSENTIAL
         
-        if any(word in query_lower for word in ["categoria", "capítulo", "tipo de doença", "respiratória", "neoplasia", "infecciosa"]):
-            selected_tables.append("cid_capitulos")
-            relevance_scores["cid_capitulos"] = TableRelevance.ESSENTIAL
-        
-        if any(word in query_lower for word in ["significa", "código", "diagnóstico", "cid", "o que é"]):
+        if any(word in query_lower for word in ["significa", "código", "diagnóstico", "cid", "o que é", "mais comum", "qual diagnóstico"]):
             selected_tables.append("cid_detalhado")
             relevance_scores["cid_detalhado"] = TableRelevance.ESSENTIAL
         

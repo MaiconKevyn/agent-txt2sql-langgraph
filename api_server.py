@@ -314,19 +314,19 @@ async def query_database(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty")
     
     try:
+        # Use conversational query method for proper response formatting
         result = agent.process_conversational_query(request.question)
         
-        # process_conversational_query returns a dict, not QueryResult object
         return QueryResponse(
             success=result["success"],
-            question=request.question,
-            sql_query=None,  # Conversational response doesn't expose SQL
-            results=None,    # Conversational response doesn't expose raw results
-            row_count=None,  # Conversational response doesn't expose row count
-            execution_time=result.get("execution_time"),
-            error_message=result.get("error_message") if not result["success"] else None,
-            timestamp=result.get("timestamp", datetime.now().isoformat()),
-            response=result.get("response")  # Add the conversational response
+            question=result["question"],
+            sql_query=result["metadata"].get("sql_query") if result.get("metadata") else None,
+            results=result["metadata"].get("results") if result.get("metadata") else None,
+            row_count=result["metadata"].get("row_count") if result.get("metadata") else None,
+            execution_time=result["execution_time"],
+            error_message=result["error_message"],
+            timestamp=result["timestamp"],
+            response=result["response"]  # This is the conversational response
         )
     except Exception as e:
         return QueryResponse(
@@ -361,21 +361,175 @@ async def health_check():
         )
 
 @app.get("/schema", response_model=SchemaResponse)
-async def get_schema():
+async def get_schema(table: Optional[str] = None):
     """Get database schema information"""
     if not agent:
         raise HTTPException(status_code=503, detail="Agent not initialized")
     
     try:
         schema_service = agent.get_schema_introspection_service()
-        schema_info = schema_service.get_schema_information()
+        
+        if table:
+            # Get specific table schema
+            table_info = schema_service.get_table_info(table)
+            schema_text = f"""
+TABELA: {table_info.name}
+Total de registros: {table_info.row_count:,}
+
+COLUNAS:
+"""
+            for col in table_info.columns:
+                pk_indicator = " (PK)" if col.primary_key else ""
+                null_indicator = " (NULL)" if col.nullable else " (NOT NULL)"
+                schema_text += f"- {col.name} ({col.type}){pk_indicator}{null_indicator}\n"
+            
+            # Format sample data as HTML table (only 10 records)
+            if table_info.sample_data and len(table_info.sample_data) > 0:
+                schema_text += f"\nDADOS DE EXEMPLO ({len(table_info.sample_data)} registros de amostra):\n"
+                
+                # Get column names for table header
+                column_names = [col.name for col in table_info.columns]
+                
+                # Create simple table without pagination
+                schema_text += '<div class="schema-table-container">\n'
+                
+                # Add simple records counter header
+                schema_text += f'''<div class="records-counter">
+                    <div class="counter-info">
+                        <i class="fas fa-database"></i>
+                        <span class="total-records">Amostra: {len(table_info.sample_data)} registros (Total: {table_info.row_count:,})</span>
+                    </div>
+                </div>\n'''
+                
+                # Filter bar above table
+                schema_text += '<div class="filter-bar">\n'
+                for i, col_name in enumerate(column_names):
+                    # Create filter for each column
+                    placeholder = f"Filtrar {col_name.lower()}"
+                    if 'id' in col_name.lower():
+                        placeholder = f"ID"
+                    elif 'codigo' in col_name.lower() or 'code' in col_name.lower():
+                        placeholder = f"Código"
+                    elif 'descr' in col_name.lower() or 'desc' in col_name.lower():
+                        placeholder = f"Descrição"
+                    elif 'data' in col_name.lower() or 'date' in col_name.lower():
+                        placeholder = f"Data"
+                    elif 'nome' in col_name.lower() or 'name' in col_name.lower():
+                        placeholder = f"Nome"
+                    
+                    schema_text += f'''<div class="filter-column" data-column="{i}">
+                        <label class="filter-label">{col_name}</label>
+                        <input type="text" 
+                               class="column-filter" 
+                               data-column="{i}" 
+                               placeholder="{placeholder}"
+                               autocomplete="off"
+                               spellcheck="false">
+                    </div>'''
+                
+                schema_text += '</div>\n'
+                
+                # Scrollable table wrapper
+                schema_text += '<div class="table-scroll-wrapper">\n'
+                schema_text += '<table class="schema-table" id="schema-data-table">\n'
+                
+                # Simple table header
+                schema_text += '<thead>\n<tr>\n'
+                for col_name in column_names:
+                    schema_text += f'<th>{col_name}</th>\n'
+                schema_text += '</tr>\n</thead>\n'
+                
+                # Table body
+                schema_text += '<tbody>\n'
+                for sample in table_info.sample_data:
+                    if isinstance(sample, dict):
+                        schema_text += '<tr>\n'
+                        for col_name in column_names:
+                            value = sample.get(col_name, 'NULL')
+                            # Format value
+                            if value is None:
+                                value = '<span class="null-value">NULL</span>'
+                            else:
+                                value = str(value)
+                                # Escape HTML special characters first
+                                escaped_value = value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+                                
+                                if len(value) > 100:
+                                    # Create tooltip with full text
+                                    value = f'<span title="{escaped_value}" class="truncated-value">{escaped_value[:97]}...</span>'
+                                else:
+                                    value = escaped_value
+                            
+                            schema_text += f'<td>{value}</td>\n'
+                        schema_text += '</tr>\n'
+                    else:
+                        # Fallback for non-dict format
+                        escaped_sample = str(sample).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        if len(escaped_sample) > 100:
+                            escaped_sample = escaped_sample[:97] + "..."
+                        schema_text += f'<tr><td colspan="{len(column_names)}">{escaped_sample}</td></tr>\n'
+                
+                schema_text += '</tbody>\n'
+                schema_text += '</table>\n'
+                schema_text += '</div>\n'  # Close table-scroll-wrapper
+                schema_text += '</div>\n'  # Close schema-table-container
+            else:
+                schema_text += "\nDADOS DE EXEMPLO: Nenhum dado disponível\n"
+            
+        else:
+            # Get full schema context
+            schema_context = schema_service.get_schema_context()
+            schema_text = schema_context.formatted_context
         
         return SchemaResponse(
-            schema=schema_info,
+            schema=schema_text,
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Schema error: {str(e)}")
+
+@app.get("/schema/tables")
+async def get_available_tables():
+    """Get list of available tables"""
+    if not agent:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    
+    try:
+        schema_service = agent.get_schema_introspection_service()
+        tables = schema_service.get_table_names()
+        
+        # Filter to only show main tables
+        main_tables = [table for table in tables if table in ['sus_data', 'cid_detalhado']]
+        
+        return {
+            "tables": main_tables,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tables error: {str(e)}")
+
+@app.get("/agent-health")
+async def agent_health_check():
+    """Agent health check endpoint"""
+    try:
+        if not agent:
+            return {
+                "agent_status": "offline",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        health_status = agent.health_check()
+        return {
+            "agent_status": "online" if health_status["status"] == "healthy" else "offline",
+            "timestamp": datetime.now().isoformat(),
+            "services": health_status["services"]
+        }
+    except Exception as e:
+        return {
+            "agent_status": "offline",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
 
 @app.get("/models")
 async def get_available_models():

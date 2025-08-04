@@ -59,6 +59,12 @@ function setupEventListeners() {
         }
     });
     
+    // Schema controls
+    const loadSchemaBtn = document.getElementById('loadSchemaBtn');
+    if (loadSchemaBtn) {
+        loadSchemaBtn.addEventListener('click', loadSelectedSchema);
+    }
+    
     // Clear chat
     elements.clearBtn.addEventListener('click', clearChat);
     
@@ -372,11 +378,34 @@ function hideLoading() {
 
 async function showSchemaModal() {
     elements.schemaModal.classList.add('show');
+    elements.schemaContent.textContent = 'Selecione uma tabela e clique em "Carregar" para visualizar o esquema.';
+}
+
+async function loadSelectedSchema() {
+    const tableSelect = document.getElementById('tableSelect');
+    const loadSchemaBtn = document.getElementById('loadSchemaBtn');
+    const selectedTable = tableSelect.value;
     
     try {
-        elements.schemaContent.textContent = 'Carregando esquema...';
+        // Disable button and show loading
+        loadSchemaBtn.disabled = true;
+        loadSchemaBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando esquema...';
+        elements.schemaContent.innerHTML = `
+            <div class="loading-message">
+                <div class="inline-spinner">
+                    <i class="fas fa-database"></i>
+                </div>
+                <span>Carregando esquema da tabela...</span>
+            </div>
+        `;
         
-        const response = await fetch(`${API_BASE_URL}/schema`, {
+        // Build URL with table parameter if selected
+        let url = `${API_BASE_URL}/schema`;
+        if (selectedTable) {
+            url += `?table=${encodeURIComponent(selectedTable)}`;
+        }
+        
+        const response = await fetch(url, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -392,12 +421,29 @@ async function showSchemaModal() {
         }
         
         const data = await response.json();
-        elements.schemaContent.textContent = data.schema;
+        
+        // Check if schema contains HTML table and render accordingly
+        if (data.schema.includes('<div class="sample-data-table">') || data.schema.includes('class="schema-table"')) {
+            elements.schemaContent.classList.remove('text-content');
+            elements.schemaContent.innerHTML = data.schema;
+            
+            // Initialize table search functionality
+            setTimeout(() => {
+                initializeTableSearch();
+            }, 100);
+        } else {
+            elements.schemaContent.classList.add('text-content');
+            elements.schemaContent.textContent = data.schema;
+        }
         
     } catch (error) {
         console.error('Error loading schema:', error);
         elements.schemaContent.textContent = `Erro ao carregar esquema: ${error.message}`;
         showErrorToast('Erro ao carregar o esquema do banco de dados');
+    } finally {
+        // Re-enable button
+        loadSchemaBtn.disabled = false;
+        loadSchemaBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Carregar';
     }
 }
 
@@ -595,11 +641,205 @@ function updateThemeIcon(theme) {
     }
 }
 
+// Table Search Functionality
+function initializeTableSearch() {
+    const searchInputs = document.querySelectorAll('.column-filter');
+    const table = document.getElementById('schema-data-table');
+    
+    if (!table || !searchInputs.length) return;
+    
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Add event listeners to all search inputs
+    searchInputs.forEach((input, columnIndex) => {
+        // Real-time filtering with debounce
+        input.addEventListener('input', debounce(() => {
+            filterTable();
+            highlightSearchTerms();
+        }, 200));
+        
+        // Keyboard shortcuts
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                input.value = '';
+                filterTable();
+                highlightSearchTerms();
+            }
+            // Navigate between filter inputs with Tab/Shift+Tab
+            if (e.key === 'ArrowRight' && e.ctrlKey) {
+                e.preventDefault();
+                const nextInput = searchInputs[columnIndex + 1];
+                if (nextInput) nextInput.focus();
+            }
+            if (e.key === 'ArrowLeft' && e.ctrlKey) {
+                e.preventDefault();
+                const prevInput = searchInputs[columnIndex - 1];
+                if (prevInput) prevInput.focus();
+            }
+        });
+        
+        // Visual feedback on focus - no longer needed with integrated design
+        input.addEventListener('focus', () => {
+            input.style.transform = 'scale(1.02)';
+        });
+        
+        input.addEventListener('blur', () => {
+            input.style.transform = 'scale(1)';
+        });
+    });
+    
+    function filterTable() {
+        let visibleCount = 0;
+        
+        rows.forEach((row) => {
+            let showRow = true;
+            
+            // Check each column filter
+            searchInputs.forEach((input, columnIndex) => {
+                const searchTerm = input.value.toLowerCase().trim();
+                
+                if (searchTerm) {
+                    const cell = row.cells[columnIndex];
+                    if (cell) {
+                        const cellText = cell.textContent.toLowerCase();
+                        if (!cellText.includes(searchTerm)) {
+                            showRow = false;
+                        }
+                    }
+                }
+            });
+            
+            // Show/hide row
+            if (showRow) {
+                row.classList.remove('hidden-row');
+                row.classList.add('highlight-match');
+                visibleCount++;
+            } else {
+                row.classList.add('hidden-row');
+                row.classList.remove('highlight-match');
+            }
+        });
+        
+        // Update row striping after filtering
+        updateRowStriping();
+        
+        // Show count of filtered results
+        updateFilterCount(visibleCount, rows.length);
+    }
+    
+    function updateRowStriping() {
+        const visibleRows = rows.filter(row => !row.classList.contains('hidden-row'));
+        visibleRows.forEach((row, index) => {
+            if (index % 2 === 0) {
+                row.style.backgroundColor = '';
+            } else {
+                row.style.backgroundColor = 'var(--bg-secondary)';
+            }
+        });
+    }
+    
+    function updateFilterCount(visible, total) {
+        const filteredRecords = document.querySelector('.filtered-records');
+        const filteredCount = document.querySelector('.filtered-count');
+        
+        if (visible !== total) {
+            // Show filtered counter
+            if (filteredRecords) {
+                filteredRecords.style.display = 'flex';
+                if (filteredCount) {
+                    filteredCount.textContent = visible.toLocaleString();
+                }
+            }
+        } else {
+            // Hide filtered counter when showing all records
+            if (filteredRecords) {
+                filteredRecords.style.display = 'none';
+            }
+        }
+    }
+    
+    function highlightSearchTerms() {
+        // Remove existing highlights
+        rows.forEach(row => {
+            Array.from(row.cells).forEach(cell => {
+                if (cell.dataset.originalText) {
+                    cell.innerHTML = cell.dataset.originalText;
+                }
+            });
+        });
+        
+        // Apply new highlights
+        searchInputs.forEach((input, columnIndex) => {
+            const searchTerm = input.value.toLowerCase().trim();
+            if (searchTerm && searchTerm.length > 1) {
+                rows.forEach(row => {
+                    if (!row.classList.contains('hidden-row')) {
+                        const cell = row.cells[columnIndex];
+                        if (cell && !cell.querySelector('.null-value')) {
+                            if (!cell.dataset.originalText) {
+                                cell.dataset.originalText = cell.innerHTML;
+                            }
+                            const originalText = cell.dataset.originalText;
+                            const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                            const highlighted = originalText.replace(regex, '<mark style="background: rgba(0, 168, 107, 0.3); padding: 0.1rem 0.2rem; border-radius: 2px;">$1</mark>');
+                            cell.innerHTML = highlighted;
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    // Clear all filters function
+    function clearAllFilters() {
+        searchInputs.forEach(input => {
+            input.value = '';
+            input.style.transform = 'scale(1)';
+        });
+        
+        // Remove highlights and show all rows
+        rows.forEach(row => {
+            row.classList.remove('hidden-row', 'highlight-match');
+            Array.from(row.cells).forEach(cell => {
+                if (cell.dataset.originalText) {
+                    cell.innerHTML = cell.dataset.originalText;
+                    delete cell.dataset.originalText;
+                }
+            });
+        });
+        
+        updateRowStriping();
+        updateFilterCount(rows.length, rows.length);
+        
+        // Focus first search input for better UX
+        if (searchInputs.length > 0) {
+            searchInputs[0].focus();
+        }
+    }
+    
+    // Add clear all button to the filter bar
+    const filterBar = document.querySelector('.filter-bar');
+    if (filterBar) {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'clear-filters-btn';
+        clearBtn.innerHTML = '<i class="fas fa-eraser"></i>';
+        clearBtn.title = 'Limpar todos os filtros';
+        clearBtn.addEventListener('click', clearAllFilters);
+        
+        const clearWrapper = document.createElement('div');
+        clearWrapper.className = 'clear-filters-wrapper';
+        clearWrapper.appendChild(clearBtn);
+        filterBar.appendChild(clearWrapper);
+    }
+}
+
 // Export for potential future use
 window.ChatApp = {
     sendMessage,
     clearChat,
     showSchemaModal,
     checkServerStatus,
-    toggleTheme
+    toggleTheme,
+    initializeTableSearch
 };
