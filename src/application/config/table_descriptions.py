@@ -3,10 +3,9 @@ Table Descriptions Configuration - VERSÃO CONCISA E OTIMIZADA
 Descrições simplificadas para máxima performance (reduzido 80%+ de tokens)
 """
 
-# Descrições CONCISAS - Apenas tabelas existentes (sus_data + cid_detalhado)
 TABLE_DESCRIPTIONS = {
     "sus_data": {
-        "title": "📊 Dados SUS",
+        "title": "Dados SUS",
         "description": "Atendimentos SUS - pacientes, mortes, cidades",
         "purpose": "Estatísticas de pacientes e mortalidade",
         "use_cases": ["Análises de pacientes/mortes por cidade/sexo/idade"],

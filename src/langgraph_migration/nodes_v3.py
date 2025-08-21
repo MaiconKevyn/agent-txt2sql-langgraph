@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import BaseTool
 
+from langchain_core.prompts import ChatPromptTemplate
+
 from .state_v3 import (
     MessagesStateTXT2SQL,
     QueryRoute,
@@ -31,6 +33,8 @@ from .state_v3 import (
 )
 from .llm_manager import HybridLLMManager
 from ..application.config.simple_config import ApplicationConfig
+from ..application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
+from typing import List
 
 
 # Global LLM manager instance (singleton pattern)
@@ -187,17 +191,42 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         # Execute list tables tool
         tool_result = list_tables_tool.invoke("")
         
-        # Parse tables result
+        # Parse tables result from Enhanced Tool
         if isinstance(tool_result, str):
-            tables = [table.strip() for table in tool_result.split(",") if table.strip()]
+            # Enhanced tool returns table descriptions, extract actual table names
+            # Look for table names at start of lines (format: "table_name: description")
+            import re
+            table_pattern = r'^(\w+):'
+            table_names = []
+            for line in tool_result.split('\n'):
+                line = line.strip()
+                match = re.match(table_pattern, line)
+                if match:
+                    table_names.append(match.group(1))
+            
+            # If no pattern matches, fallback to basic parsing
+            if not table_names:
+                # Try to extract from the database directly
+                llm_manager = get_llm_manager()
+                db = llm_manager.get_database()
+                table_names = db.get_usable_table_names()
+            
+            tables = table_names
         else:
             tables = []
         
         # Update state with discovered tables
         state["available_tables"] = tables
         
-        # For now, select all available tables (can be refined later)
-        state["selected_tables"] = tables[:5]  # Limit to first 5 tables
+        # INTELLIGENT TABLE SELECTION using LLM + Enhanced Tool context
+        selected_tables = _select_relevant_tables(
+            user_query=state["user_query"],
+            tool_result=tool_result,
+            available_tables=tables,
+            llm_manager=llm_manager
+        )
+        
+        state["selected_tables"] = selected_tables
         
         # Create tool call result
         tool_call_result = ToolCallResult(
@@ -318,72 +347,93 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
 
 def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
-    Generate SQL Node - Using LLM with Schema Context
+    Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
     
-    Generates SQL queries using the bound LLM with schema context
-    Following official LangGraph SQL agent patterns
+    Generates SQL queries using ChatPromptTemplate with dynamic table-specific rules
+    Following official LangGraph SQL agent patterns with enhanced prompt templates
     """
     start_time = time.time()
+    
+    print(f"🤖 SQL GENERATION NODE: Starting SQL generation")
+    print(f"   📝 User Query: '{state['user_query']}'")
     
     try:
         llm_manager = get_llm_manager()
         user_query = state["user_query"]
         schema_context = state.get("schema_context", "")
+        selected_tables = state.get("selected_tables", [])
         
-        # Create enhanced SQL generation prompt with SUS value mappings
-        sql_prompt = f"""You are a SQL expert assistant for Brazilian healthcare (SUS) data. Follow SUS standards EXACTLY.
+        print(f"   📊 Selected Tables: {selected_tables}")
+        
+        # Build table-specific prompt using our new template system
+        if len(selected_tables) > 1:
+            table_rules = build_multi_table_prompt(selected_tables)
+            print(f"   🔗 Multi-table rules applied for: {', '.join(selected_tables)}")
+        else:
+            table_rules = build_table_specific_prompt(selected_tables)
+            print(f"   📋 Table-specific rules applied for: {', '.join(selected_tables)}")
+        
+        # Create ChatPromptTemplate with dynamic table rules
+        sql_prompt_template = ChatPromptTemplate.from_messages([
+            ("system", """You are a SQL expert assistant for Brazilian healthcare (SUS) data analysis.
 
-        Database Schema:
-        {schema_context}
+📋 CORE INSTRUCTIONS:
+1. Generate syntactically correct SQLite queries
+2. Use proper table and column names from the schema
+3. Handle Portuguese language questions appropriately
+4. Return only the SQL query, no explanation
+5. Use appropriate WHERE clauses for filtering
+6. Include LIMIT clauses when appropriate (default LIMIT 100)
+7. Use proper JOINs when querying multiple tables
+
+🔍 DATABASE SCHEMA:
+{schema_context}"""),
+            
+            ("system", "{table_specific_rules}"),
+            
+            ("human", "🎯 USER QUERY: {user_query}\n\nGenerate the SQL query:")
+        ])
         
-        User Question: {user_query}
-        
-        🚨 CRITICAL INSTRUCTIONS:
-        1. Generate syntactically correct SQLite queries
-        2. Use proper table and column names from the schema
-        3. Handle Portuguese language questions appropriately
-        4. Return only the SQL query, no explanation
-        5. Use appropriate WHERE clauses for filtering
-        6. Include LIMIT clauses when appropriate (default LIMIT 100)
-        
-        ⚠️  MANDATORY SUS VALUE MAPPINGS - NEVER MAKE MISTAKES:
-        - For MEN/HOMENS/MASCULINO questions: ALWAYS use SEXO = 1
-        - For WOMEN/MULHERES/FEMININO questions: ALWAYS use SEXO = 3
-        - For DEATH/MORTE/ÓBITO questions: ALWAYS use MORTE = 1
-        - For CITY/CIDADE questions: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
-        
-        🎯 EXACT PATTERN EXAMPLES:
-        - "Quantos homens morreram?" → SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1;
-        - "Qual cidade com mais mortes de homens?" → SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY COUNT(*) DESC LIMIT 1;
-        
-        Generate the SQL query now:"""
-        
-        # Format messages for LLM
-        messages = format_for_llm_input(state, sql_prompt)
-        
-        # Use HybridLLMManager's SQL generation method
-        result = llm_manager.generate_sql_query(
-            user_query=user_query,
+        # Format the prompt with dynamic content
+        formatted_messages = sql_prompt_template.format_messages(
             schema_context=schema_context,
-            conversation_history=state["messages"]
+            table_specific_rules=table_rules,
+            user_query=user_query
         )
         
-        if result["success"]:
-            sql_query = result["sql_query"]
+        print(f"   🚀 Using ChatPromptTemplate with {len(formatted_messages)} messages")
+        print(f"   📏 Table rules length: {len(table_rules)} chars")
+        
+        # Use unbound LLM for direct SQL generation (bound LLM expects tool calls)
+        llm = llm_manager._llm
+        response = llm.invoke(formatted_messages)
+        
+        # Extract SQL query from response
+        sql_query = response.content.strip() if hasattr(response, 'content') else str(response)
+        
+        # Clean SQL query
+        sql_query = llm_manager._clean_sql_query(sql_query)
+        
+        if sql_query:
             state["generated_sql"] = sql_query
             
             # Add AI message with generated SQL
             ai_response = f"Generated SQL query: {sql_query}"
             state = add_ai_message(state, ai_response)
             
+            print(f"   ✅ SQL Generated: {sql_query}")
+            
         else:
-            # Handle SQL generation failure
-            error_message = result.get("error", "Unknown SQL generation error")
+            # Handle empty SQL generation
+            error_message = "Failed to generate SQL query - empty response"
             state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
+            print(f"   ❌ SQL Generation Failed: Empty response")
         
         # Update phase
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
+        
+        print(f"   🕒 SQL Generation Time: {execution_time:.2f}s")
         
         return state
         
@@ -394,6 +444,9 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
+        
+        print(f"   ❌ SQL Generation Error: {str(e)}")
+        print(f"   🕒 Error Time: {execution_time:.2f}s")
         
         return state
 
@@ -693,7 +746,7 @@ def _generate_formatted_response(
         Resultado: {results_text}
         
         REGRAS IMPORTANTES:
-        1. Seja CONCISO - máximo 1-2 frases
+        1. Seja CONCISO
         2. Responda APENAS o que foi perguntado
         3. Use linguagem natural em português brasileiro
         4. Formate números adequadamente (1.234 não 1234)
@@ -838,6 +891,87 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     """
     
     return base_schema + sus_mappings
+
+
+def _select_relevant_tables(
+    user_query: str, 
+    tool_result: str, 
+    available_tables: List[str], 
+    llm_manager: HybridLLMManager
+) -> List[str]:
+    """
+    Seleciona tabelas relevantes usando LLM + contexto da Enhanced Tool
+    
+    Args:
+        user_query: Pergunta do usuário
+        tool_result: Output da Enhanced Tool com descrições
+        available_tables: Lista de todas as tabelas disponíveis
+        llm_manager: Manager do LLM
+        
+    Returns:
+        Lista de tabelas selecionadas relevantes para a query
+    """
+    try:
+        print(f"🎯 INTELLIGENT TABLE SELECTION: Analyzing query for relevant tables")
+        
+        # Criar prompt de seleção de tabelas (ULTRA CONCISO)
+        selection_prompt = f"""Tables:
+- sus_data: patient data, deaths, cities
+- cid_detalhado: disease codes, descriptions
+
+Query: "{user_query}"
+Answer with table name(s) only:"""
+
+        # Usar LLM unbound para seleção
+        llm = llm_manager._llm
+        
+        from langchain_core.messages import HumanMessage
+        response = llm.invoke([HumanMessage(content=selection_prompt)])
+        
+        # Parse resposta (ROBUSTO - extrai nomes de tabelas de respostas verbosas)
+        selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
+        
+        # Extract table names using robust parsing
+        selected_tables = []
+        if selected_tables_str:
+            # Method 1: Direct comma-separated names
+            if ',' in selected_tables_str:
+                parsed_tables = [table.strip() for table in selected_tables_str.split(',')]
+            else:
+                parsed_tables = [selected_tables_str.strip()]
+            
+            # Method 2: Extract from verbose responses
+            import re
+            for table_name in available_tables:
+                # Look for exact table names in the response
+                if re.search(r'\b' + re.escape(table_name) + r'\b', selected_tables_str, re.IGNORECASE):
+                    if table_name not in selected_tables:
+                        selected_tables.append(table_name)
+            
+            # Method 3: If no tables found via regex, try parsing direct names
+            if not selected_tables:
+                for table in parsed_tables:
+                    # Clean table name (remove markdown, punctuation)
+                    clean_table = re.sub(r'[^a-zA-Z_]', '', table.strip())
+                    if clean_table in available_tables:
+                        selected_tables.append(clean_table)
+        
+        # Fallback: se nenhuma tabela válida, usar todas
+        if not selected_tables:
+            print(f"   ⚠️  No valid tables selected, falling back to all tables")
+            selected_tables = available_tables
+        
+        print(f"   📊 Query: '{user_query}'")
+        print(f"   📋 Available: {available_tables}")
+        print(f"   🎯 Selected: {selected_tables}")
+        print(f"   ✅ Intelligence: {'Single table' if len(selected_tables) == 1 else 'Multi-table'}")
+        
+        return selected_tables
+        
+    except Exception as e:
+        print(f"   ❌ Table selection error: {e}")
+        # Fallback: retornar todas as tabelas
+        return available_tables
 
 
 # Export all nodes

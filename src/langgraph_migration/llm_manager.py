@@ -259,8 +259,8 @@ class HybridLLMManager:
             
             print(f"✅ Tools bound to LLM: {len(tools)} tools available")
             if enhanced_count > 0:
-                print(f"   🚀 Enhanced tools: {enhanced_count}")
-                print(f"   🔧 Standard tools: {standard_count}")
+                print(f"Enhanced tools: {enhanced_count}")
+                print(f"Standard tools: {standard_count}")
             
         except Exception as e:
             print(f"❌ Tool binding failed: {e}")
@@ -381,30 +381,30 @@ class HybridLLMManager:
             # Create enhanced system prompt that emphasizes SUS value mappings
             system_prompt = f"""You are a SQL expert assistant for Brazilian healthcare (SUS) data. Follow SUS database standards EXACTLY.
 
-Database Schema and Critical Rules:
-{schema_context}
-
-🚨 CRITICAL INSTRUCTIONS - READ CAREFULLY:
-1. Generate syntactically correct SQLite queries
-2. Use proper table and column names from the schema above
-3. Handle Portuguese language questions appropriately
-4. Return only the SQL query, no explanation
-5. Use appropriate WHERE clauses for filtering
-6. Include LIMIT clauses when appropriate (default LIMIT 100)
-
-⚠️  MANDATORY SUS VALUE MAPPINGS - NEVER MAKE MISTAKES:
-- For questions about MEN/HOMENS/MASCULINO: ALWAYS use SEXO = 1
-- For questions about WOMEN/MULHERES/FEMININO: ALWAYS use SEXO = 3
-- For questions about DEATHS/MORTES/ÓBITOS: ALWAYS use MORTE = 1
-- For questions about CITIES/CIDADES: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
-
-🎯 EXACT EXAMPLES FOR COMMON QUERIES:
-- "Quantos homens morreram?" → SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1;
-- "Qual cidade com mais mortes de homens?" → SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY COUNT(*) DESC LIMIT 1;
-- "Mulheres por diagnóstico" → SELECT DIAG_PRINC, COUNT(*) FROM sus_data WHERE SEXO = 3 GROUP BY DIAG_PRINC;
-
-REMEMBER: SEXO values are 1=Male, 3=Female (NOT 2!). Use these values exactly as shown.
-"""
+        Database Schema and Critical Rules:
+        {schema_context}
+        
+        CRITICAL INSTRUCTIONS - READ CAREFULLY:
+            1. Generate syntactically correct SQLite queries
+            2. Use proper table and column names from the schema above
+            3. Handle Portuguese language questions appropriately
+            4. Return only the SQL query, no explanation
+            5. Use appropriate WHERE clauses for filtering
+            6. Include LIMIT clauses when appropriate (default LIMIT 100)
+        
+        MANDATORY SUS VALUE MAPPINGS - NEVER MAKE MISTAKES:
+            - For questions about MEN/HOMENS/MASCULINO: ALWAYS use SEXO = 1
+            - For questions about WOMEN/MULHERES/FEMININO: ALWAYS use SEXO = 3
+            - For questions about DEATHS/MORTES/ÓBITOS: ALWAYS use MORTE = 1
+            - For questions about CITIES/CIDADES: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
+        
+        🎯 EXACT EXAMPLES FOR COMMON QUERIES:
+        - "Quantos homens morreram?" → SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1;
+        - "Qual cidade com mais mortes de homens?" → SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY COUNT(*) DESC LIMIT 1;
+        - "Mulheres por diagnóstico" → SELECT DIAG_PRINC, COUNT(*) FROM sus_data WHERE SEXO = 3 GROUP BY DIAG_PRINC;
+        
+        REMEMBER: SEXO values are 1=Male, 3=Female (NOT 2!). Use these values exactly as shown.
+        """
             
             # Create messages
             messages = self.create_messages(
