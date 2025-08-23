@@ -79,16 +79,24 @@ class SchemaResponse(BaseModel):
 
 def initialize_agent(model_name: str = None) -> LangGraphOrchestrator:
     """Initialize the LangGraph V3 orchestrator"""
-    # Get base configuration
-    base_config = ApplicationConfig()
+    # Get PostgreSQL configuration
+    app_config = ApplicationConfig()
+    orchestrator_config = OrchestratorConfig()
     
-    if model_name is None:
-        model_name = os.getenv("LLM_MODEL", base_config.llm_model)
+    if model_name is not None:
+        app_config.llm_model = model_name
     
-    # Create LangGraph V3 orchestrator using factory
-    orchestrator = create_production_orchestrator(
-        provider=os.getenv("LLM_PROVIDER", base_config.llm_provider),
-        model_name=model_name
+    # Override with environment variables if set
+    if os.getenv("LLM_PROVIDER"):
+        app_config.llm_provider = os.getenv("LLM_PROVIDER")
+    if os.getenv("LLM_MODEL"):
+        app_config.llm_model = os.getenv("LLM_MODEL")
+    
+    # Create LangGraph V3 orchestrator directly with PostgreSQL config
+    orchestrator = LangGraphOrchestrator(
+        app_config=app_config,
+        orchestrator_config=orchestrator_config,
+        environment="production"
     )
     
     return orchestrator

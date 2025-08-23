@@ -10,8 +10,8 @@ from ..services.user_interface_service import InterfaceType
 class ApplicationConfig:
     """Simple configuration for the application"""
     # Database configuration
-    database_type: str = "sqlite"
-    database_path: str = "sus_database.db"
+    database_type: str = "postgresql"  # postgresql, sqlite
+    database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"  # PostgreSQL URI or SQLite path
     
     # LLM configuration (for SQL generation)
     # llm_provider: str = "huggingface"  # ollama, huggingface

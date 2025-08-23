@@ -836,17 +836,17 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     SEXO (Gender) - CÓDIGOS PADRÃO SUS:
     - SEXO = 1  →  MASCULINO/HOMEM (MALE - FOR QUESTIONS ABOUT MEN)
     - SEXO = 3  →  FEMININO/MULHER (FEMALE - FOR QUESTIONS ABOUT WOMEN)
-    ⚠️  NEVER USE SEXO = 2 (does not exist in SUS system!)
+    NEVER USE SEXO = 2 (does not exist in SUS system!)
     
     MORTE (Death) - INDICADOR DE ÓBITO:
     - MORTE = 0  →  NÃO (ALIVE/LIVING - patient did not die)
     - MORTE = 1  →  SIM (DEAD/DECEASED - patient died)
     
     CIDADE/MUNICÍPIO - CRITICAL RULES:
-    - ✅ ALWAYS USE: CIDADE_RESIDENCIA_PACIENTE (readable city names like 'Porto Alegre', 'Santa Maria')
-    - ❌ NEVER USE: MUNIC_RES (contains only IBGE numeric codes like 430300, 430460 - useless for end users)
+    - ALWAYS USE: CIDADE_RESIDENCIA_PACIENTE (readable city names like 'Porto Alegre', 'Santa Maria')
+    - NEVER USE: MUNIC_RES (contains only IBGE numeric codes like 430300, 430460 - useless for end users)
     
-    🎯 QUERY EXAMPLES WITH CORRECT SUS VALUES:
+    QUERY EXAMPLES WITH CORRECT SUS VALUES:
     =========================================
     
     ✅ MORTES POR SEXO (CORRECT MAPPING):
@@ -885,9 +885,9 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     - MORTE = 1 indicates patient death/óbito during hospitalization
     - For city/municipality questions, ALWAYS use CIDADE_RESIDENCIA_PACIENTE column
     
-    ⚠️  MANDATORY: SEXO = 1 for ANY question about HOMENS/MASCULINO/MEN/MALES
-    ⚠️  MANDATORY: SEXO = 3 for ANY question about MULHERES/FEMININO/WOMEN/FEMALES
-    ⚠️  MANDATORY: Use CIDADE_RESIDENCIA_PACIENTE for city names, NEVER MUNIC_RES
+    MANDATORY: SEXO = 1 for ANY question about HOMENS/MASCULINO/MEN/MALES
+    MANDATORY: SEXO = 3 for ANY question about MULHERES/FEMININO/WOMEN/FEMALES
+    MANDATORY: Use CIDADE_RESIDENCIA_PACIENTE for city names, NEVER MUNIC_RES
     """
     
     return base_schema + sus_mappings
@@ -912,12 +912,13 @@ def _select_relevant_tables(
         Lista de tabelas selecionadas relevantes para a query
     """
     try:
-        print(f"🎯 INTELLIGENT TABLE SELECTION: Analyzing query for relevant tables")
+        print(f"INTELLIGENT TABLE SELECTION: Analyzing query for relevant tables")
         
-        # Criar prompt de seleção de tabelas (ULTRA CONCISO)
+        # Criar prompt de seleção de tabelas (ULTRA CONCISO) - PostgreSQL SIH-RS
         selection_prompt = f"""Tables:
-- sus_data: patient data, deaths, cities
-- cid_detalhado: disease codes, descriptions
+- internacoes: patient internment data, deaths, hospitals (11M records)
+- cid10: disease codes CID-10 and descriptions (14K records)
+- municipios: brazilian cities and geographic data (5K records)
 
 Query: "{user_query}"
 Answer with table name(s) only:"""
@@ -958,13 +959,13 @@ Answer with table name(s) only:"""
         
         # Fallback: se nenhuma tabela válida, usar todas
         if not selected_tables:
-            print(f"   ⚠️  No valid tables selected, falling back to all tables")
+            print(f"No valid tables selected, falling back to all tables")
             selected_tables = available_tables
         
-        print(f"   📊 Query: '{user_query}'")
-        print(f"   📋 Available: {available_tables}")
-        print(f"   🎯 Selected: {selected_tables}")
-        print(f"   ✅ Intelligence: {'Single table' if len(selected_tables) == 1 else 'Multi-table'}")
+        print(f"   Query: '{user_query}'")
+        print(f"   Available: {available_tables}")
+        print(f"   Selected: {selected_tables}")
+        print(f"   Intelligence: {'Single table' if len(selected_tables) == 1 else 'Multi-table'}")
         
         return selected_tables
         

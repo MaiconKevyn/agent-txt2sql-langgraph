@@ -160,7 +160,7 @@ class TestWorkflowV3(unittest.TestCase):
             print("   ✅ Error route classification works")
             
         except Exception as e:
-            print(f"   ⚠️ Routing test failed: {e}")
+            print(f"Routing test failed: {e}")
     
     def test_sql_generation_routing(self):
         """Test SQL generation routing logic"""

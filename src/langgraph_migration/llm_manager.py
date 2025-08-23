@@ -69,13 +69,21 @@ class HybridLLMManager:
     def _initialize_database(self):
         """Initialize SQLDatabase for LangChain integration"""
         try:
-            # Create SQLDatabase instance following LangGraph tutorial
+            # Support both SQLite and PostgreSQL
             db_path = self.config.database_path
-            if not os.path.exists(db_path):
-                raise FileNotFoundError(f"Database not found: {db_path}")
             
-            # Use SQLite connection string
-            connection_string = f"sqlite:///{db_path}"
+            if self.config.database_type == "postgresql" or db_path.startswith("postgresql"):
+                # PostgreSQL connection - use URI directly
+                connection_string = db_path
+                print(f"🐘 Connecting to PostgreSQL: {connection_string}")
+            else:
+                # SQLite connection - validate file exists
+                if not os.path.exists(db_path):
+                    raise FileNotFoundError(f"Database not found: {db_path}")
+                connection_string = f"sqlite:///{db_path}"
+                print(f"📁 Connecting to SQLite: {connection_string}")
+            
+            # Create SQLDatabase instance following LangGraph tutorial
             self._sql_database = SQLDatabase.from_uri(connection_string)
             
             # Verify database connection

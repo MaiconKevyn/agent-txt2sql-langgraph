@@ -129,7 +129,8 @@ class EnhancedListTablesTool(BaseTool):
             for table_name in sorted(table_names):
                 table_section = self._format_table_information(table_name)
                 result_parts.append(table_section)
-            
+
+
             # Add intelligent selection guidance
             if self.include_selection_guide:
                 selection_section = self._generate_selection_guidance()

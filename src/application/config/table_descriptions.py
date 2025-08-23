@@ -4,27 +4,39 @@ Descrições simplificadas para máxima performance (reduzido 80%+ de tokens)
 """
 
 TABLE_DESCRIPTIONS = {
-    "sus_data": {
-        "title": "Dados SUS",
-        "description": "Atendimentos SUS - pacientes, mortes, cidades",
-        "purpose": "Estatísticas de pacientes e mortalidade",
-        "use_cases": ["Análises de pacientes/mortes por cidade/sexo/idade"],
-        "key_columns": ["SEXO", "MORTE", "CIDADE_RESIDENCIA_PACIENTE"],
+    "internacoes": {
+        "title": "🏥 Internações SIH-RS",
+        "description": "Dados completos de internações hospitalares do Rio Grande do Sul",
+        "purpose": "Análises de internações, pacientes, hospitais e óbitos",
+        "use_cases": ["Estatísticas de internações por cidade/sexo/idade/hospital", "Análises de mortalidade e procedimentos"],
+        "key_columns": ["SEXO", "IDADE", "MUNIC_RES", "DIAG_PRINC", "CNES", "N_AIH"],
         "value_mappings": {
             "SEXO": "1=Masculino, 3=Feminino",
-            "MORTE": "1=Óbito, 0=Vivo"
+            "IDADE": "Idade em anos",
+            "MUNIC_RES": "Código município residência (6 dígitos)",
+            "DIAG_PRINC": "Código CID-10 diagnóstico principal"
         },
-        "critical_notes": ["SEXO=1(homem) 3(mulher), MORTE=1(óbito)"]
+        "critical_notes": ["SEXO=1(M) 3(F)", "N_AIH é chave primária", "JOIN com mortes via N_AIH para óbitos"]
     },
     
-    "cid_detalhado": {
-        "title": "📚 Códigos CID",
-        "description": "Códigos CID-10 e descrições de doenças",
-        "purpose": "Buscar códigos e descrições específicas",
-        "use_cases": ["Lookup de códigos CID ou descrições"],
-        "key_columns": ["codigo", "descricao"],
-        "value_mappings": {"codigo": "Formato CID (ex: J44.0)"},
-        "critical_notes": ["Para códigos específicos"]
+    "cid10": {
+        "title": "📚 Códigos CID-10",
+        "description": "Códigos e descrições completas CID-10 para diagnósticos",
+        "purpose": "Lookup de códigos de doenças e descrições",
+        "use_cases": ["Buscar descrições de códigos CID", "Validar diagnósticos"],
+        "key_columns": ["CID", "CD_DESCRICAO"],
+        "value_mappings": {"CID": "Código CID-10 (ex: F190, S623)"},
+        "critical_notes": ["Relaciona com internacoes.DIAG_PRINC"]
+    },
+    
+    "municipios": {
+        "title": "🌍 Municípios Brasileiros",
+        "description": "Dados geográficos completos dos municípios brasileiros",
+        "purpose": "Análises geográficas e localização",
+        "use_cases": ["Análises por região/estado", "Dados geográficos"],
+        "key_columns": ["codigo_ibge", "nome", "estado", "latitude", "longitude"],
+        "value_mappings": {"codigo_ibge": "Código IBGE 7 dígitos"},
+        "critical_notes": ["Relaciona com internacoes.MUNIC_RES via código"]
     }
 }
 
@@ -39,10 +51,10 @@ TOOL_CONFIGURATION = {
     "concise_mode": True             # 🔥 Modo conciso ativo
 }
 
-# Guia SUPER CONCISO de seleção (apenas 2 tabelas)
+# Guia SUPER CONCISO de seleção (3 tabelas SIH-RS)
 SELECTION_GUIDES = {
     "concise_guide": """
-🎯 pacientes/mortes/estatísticas→sus_data | códigos CID/doenças→cid_detalhado
-⚠️  SEXO=1(homem) 3(mulher), MORTE=1(óbito), use CIDADE_RESIDENCIA_PACIENTE
+🎯 internações/pacientes/óbitos→internacoes | códigos CID/doenças→cid10 | cidades/geografia→municipios
+⚠️  SEXO=1(M) 3(F), JOIN mortes via N_AIH para óbitos, use MUNIC_RES para cidades
 """
 }
