@@ -495,6 +495,108 @@ class LangGraphOrchestrator:
         
         return model_info
     
+    def get_workflow_visualization(self, xray: bool = True) -> bytes:
+        """
+        Generate workflow visualization using LangGraph's built-in method
+        
+        Args:
+            xray: Enable detailed view with internal state information
+            
+        Returns:
+            PNG bytes of the workflow diagram
+        """
+        if not self._workflow:
+            raise ValueError("Workflow not initialized")
+        
+        # Use the same pattern from LangGraph docs
+        return self._workflow.get_graph(xray=xray).draw_mermaid_png()
+
+    def display_workflow(self, xray: bool = True):
+        """
+        Display workflow in Jupyter notebook (same as docs example)
+        
+        Args:
+            xray: Enable detailed view with internal state information
+        """
+        try:
+            from IPython.display import Image, display
+            # Exact same pattern as documentation
+            display(Image(self._workflow.get_graph(xray=xray).draw_mermaid_png()))
+        except ImportError:
+            print("IPython not available. Use save_workflow_diagram() instead.")
+
+    def save_workflow_diagram(self, filename: str = "workflow.png", xray: bool = True):
+        """
+        Save workflow diagram to file
+        
+        Args:
+            filename: Output filename for the PNG diagram
+            xray: Enable detailed view with internal state information
+        """
+        try:
+            png_data = self.get_workflow_visualization(xray=xray)
+            with open(filename, "wb") as f:
+                f.write(png_data)
+            print(f"📊 Workflow diagram saved to {filename}")
+        except Exception as e:
+            print(f"❌ Failed to save workflow diagram: {str(e)}")
+
+    def print_workflow_structure(self):
+        """Print text representation of workflow structure"""
+        if not self._workflow:
+            print("❌ Workflow not initialized")
+            return
+        
+        print("🏗️ LangGraph Text2SQL Workflow Structure:")
+        print("=" * 60)
+        
+        workflow_structure = """
+    START
+      ↓
+    📋 query_classification_node
+      ↓
+    [Route based on classification]
+      ↓
+    DATABASE Route:
+      ↓
+    🗂️ list_tables_node (discover available tables)
+      ↓  
+    📋 get_schema_node (retrieve table schemas)
+      ↓
+    🤖 generate_sql_node (generate SQL query)
+      ↓
+    ✅ validate_sql_node (validate SQL syntax)
+      ↓
+    ⚡ execute_sql_node (execute query on database)
+      ↓
+    💬 generate_response_node (format final response)
+      ↓
+    END
+    
+    CONVERSATIONAL Route:
+      ↓
+    💬 generate_response_node (direct conversational response)
+      ↓
+    END
+    
+    SCHEMA Route:
+      ↓
+    🗂️ list_tables_node (table discovery only)
+      ↓
+    💬 generate_response_node (schema information response)
+      ↓
+    END
+    
+    📊 Features:
+    • PostgreSQL with 15 specialized tables
+    • Intelligent table selection (mortes, procedimentos, etc.)
+    • Multi-LLM support (Ollama, HuggingFace)
+    • Retry mechanisms with error recovery
+    • Healthcare domain optimization (SUS data)
+        """
+        
+        print(workflow_structure)
+
     def health_check(self) -> Dict[str, Any]:
         """
         Comprehensive health check for the orchestrator

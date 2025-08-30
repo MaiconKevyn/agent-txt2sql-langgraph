@@ -326,7 +326,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         print(f"   ✅ Schema retrieved for tables: {tables_input}")
         print(f"   📊 Schema context size: {len(enhanced_schema)} characters")
-        print(f"   🔧 Enhanced with SUS value mappings: {('SEXO = 1' in enhanced_schema)}")
+        print(f"   🔧 Enhanced with SUS value mappings: {('POSTGRESQL COLUMN NAMES REQUIRE' in enhanced_schema)}")
         print(f"   🕒 Time: {execution_time:.2f}s")
         
         return state
@@ -337,7 +337,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         state = add_error(state, error_message, "schema_error", ExecutionPhase.SCHEMA_ANALYSIS)
         
         # Fallback schema context
-        state["schema_context"] = "Tables: sus_data (patient healthcare data)"
+        state["schema_context"] = "Tables: internacoes (patient healthcare data), cid10 (diagnoses), municipios (cities)"
         
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SCHEMA_ANALYSIS, execution_time)
@@ -823,71 +823,82 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     Adds important value mappings that are not obvious from the schema alone
     """
     
-    # Check if this is SUS data (contains sus_data table)
-    if "sus_data" not in base_schema.lower():
+    # Check if this is PostgreSQL SIH-RS data (contains internacoes table)
+    if "internacoes" not in base_schema.lower():
         return base_schema
     
-    # Enhanced SUS mappings using knowledge from original services
+    # Enhanced PostgreSQL SIH-RS mappings
     sus_mappings = """
 
-    🚨 CRITICAL VALUE MAPPINGS FOR SUS DATA - PADRÃO SUS OFICIAL:
-    ============================================================
+    🚨 CRITICAL VALUE MAPPINGS FOR SIH-RS POSTGRESQL DATA - PADRÃO SUS:
+    ===================================================================
     
     SEXO (Gender) - CÓDIGOS PADRÃO SUS:
-    - SEXO = 1  →  MASCULINO/HOMEM (MALE - FOR QUESTIONS ABOUT MEN)
-    - SEXO = 3  →  FEMININO/MULHER (FEMALE - FOR QUESTIONS ABOUT WOMEN)
-    NEVER USE SEXO = 2 (does not exist in SUS system!)
+    - "SEXO" = 1  →  MASCULINO/HOMEM (MALE - FOR QUESTIONS ABOUT MEN)
+    - "SEXO" = 3  →  FEMININO/MULHER (FEMALE - FOR QUESTIONS ABOUT WOMEN)
+    NEVER USE "SEXO" = 2 (does not exist in SUS system!)
     
-    MORTE (Death) - INDICADOR DE ÓBITO:
-    - MORTE = 0  →  NÃO (ALIVE/LIVING - patient did not die)
-    - MORTE = 1  →  SIM (DEAD/DECEASED - patient died)
+    MUNIC_RES - MUNICÍPIO DE RESIDÊNCIA:
+    - Contains 6-digit IBGE municipal codes (e.g., 430490 = Porto Alegre)
+    - JOIN with municipios table for readable city names
     
-    CIDADE/MUNICÍPIO - CRITICAL RULES:
-    - ALWAYS USE: CIDADE_RESIDENCIA_PACIENTE (readable city names like 'Porto Alegre', 'Santa Maria')
-    - NEVER USE: MUNIC_RES (contains only IBGE numeric codes like 430300, 430460 - useless for end users)
+    🚨 POSTGRESQL COLUMN NAMES REQUIRE DOUBLE QUOTES:
+    - Always use "COLUMN_NAME" (with quotes) for column references
+    - Example: "SEXO", "IDADE", "MUNIC_RES", "DIAG_PRINC", "CID", "CD_DESCRICAO"
     
-    QUERY EXAMPLES WITH CORRECT SUS VALUES:
-    =========================================
+    QUERY EXAMPLES WITH CORRECT POSTGRESQL SYNTAX:
+    ===============================================
     
-    ✅ MORTES POR SEXO (CORRECT MAPPING):
-    -- Homens que morreram
-    SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1
+    ✅ TOTAL INTERNAÇÕES:
+    SELECT COUNT(*) FROM internacoes;
     
-    -- Mulheres que morreram  
-    SELECT COUNT(*) FROM sus_data WHERE SEXO = 3 AND MORTE = 1
+    ✅ INTERNAÇÕES POR SEXO:
+    -- Homens internados
+    SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 1;
     
-    ✅ CIDADES COM MAIS MORTES DE HOMENS (COMPLETE EXAMPLE):
-    SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) as mortes_homens 
-    FROM sus_data 
-    WHERE SEXO = 1 AND MORTE = 1 
-    GROUP BY CIDADE_RESIDENCIA_PACIENTE 
-    ORDER BY mortes_homens DESC 
-    LIMIT 5
+    -- Mulheres internadas  
+    SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 3;
     
-    ✅ PACIENTES HOMENS POR DIAGNÓSTICO:
-    SELECT DIAG_PRINC, COUNT(*) as total_homens 
-    FROM sus_data 
-    WHERE SEXO = 1 
-    GROUP BY DIAG_PRINC 
-    ORDER BY total_homens DESC
+    ✅ CIDADES COM MAIS INTERNAÇÕES (WITH JOIN):
+    SELECT m."nome" as cidade, COUNT(*) as total_internacoes 
+    FROM internacoes i 
+    JOIN municipios m ON i."MUNIC_RES" = m."codigo" 
+    GROUP BY m."nome" 
+    ORDER BY total_internacoes DESC 
+    LIMIT 5;
     
-    ✅ PACIENTES MULHERES POR DIAGNÓSTICO:
-    SELECT DIAG_PRINC, COUNT(*) as total_mulheres 
-    FROM sus_data 
-    WHERE SEXO = 3 
-    GROUP BY DIAG_PRINC 
-    ORDER BY total_mulheres DESC
+    ✅ DIAGNÓSTICOS MAIS COMUNS:
+    SELECT c."CD_DESCRICAO", COUNT(*) as total_casos 
+    FROM internacoes i 
+    JOIN cid10 c ON i."DIAG_PRINC" = c."CID" 
+    GROUP BY c."CD_DESCRICAO" 
+    ORDER BY total_casos DESC 
+    LIMIT 10;
     
-    IMPORTANT NOTES FROM SUS SYSTEM:
+    ✅ BUSCAR DESCRIÇÃO CID:
+    SELECT "CD_DESCRICAO" FROM cid10 WHERE "CID" = 'F190';
+    
+    ✅ DIAGNÓSTICOS POR IDADE:
+    SELECT "IDADE", COUNT(*) as total_casos
+    FROM internacoes 
+    WHERE "IDADE" IS NOT NULL 
+    GROUP BY "IDADE" 
+    ORDER BY "IDADE";
+    
+    IMPORTANT NOTES FOR POSTGRESQL SIH-RS:
     - All gender codes follow SUS official standards: 1=Masculino, 3=Feminino
-    - CIDADE_RESIDENCIA_PACIENTE contains human-readable city names
-    - MUNIC_RES contains only numeric IBGE codes (like 430300) - NOT useful for city queries
-    - MORTE = 1 indicates patient death/óbito during hospitalization
-    - For city/municipality questions, ALWAYS use CIDADE_RESIDENCIA_PACIENTE column
+    - "MUNIC_RES" contains IBGE 6-digit codes - JOIN with municipios table for names
+    - Tables: internacoes (main data), cid10 (diagnoses), municipios (cities)
+    - For city queries: JOIN internacoes with municipios on "MUNIC_RES" = "codigo"
     
-    MANDATORY: SEXO = 1 for ANY question about HOMENS/MASCULINO/MEN/MALES
-    MANDATORY: SEXO = 3 for ANY question about MULHERES/FEMININO/WOMEN/FEMALES
-    MANDATORY: Use CIDADE_RESIDENCIA_PACIENTE for city names, NEVER MUNIC_RES
+    MANDATORY POSTGRESQL RULES:
+    - "SEXO" = 1 for questions about HOMENS/MASCULINO/MEN/MALES
+    - "SEXO" = 3 for questions about MULHERES/FEMININO/WOMEN/FEMALES  
+    - For city names: JOIN with municipios table using "MUNIC_RES" = municipios."codigo"
+    - For diagnosis descriptions: JOIN with cid10 table using "DIAG_PRINC" = cid10."CID"
+    - For CID lookups: SELECT "CD_DESCRICAO" FROM cid10 WHERE "CID" = 'code'
+    - ALWAYS use double quotes around ALL column names: "COLUMN_NAME"
+    - CID10 columns: "CID" and "CD_DESCRICAO" (always with quotes)
     """
     
     return base_schema + sus_mappings
@@ -900,7 +911,7 @@ def _select_relevant_tables(
     llm_manager: HybridLLMManager
 ) -> List[str]:
     """
-    Seleciona tabelas relevantes usando LLM + contexto da Enhanced Tool
+    Seleciona tabelas relevantes usando LLM + contexto das descrições completas
     
     Args:
         user_query: Pergunta do usuário
@@ -914,14 +925,49 @@ def _select_relevant_tables(
     try:
         print(f"INTELLIGENT TABLE SELECTION: Analyzing query for relevant tables")
         
-        # Criar prompt de seleção de tabelas (ULTRA CONCISO) - PostgreSQL SIH-RS
-        selection_prompt = f"""Tables:
-- internacoes: patient internment data, deaths, hospitals (11M records)
-- cid10: disease codes CID-10 and descriptions (14K records)
-- municipios: brazilian cities and geographic data (5K records)
+        # Import table descriptions
+        from ..application.config.table_descriptions import TABLE_DESCRIPTIONS
+        
+        # Build comprehensive table selection prompt using actual descriptions
+        table_desc_lines = []
+        for table_name in available_tables:
+            if table_name in TABLE_DESCRIPTIONS:
+                desc = TABLE_DESCRIPTIONS[table_name]
+                title = desc.get("title", table_name)
+                purpose = desc.get("purpose", "")
+                use_cases = desc.get("use_cases", [])
+                critical_notes = desc.get("critical_notes", [])
+                
+                # Create concise but informative description
+                line = f"- {table_name}: {title}"
+                if purpose:
+                    line += f" | {purpose}"
+                if use_cases:
+                    line += f" | Use for: {', '.join(use_cases[:2])}"
+                if critical_notes:
+                    line += f" | {'; '.join(critical_notes[:2])}"
+                
+                table_desc_lines.append(line)
+            else:
+                # Fallback for tables not in descriptions
+                table_desc_lines.append(f"- {table_name}: Database table")
+        
+        # Create enhanced selection prompt
+        selection_prompt = f"""🎯 POSTGRESQL TABLE SELECTION - Brazilian SUS Healthcare System
 
-Query: "{user_query}"
-Answer with table name(s) only:"""
+AVAILABLE TABLES:
+{chr(10).join(table_desc_lines)}
+
+🚨 CRITICAL SELECTION RULES:
+• mortes: PRIMARY for death counts, mortality ("Quantas mortes", "óbitos")
+• procedimentos: PRIMARY for procedure counts ("Quantos procedimentos") 
+• internacoes: General hospitalizations, NOT for deaths or procedures
+• cid10: REFERENCE ONLY for disease descriptions, NEVER for counting
+• Use specialized tables (uti_detalhes, dado_ibge, etc.) for their domains
+
+USER QUERY: "{user_query}"
+
+Select ONLY the table name(s) most relevant to this query. Answer with table names separated by commas:"""
 
         # Usar LLM unbound para seleção
         llm = llm_manager._llm
