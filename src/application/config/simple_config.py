@@ -10,21 +10,21 @@ from ..services.user_interface_service import InterfaceType
 class ApplicationConfig:
     """Simple configuration for the application"""
     # Database configuration
-    database_type: str = "sqlite"
-    database_path: str = "sus_database.db"
+    database_type: str = "postgresql"  # postgresql, sqlite
+    database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"  # PostgreSQL URI or SQLite path
     
     # LLM configuration (for SQL generation)
     # llm_provider: str = "huggingface"  # ollama, huggingface
-    # llm_model: str = "maiconkevyn/mistral-txt2sql-sus"  # Fine-tuned SUS model (lighter than sqlcoder)
+    # llm_model: str = "maiconkevyn/mistral-txt2sql-sus"  # Fine-tuned SUS model
     llm_provider: str = "ollama"  # Fallback to Ollama
-    llm_model: str = "llama3"  # llama3, defog/sqlcoder-7b-2
+    llm_model: str = "llama3.1:8b"  # llama3.1:8b with tool calling support
     # llm_model: str = "defog/sqlcoder-7b-2"  # Heavy model - causes IDE crashes
     llm_temperature: float = 0.1  # Optimized for fine-tuned model
     llm_timeout: int = 120
     llm_max_retries: int = 3
     
     # Conversational LLM configuration (for natural language responses)
-    conversational_llm_model: str = "mistral"  # llama3.2:latest, mistral
+    conversational_llm_model: str = "llama3.1:8b"  # llama3.1:8b, mistral
     conversational_llm_temperature: float = 0.8
     conversational_llm_max_tokens: int = 1000
     conversational_llm_timeout: int = 60

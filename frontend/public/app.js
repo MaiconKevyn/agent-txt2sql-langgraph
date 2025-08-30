@@ -176,10 +176,7 @@ async function sendMessage() {
             //     responseContent += `\n\n**SQL Executado:**\n\`\`\`sql\n${data.sql_query}\n\`\`\``;
             // }
             
-            // Add results summary if available
-            if (data.results) {
-                responseContent += `\n\n**Resultados:** ${data.row_count || 'N/A'} registro(s) encontrado(s)`;
-            }
+            // Results summary removed for cleaner output
             
             addMessage(responseContent, 'assistant', {
                 executionTime: data.execution_time

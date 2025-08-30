@@ -1,0 +1,65 @@
+{
+  "internacoes": "Tabela que registra as internações hospitalares autorizadas pelo SIH-SUS. Cada registro corresponde a uma AIH (Autorização de Internação Hospitalar), contendo informações sobre o hospital de atendimento, características do paciente (idade, sexo, nascimento, residência), dados clínicos (datas de internação e saída, diagnósticos principais e secundários, CID associado), procedimento realizado, duração da permanência, custos da internação (valores pagos pelo SUS) e variáveis sociodemográficas. Essa tabela representa o núcleo central do sistema, consolidando os principais dados administrativos, clínicos e financeiros relacionados às internações."
+}
+
+
+
+{
+  "procedimentos": "Tabela de referência que traz o significado dos códigos de procedimentos do SIH-SUS (SIGTAP). Cada registro associa um código a sua descrição oficial."
+}
+
+
+
+{
+  "condicoes_especificas": "Tabela que registra condições específicas apenas quando identificadas como positivas. Contém o número da AIH (N_AIH) e o indicador correspondente (ex.: IND_VDRL positivo)."
+}
+
+
+
+
+{
+  "obstetricos": "Tabela preenchida apenas em internações obstétricas. Registra informações específicas de gestação e parto, como variáveis PN_* (pré-natal) e GESTRICO (gestação de risco)."
+}
+
+
+
+{
+  "cid10": "Tabela de referência que contém os significados dos códigos da Classificação Internacional de Doenças (CID-10). Cada registro associa um código à sua descrição oficial."
+}
+
+
+
+
+{
+  "municipios": "Tabela de referência com os municípios do Brasil. Contém códigos oficiais, nome do município, estado (UF) e localização geográfica (latitude e longitude)."
+}
+
+
+
+{
+  "hospital": "Tabela de referência dos estabelecimentos de saúde. Contém o código CNES, município onde o hospital está localizado, tipo de gestão e natureza jurídica."
+}
+
+
+
+{
+  "mortes": "Tabela que registra os óbitos ocorridos durante a internação. Contém o número da AIH (N_AIH) e o código CID-10 associado à causa da morte."
+}
+
+
+
+{
+  "instru": "Tabela que registra informações de instrução/educação do paciente, preenchida apenas quando essa variável está disponível na AIH."
+}
+
+
+
+{
+  "vincprev": "Tabela que registra o vínculo previdenciário do paciente, preenchida apenas quando essa variável está disponível na AIH."
+}
+
+
+
+{
+  "cbor": "Tabela que registra a ocupação do paciente (CBOR), preenchida apenas quando essa variável está disponível na AIH."
+}
