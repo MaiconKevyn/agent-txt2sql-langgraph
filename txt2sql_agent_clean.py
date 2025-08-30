@@ -585,7 +585,7 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         print("\n💡 Dicas para resolução:")
         print("• Verifique se o Ollama está rodando: ollama serve")
         print("• Verifique se o modelo está instalado: ollama pull llama3")
-        print("• Verifique se o banco de dados existe: python database_setup.py")
+        print("• Verifique se o banco PostgreSQL está acessível: postgresql://postgres:1234@localhost:5432/sih_rs")
         print("• Execute health check: python txt2sql_agent_clean.py --health-check")
         sys.exit(1)
 
