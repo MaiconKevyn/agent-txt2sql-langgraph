@@ -221,7 +221,15 @@ class Text2SQLOrchestrator:
         # Initialize CID repository if enabled
         if self._app_config.enable_cid_semantic_search:
             if self._app_config.cid_repository_type == "sqlite":
-                self._cid_repository = SQLiteCIDRepository(self._app_config.database_path)
+                # Use separate SQLite database for CID data when main database is PostgreSQL
+                if self._app_config.database_type == "postgresql":
+                    import os
+                    # Use absolute path to SQLite database for CID data
+                    cid_db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "sus_database.db")
+                else:
+                    cid_db_path = self._app_config.database_path
+                
+                self._cid_repository = SQLiteCIDRepository(cid_db_path)
                 self._cid_semantic_service = CIDSemanticSearchService(self._cid_repository)
                 self._services[ICIDRepository] = self._cid_repository
                 self._services[ICIDSemanticSearchService] = self._cid_semantic_service

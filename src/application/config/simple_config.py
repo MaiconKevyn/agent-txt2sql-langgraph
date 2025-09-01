@@ -3,7 +3,12 @@ Simple Configuration - Replace dependency injection with direct configuration
 """
 from dataclasses import dataclass
 from typing import Optional
-from ..services.user_interface_service import InterfaceType
+from enum import Enum
+
+class InterfaceType(Enum):
+    """Interface type configuration"""
+    CLI_BASIC = "cli_basic"
+    CLI_INTERACTIVE = "cli_interactive"
 
 
 @dataclass
@@ -11,7 +16,7 @@ class ApplicationConfig:
     """Simple configuration for the application"""
     # Database configuration
     database_type: str = "postgresql"  # postgresql, sqlite
-    database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"  # PostgreSQL URI or SQLite path
+    database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"
     
     # LLM configuration (for SQL generation)
     # llm_provider: str = "huggingface"  # ollama, huggingface
