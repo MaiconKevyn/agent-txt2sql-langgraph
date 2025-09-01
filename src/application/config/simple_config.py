@@ -15,7 +15,7 @@ class InterfaceType(Enum):
 class ApplicationConfig:
     """Simple configuration for the application"""
     # Database configuration
-    database_type: str = "postgresql"  # postgresql, sqlite
+    database_type: str = "postgresql"
     database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"
     
     # LLM configuration (for SQL generation)
