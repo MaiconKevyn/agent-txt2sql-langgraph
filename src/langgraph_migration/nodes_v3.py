@@ -137,10 +137,10 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.QUERY_CLASSIFICATION, execution_time)
         
-        print(f"   ✅ Classification Result: {query_route.value}")
-        print(f"   📊 Confidence: {confidence_score:.1f}")
-        print(f"   🕒 Time: {execution_time:.2f}s")
-        print(f"   🎯 Route: {'SQL Pipeline' if query_route == QueryRoute.DATABASE else 'Direct Response'}")
+        print(f"   Classification Result: {query_route.value}")
+        print(f"   Confidence: {confidence_score:.1f}")
+        print(f"   Time: {execution_time:.2f}s")
+        print(f"   Route: {'SQL Pipeline' if query_route == QueryRoute.DATABASE else 'Direct Response'}")
         
         return state
         
@@ -248,9 +248,9 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.TABLE_DISCOVERY, execution_time)
         
-        print(f"   ✅ Found {len(tables)} tables: {', '.join(tables)}")
-        print(f"   🎯 Selected tables: {', '.join(state['selected_tables'])}")
-        print(f"   🕒 Time: {execution_time:.2f}s")
+        print(f"   Found {len(tables)} tables: {', '.join(tables)}")
+        print(f"   Selected tables: {', '.join(state['selected_tables'])}")
+        print(f"   Time: {execution_time:.2f}s")
         
         return state
         
@@ -278,7 +278,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"📋 SCHEMA NODE: Retrieving database schema")
+    print(f"SCHEMA NODE: Retrieving database schema")
     
     try:
         llm_manager = get_llm_manager()
@@ -324,10 +324,10 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SCHEMA_ANALYSIS, execution_time)
         
-        print(f"   ✅ Schema retrieved for tables: {tables_input}")
-        print(f"   📊 Schema context size: {len(enhanced_schema)} characters")
-        print(f"   🔧 Enhanced with SUS value mappings: {('POSTGRESQL COLUMN NAMES REQUIRE' in enhanced_schema)}")
-        print(f"   🕒 Time: {execution_time:.2f}s")
+        print(f"   Schema retrieved for tables: {tables_input}")
+        print(f"   Schema context size: {len(enhanced_schema)} characters")
+        print(f"   Enhanced with SUS value mappings: {('POSTGRESQL COLUMN NAMES REQUIRE' in enhanced_schema)}")
+        print(f"   Time: {execution_time:.2f}s")
         
         return state
         
@@ -354,8 +354,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"🤖 SQL GENERATION NODE: Starting SQL generation")
-    print(f"   📝 User Query: '{state['user_query']}'")
+    print(f"SQL GENERATION NODE: Starting SQL generation")
+    print(f"User Query: '{state['user_query']}'")
     
     try:
         llm_manager = get_llm_manager()
@@ -363,15 +363,15 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
         
-        print(f"   📊 Selected Tables: {selected_tables}")
+        print(f"Selected Tables: {selected_tables}")
         
         # Build table-specific prompt using our new template system
         if len(selected_tables) > 1:
             table_rules = build_multi_table_prompt(selected_tables)
-            print(f"   🔗 Multi-table rules applied for: {', '.join(selected_tables)}")
+            print(f"Multi-table rules applied for: {', '.join(selected_tables)}")
         else:
             table_rules = build_table_specific_prompt(selected_tables)
-            print(f"   📋 Table-specific rules applied for: {', '.join(selected_tables)}")
+            print(f"Table-specific rules applied for: {', '.join(selected_tables)}")
         
         # Create ChatPromptTemplate with dynamic table rules
         sql_prompt_template = ChatPromptTemplate.from_messages([
@@ -391,7 +391,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             
             ("system", "{table_specific_rules}"),
             
-            ("human", "🎯 USER QUERY: {user_query}\n\nGenerate the SQL query:")
+            ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
         ])
         
         # Format the prompt with dynamic content
@@ -401,8 +401,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             user_query=user_query
         )
         
-        print(f"   🚀 Using ChatPromptTemplate with {len(formatted_messages)} messages")
-        print(f"   📏 Table rules length: {len(table_rules)} chars")
+        print(f"   Using ChatPromptTemplate with {len(formatted_messages)} messages")
+        print(f"   Table rules length: {len(table_rules)} chars")
         
         # Use unbound LLM for direct SQL generation (bound LLM expects tool calls)
         llm = llm_manager._llm
@@ -780,7 +780,7 @@ def _generate_formatted_response(
             return _generate_fallback_response(user_query, results_text, row_count)
             
     except Exception as e:
-        print(f"⚠️  Response formatting failed: {e}")
+        print(f"Response formatting failed: {e}")
         # Fallback to basic formatting
         return _generate_fallback_response(user_query, results_text if 'results_text' in locals() else str(results), row_count)
 
@@ -830,7 +830,7 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     # Enhanced PostgreSQL SIH-RS mappings
     sus_mappings = """
 
-    🚨 CRITICAL VALUE MAPPINGS FOR SIH-RS POSTGRESQL DATA - PADRÃO SUS:
+    CRITICAL VALUE MAPPINGS FOR SIH-RS POSTGRESQL DATA - PADRÃO SUS:
     ===================================================================
     
     SEXO (Gender) - CÓDIGOS PADRÃO SUS:
@@ -842,7 +842,7 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     - Contains 6-digit IBGE municipal codes (e.g., 430490 = Porto Alegre)
     - JOIN with municipios table for readable city names
     
-    🚨 POSTGRESQL COLUMN NAMES REQUIRE DOUBLE QUOTES:
+    POSTGRESQL COLUMN NAMES REQUIRE DOUBLE QUOTES:
     - Always use "COLUMN_NAME" (with quotes) for column references
     - Example: "SEXO", "IDADE", "MUNIC_RES", "DIAG_PRINC", "CID", "CD_DESCRICAO"
     
@@ -953,21 +953,45 @@ def _select_relevant_tables(
                 table_desc_lines.append(f"- {table_name}: Database table")
         
         # Create enhanced selection prompt
-        selection_prompt = f"""🎯 POSTGRESQL TABLE SELECTION - Brazilian SUS Healthcare System
+        selection_prompt = f"""POSTGRESQL TABLE SELECTION - Brazilian SUS Healthcare System
 
-AVAILABLE TABLES:
-{chr(10).join(table_desc_lines)}
-
-🚨 CRITICAL SELECTION RULES:
-• mortes: PRIMARY for death counts, mortality ("Quantas mortes", "óbitos")
-• procedimentos: PRIMARY for procedure counts ("Quantos procedimentos") 
-• internacoes: General hospitalizations, NOT for deaths or procedures
-• cid10: REFERENCE ONLY for disease descriptions, NEVER for counting
-• Use specialized tables (uti_detalhes, dado_ibge, etc.) for their domains
-
-USER QUERY: "{user_query}"
-
-Select ONLY the table name(s) most relevant to this query. Answer with table names separated by commas:"""
+        AVAILABLE TABLES:
+        {chr(10).join(table_desc_lines)}
+        
+        CRITICAL SELECTION RULES FOR SIH-RS DATABASE:
+        ====================================================
+        
+        🏥 CORE QUERIES - Primary Table Selection:
+        • internacoes: ALWAYS use for patient counts, general hospitalization queries
+        • mortes: Use ONLY when explicitly asking about deaths/mortality ("mortes", "óbitos", "falecimentos")  
+        • uti_detalhes: Use ONLY for ICU/intensive care queries ("UTI", "terapia intensiva", "cuidados intensivos")
+        • obstetricos: Use ONLY for maternal/obstetric care ("obstétricos", "gestantes", "pré-natal")
+        
+        🔍 LOOKUP TABLES - Always join when names/descriptions needed:
+        • cid10: Join when need disease/diagnosis NAMES (not for counting patients - count from internacoes)
+        • procedimentos: Join when need procedure NAMES (not for counting - count from internacoes)  
+        • hospital: Join when need hospital/facility information
+        • municipios: Join when need city/municipality NAMES or geographic data
+        
+        📊 SPECIALIZED ANALYSIS:
+        • dado_ibge: Use for socioeconomic indicators, population data, demographic analysis
+        • condicoes_especificas: Use for specific medical conditions (VDRL, STD screening)
+        • instrucao: Use for patient education level analysis
+        
+        ❌ AVOID THESE TABLES:
+        • diagnosticos_secundarios: Empty table - no data available
+        • infehosp: Empty table - no data available  
+        • cbor, vincprev: Only for very specific administrative queries
+        
+        🎯 SELECTION LOGIC:
+        1. Start with internacoes for most patient/hospitalization queries
+        2. Add mortes ONLY if mortality is explicitly mentioned
+        3. Add lookup tables (cid10, procedimentos, hospital, municipios) when descriptions are needed
+        4. Add specialized tables only for their specific domains
+        
+        USER QUERY: "{user_query}"
+        
+        Select ONLY the table name(s) most relevant to this query. Answer with table names separated by commas:"""
 
         # Usar LLM unbound para seleção
         llm = llm_manager._llm
@@ -978,8 +1002,13 @@ Select ONLY the table name(s) most relevant to this query. Answer with table nam
         # Parse resposta (ROBUSTO - extrai nomes de tabelas de respostas verbosas)
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
         
+        print(f"   🤖 LLM Raw Response: '{selected_tables_str}'")
+        
         # Extract table names using robust parsing
         selected_tables = []
+        parsed_tables = []
+        import re
+        
         if selected_tables_str:
             # Method 1: Direct comma-separated names
             if ',' in selected_tables_str:
@@ -987,25 +1016,94 @@ Select ONLY the table name(s) most relevant to this query. Answer with table nam
             else:
                 parsed_tables = [selected_tables_str.strip()]
             
-            # Method 2: Extract from verbose responses
-            import re
-            for table_name in available_tables:
-                # Look for exact table names in the response
-                if re.search(r'\b' + re.escape(table_name) + r'\b', selected_tables_str, re.IGNORECASE):
-                    if table_name not in selected_tables:
-                        selected_tables.append(table_name)
+            print(f"   📋 Parsed tables: {parsed_tables}")
             
-            # Method 3: If no tables found via regex, try parsing direct names
+            # Method 2: Extract from final answer section (prioritize conclusion over explanation)
+            # Look for the actual selection at the end of the response
+            final_answer_patterns = [
+                r'(?:selected table names? (?:are|is):?\s*)(.*?)(?:\n|$)',
+                r'(?:final answer (?:would be|is):?\s*)(.*?)(?:\n|$)', 
+                r'(?:therefore[,:]?\s*)(.*?)(?:\n|$)',
+                r'(?:answer:?\s*)(.*?)(?:\n|$)'
+            ]
+            
+            for pattern in final_answer_patterns:
+                match = re.search(pattern, selected_tables_str, re.IGNORECASE | re.DOTALL)
+                if match:
+                    final_section = match.group(1).strip()
+                    print(f"   📍 Found final answer section: '{final_section}'")
+                    
+                    # Extract table names from this section
+                    if ',' in final_section:
+                        candidate_tables = [t.strip() for t in final_section.split(',')]
+                    else:
+                        candidate_tables = [final_section.strip()]
+                    
+                    for candidate in candidate_tables:
+                        clean_candidate = re.sub(r'[^a-zA-Z_]', '', candidate.strip())
+                        if clean_candidate in available_tables and clean_candidate not in selected_tables:
+                            selected_tables.append(clean_candidate)
+                    
+                    # If we found tables in final section, use only those
+                    if selected_tables:
+                        break
+            
+            print(f"   🔍 Method 2 - Final answer extraction: {selected_tables}")
+            
+            # Method 3: Fallback to comprehensive pattern matching if no final section found
+            if not selected_tables:
+                for table_name in available_tables:
+                    # Look for table names in various contexts: standalone lines, comma-separated, etc.
+                    patterns = [
+                        # Standalone on line
+                        r'(?:^|\n)\s*' + re.escape(table_name) + r'\s*(?:$|\n|,)',
+                        # After colon or comma
+                        r'(?::\s*|,\s*)' + re.escape(table_name) + r'\s*(?:$|\n|,)',
+                    ]
+                    
+                    for pattern in patterns:
+                        if re.search(pattern, selected_tables_str, re.MULTILINE | re.IGNORECASE):
+                            if table_name not in selected_tables:
+                                selected_tables.append(table_name)
+                            break
+                
+                print(f"   🔍 Method 3 - Pattern extraction fallback: {selected_tables}")
+            
+            # Method 4: If no matches found, try parsing cleaned direct names (final fallback)
             if not selected_tables:
                 for table in parsed_tables:
                     # Clean table name (remove markdown, punctuation)
                     clean_table = re.sub(r'[^a-zA-Z_]', '', table.strip())
-                    if clean_table in available_tables:
+                    if clean_table in available_tables and clean_table not in selected_tables:
                         selected_tables.append(clean_table)
+                
+                print(f"   🔍 Method 4 - Direct parsing: {selected_tables}")
         
-        # Fallback: se nenhuma tabela válida, usar todas
+        # Method 5: Fuzzy matching for similar table names (e.g., "morte" → "mortes")
         if not selected_tables:
-            print(f"No valid tables selected, falling back to all tables")
+            import difflib
+            for table in parsed_tables:
+                clean_table = re.sub(r'[^a-zA-Z_]', '', table.strip().lower())
+                if clean_table and len(clean_table) > 2:  # Avoid very short matches
+                    # Find close matches
+                    close_matches = difflib.get_close_matches(
+                        clean_table, 
+                        [t.lower() for t in available_tables], 
+                        n=1,           # Top 1 match
+                        cutoff=0.6     # 60% similarity threshold
+                    )
+                    
+                    if close_matches:
+                        # Find original table name (case-sensitive)
+                        for orig_table in available_tables:
+                            if orig_table.lower() == close_matches[0]:
+                                selected_tables.append(orig_table)
+                                print(f"   🔧 Fuzzy match: '{table}' → '{orig_table}'")
+                                break
+        
+        # Final fallback: se ainda nenhuma tabela válida, usar todas
+        if not selected_tables:
+            print(f"   No valid tables selected, falling back to all tables")
             selected_tables = available_tables
         
         print(f"   Query: '{user_query}'")
@@ -1016,7 +1114,7 @@ Select ONLY the table name(s) most relevant to this query. Answer with table nam
         return selected_tables
         
     except Exception as e:
-        print(f"   ❌ Table selection error: {e}")
+        print(f"Table selection error: {e}")
         # Fallback: retornar todas as tabelas
         return available_tables
 
