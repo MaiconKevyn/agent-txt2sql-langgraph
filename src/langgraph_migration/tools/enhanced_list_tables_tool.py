@@ -41,7 +41,7 @@ class EnhancedListTablesTool(BaseTool):
     _include_selection_guide: bool = True
     _max_use_cases: int = 3
     _max_samples: int = 2
-    _max_sample_length: int = 100
+    _max_sample_length: int = 300
     
     def __init__(self, db: SQLDatabase, **kwargs):
         """
@@ -221,7 +221,7 @@ class EnhancedListTablesTool(BaseTool):
         """
         return {
             "title": f"📊 Tabela: {table_name}",
-            "description": f"Tabela de dados {table_name} (descrição detalhada não disponível)",
+            "description": f"Tabela de dados {table_name}",
             "purpose": "Análise baseada no schema e conteúdo da tabela",
             "use_cases": [
                 "Consultas gerais aos dados",
@@ -266,10 +266,10 @@ class EnhancedListTablesTool(BaseTool):
             
             return f"""❌ Enhanced descriptions failed: {error_msg[:100]}
             
-📋 TABELAS DISPONÍVEIS (modo básico):
-{basic_list}
+            TABELAS DISPONÍVEIS:
+            {basic_list}
 
-💡 Use sql_db_schema para obter mais informações sobre cada tabela."""
+            Use sql_db_schema para obter mais informações sobre cada tabela."""
             
         except Exception:
             return f"❌ Erro ao listar tabelas: {error_msg[:100]}..."
