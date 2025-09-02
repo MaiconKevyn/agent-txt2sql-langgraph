@@ -399,7 +399,7 @@ TABLE_TEMPLATES = {
 """,
 
     "instrucao": """
-        🎓 INSTRUCAO TABLE RULES - EDUCATION LEVEL DATA:
+        INSTRUCAO TABLE RULES - EDUCATION LEVEL DATA:
         
         MANDATORY USAGE RULES:
         - Use for: Education analysis, schooling levels, literacy statistics
@@ -410,9 +410,18 @@ TABLE_TEMPLATES = {
         - "N_AIH", "INSTRU"
         
         CRITICAL VALUE MAPPINGS:
-        - "INSTRU" codes: 01=Illiterate, 02=Elementary incomplete, 03=Elementary complete
-        - 04=High school incomplete, 06=College/University
-        
+        - "INSTRU" codes:   01= Não sabe ler e/ou escrever, 
+                            02= Alfabetizado, 
+                            03= 1 Grau incompleto,
+        -                   04= 1 Grau completo, 
+                            05= 2 Grau incompleto,
+                            06= 2 Grau completo,
+        -                   07= Ensino Superior incompleto, 
+                            08= Ensino Superior completo,,    
+                            09= Especialização/Residência,
+        -                   10= Mestrado, 
+                            11= Doutorado 
+                                                         
         EXACT QUERY EXAMPLES:
         -- Total education records
         SELECT COUNT(*) FROM instrucao;
