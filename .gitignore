@@ -52,3 +52,6 @@ env/
 *.temp
 .DS_Store
 Thumbs.db
+# Ignorar toda a pasta contents
+contents/
+contents/todo.md
