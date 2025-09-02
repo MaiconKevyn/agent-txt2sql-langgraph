@@ -10,21 +10,20 @@ Data: 2025-07-13
 """
 
 import json
-import sqlite3
 import time
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Any
+from dataclasses import dataclass
 from contextlib import contextmanager
 
 
 @dataclass
 class EvaluationConfig:
     """Configuração centralizada para avaliação"""
-    ground_truth_file: str = "ground_truth_validation_report.json"
-    database_path: str = "../sus_database.db"
+    ground_truth_file: str = "ground_truth_postgresql.json"
+    database_path: str = "postgresql://postgres:1234@localhost:5432/sih_rs"
     output_dir: str = "results"
     timestamp: str = None
     
@@ -101,29 +100,34 @@ class QueryEvaluation:
 
 
 class DatabaseManager:
-    """Gerenciador centralizado de conexões com banco de dados"""
+    """Gerenciador centralizado de conexões com banco PostgreSQL"""
     
     def __init__(self, database_path: str):
         """
-        Inicializa o gerenciador de banco
+        Inicializa o gerenciador de banco PostgreSQL
         
         Args:
-            database_path: Caminho para o banco SQLite
+            database_path: String de conexão PostgreSQL
         """
-        self.database_path = Path(database_path)
-        if not self.database_path.exists():
-            raise FileNotFoundError(f"Database not found: {database_path}")
+        self.database_path = database_path
+        if not database_path.startswith('postgresql://'):
+            raise ValueError(f"Apenas PostgreSQL é suportado. Use postgresql://... connection string")
         
         self._connection = None
     
     @contextmanager
     def get_connection(self):
-        """Context manager para conexões seguras"""
-        conn = sqlite3.connect(self.database_path)
+        """Context manager para conexões seguras com PostgreSQL"""
         try:
-            yield conn
-        finally:
-            conn.close()
+            import psycopg2
+            conn = psycopg2.connect(self.database_path)
+            conn.autocommit = True
+            try:
+                yield conn
+            finally:
+                conn.close()
+        except ImportError:
+            raise ImportError("psycopg2 não instalado. Execute: pip install psycopg2-binary")
     
     def execute_query(self, query: str) -> Dict[str, Any]:
         """
@@ -165,7 +169,7 @@ class DatabaseManager:
             }
     
     def validate_connection(self) -> bool:
-        """Valida se a conexão com o banco está funcionando"""
+        """Valida se a conexão com o banco PostgreSQL está funcionando"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -188,6 +192,25 @@ class FileManager:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
     
+    def get_next_version_filename(self, base_name: str, extension: str = ".json") -> str:
+        """
+        Gera o próximo nome de arquivo versionado
+        
+        Args:
+            base_name: Nome base do arquivo (ex: "results")
+            extension: Extensão do arquivo
+            
+        Returns:
+            Nome do arquivo versionado (ex: "results_v1.json")
+        """
+        version = 1
+        while True:
+            filename = f"{base_name}_v{version}{extension}"
+            file_path = self.output_dir / filename
+            if not file_path.exists():
+                return filename
+            version += 1
+    
     def save_json(self, data: Any, filename: str, pretty: bool = True) -> str:
         """
         Salva dados em JSON
@@ -209,6 +232,21 @@ class FileManager:
                 json.dump(data, f, ensure_ascii=False, default=str)
         
         return str(file_path)
+    
+    def save_json_versioned(self, data: Any, base_name: str, pretty: bool = True) -> str:
+        """
+        Salva dados em JSON com versionamento automático
+        
+        Args:
+            data: Dados para salvar
+            base_name: Nome base do arquivo (sem extensão)
+            pretty: Se deve formatar com indentação
+            
+        Returns:
+            Caminho completo do arquivo salvo
+        """
+        filename = self.get_next_version_filename(base_name)
+        return self.save_json(data, filename, pretty)
     
     def load_json(self, filename: str) -> Any:
         """
@@ -394,18 +432,13 @@ class ConfigManager:
         return {
             "ollama_llama3": {
                 "provider": "ollama",
-                "model": "llama3",
-                "name": "Ollama Llama3"
+                "model": "llama3.1:8b ",
+                "name": "Ollama Llama3.1"
             },
             "mistral": {
                 "provider": "ollama",
                 "model": "mistral",
                 "name": "Mistral"
-            },
-            "qwen3": {
-                "provider": "ollama",
-                "model": "qwen3",
-                "name": "Qwen 3"
             }
         }
     
