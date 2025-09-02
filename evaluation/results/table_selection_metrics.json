@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2025-09-02T08:48:04.031783",
+    "timestamp": "2025-09-02T18:52:15.899855",
     "evaluation_type": "table_selection_accuracy",
     "source_file": "agent_extraction_results.json",
     "generation_time": 0.0
@@ -10,9 +10,9 @@
     "incorrect_selections": 6,
     "total_cases": 61,
     "accuracy_percentage": 90.16,
-    "cases_with_extra_tables": 45,
+    "cases_with_extra_tables": 43,
     "cases_with_missing_tables": 6,
-    "perfect_matches": 14
+    "perfect_matches": 17
   },
   "by_difficulty": {
     "easy": {
@@ -40,7 +40,7 @@
     "agent_selected_table_stats": {
       "min_tables": 1,
       "max_tables": 5,
-      "avg_tables": 2.18
+      "avg_tables": 2.16
     },
     "most_commonly_missed_tables": {
       "cid10": 2,
@@ -50,11 +50,11 @@
       "dado_ibge": 1
     },
     "most_commonly_extra_tables": {
-      "internacoes": 20,
-      "municipios": 12,
-      "dado_ibge": 8,
-      "mortes": 3,
-      "procedimentos": 2
+      "internacoes": 19,
+      "municipios": 13,
+      "dado_ibge": 9,
+      "procedimentos": 2,
+      "hospital": 1
     }
   },
   "detailed_results": [
@@ -67,16 +67,18 @@
       ],
       "agent_selected_tables": [
         "internacoes",
-        "mortes"
+        "municipios",
+        "hospital"
       ],
       "is_correct": true,
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
-        "mortes"
+        "hospital",
+        "municipios"
       ],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 3
     },
     {
       "id": "GT002",
@@ -224,17 +226,14 @@
         "cbor"
       ],
       "agent_selected_tables": [
-        "cbor",
-        "internacoes"
+        "cbor"
       ],
       "is_correct": true,
-      "has_extra_tables": true,
+      "has_extra_tables": false,
       "missing_tables": [],
-      "extra_tables": [
-        "internacoes"
-      ],
+      "extra_tables": [],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 1
     },
     {
       "id": "GT010",
@@ -495,16 +494,19 @@
       ],
       "agent_selected_tables": [
         "internacoes",
-        "mortes"
+        "mortes",
+        "municipios"
       ],
       "is_correct": false,
-      "has_extra_tables": false,
+      "has_extra_tables": true,
       "missing_tables": [
         "hospital"
       ],
-      "extra_tables": [],
+      "extra_tables": [
+        "municipios"
+      ],
       "ground_truth_count": 3,
-      "agent_selected_count": 2
+      "agent_selected_count": 3
     },
     {
       "id": "GT024",
@@ -516,8 +518,8 @@
       ],
       "agent_selected_tables": [
         "internacoes",
-        "mortes",
-        "uti_detalhes"
+        "uti_detalhes",
+        "mortes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -621,16 +623,18 @@
       "agent_selected_tables": [
         "internacoes",
         "municipios",
+        "dado_ibge",
         "mortes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
+        "dado_ibge",
         "municipios"
       ],
       "ground_truth_count": 2,
-      "agent_selected_count": 3
+      "agent_selected_count": 4
     },
     {
       "id": "GT030",
@@ -761,8 +765,8 @@
         "municipios"
       ],
       "agent_selected_tables": [
-        "municipios",
-        "dado_ibge"
+        "dado_ibge",
+        "municipios"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -801,17 +805,14 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "internacoes",
-        "mortes"
+        "internacoes"
       ],
       "is_correct": true,
-      "has_extra_tables": true,
+      "has_extra_tables": false,
       "missing_tables": [],
-      "extra_tables": [
-        "mortes"
-      ],
+      "extra_tables": [],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 1
     },
     {
       "id": "GT039",
@@ -861,17 +862,14 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "internacoes",
-        "diagnosticos_secundarios"
+        "internacoes"
       ],
       "is_correct": true,
-      "has_extra_tables": true,
+      "has_extra_tables": false,
       "missing_tables": [],
-      "extra_tables": [
-        "diagnosticos_secundarios"
-      ],
+      "extra_tables": [],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 1
     },
     {
       "id": "GT042",
@@ -882,18 +880,16 @@
       ],
       "agent_selected_tables": [
         "internacoes",
-        "municipios",
         "dado_ibge"
       ],
       "is_correct": true,
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
-        "municipios",
         "dado_ibge"
       ],
       "ground_truth_count": 1,
-      "agent_selected_count": 3
+      "agent_selected_count": 2
     },
     {
       "id": "GT043",
@@ -989,9 +985,9 @@
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
+        "internacoes",
         "municipios",
-        "mortes",
-        "internacoes"
+        "mortes"
       ],
       "ground_truth_count": 1,
       "agent_selected_count": 4
@@ -1156,8 +1152,8 @@
       "agent_selected_tables": [
         "dado_ibge",
         "municipios",
-        "internacoes",
-        "mortes"
+        "mortes",
+        "internacoes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -1290,8 +1286,8 @@
       ],
       "agent_selected_tables": [
         "internacoes",
-        "municipios",
-        "uti_detalhes"
+        "uti_detalhes",
+        "municipios"
       ],
       "is_correct": false,
       "has_extra_tables": false,

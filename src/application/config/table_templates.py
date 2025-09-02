@@ -610,9 +610,9 @@ def build_table_specific_prompt(selected_tables: List[str]) -> str:
         - Use PostgreSQL-specific functions when appropriate
         """)
     
-    # Add multi-table JOIN rules if multiple tables selected
-    if len(selected_tables) > 1:
-        rules.append("\n" + MULTI_TABLE_RULES)
+    # NOTE: Multi-table JOIN rules are handled by build_multi_table_prompt() only
+    # Removing the multi-table logic here prevents duplication when build_multi_table_prompt() 
+    # calls this function and then adds MULTI_TABLE_RULES separately
     
     return "\n".join(rules)
 

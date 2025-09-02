@@ -233,7 +233,7 @@ TABLE_DESCRIPTIONS = {
 TOOL_CONFIGURATION = {
     "include_samples": True,
     "include_mappings": True,
-    "include_selection_guide": True,
+    "include_selection_guide": False,
     "max_use_cases_shown": 2,
     "max_sample_queries_shown": 0,
     "max_sample_length": 0,

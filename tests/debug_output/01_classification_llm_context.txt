@@ -1,0 +1,20 @@
+====================================================================================================
+Query Classification Context
+Test Query: quantos homens morreram?
+====================================================================================================
+
+Classify this query:
+        "quantos homens morreram?"
+        
+        Categories:
+        DATABASE: data queries (count, list, show, filter)
+        CONVERSATIONAL: explanations (what, how, meaning)
+        SCHEMA: structure (tables, columns)
+        
+        Response: DATABASE/CONVERSATIONAL/SCHEMA
+
+====================================================================================================
+Context Analysis:
+Total Size: 303 characters
+Generated at: 2025-09-02 18:50:58
+====================================================================================================
