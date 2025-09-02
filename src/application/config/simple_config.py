@@ -58,11 +58,6 @@ class ApplicationConfig:
     # Query classification configuration
     enable_query_classification: bool = True
     query_classification_confidence_threshold: float = 0.7
-    
-    # CID configuration
-    cid_repository_type: str = "sqlite"
-    enable_cid_semantic_search: bool = True
-
 
 @dataclass
 class OrchestratorConfig:
