@@ -133,7 +133,6 @@ class HybridLLMManager:
                 print(f"✅ Groq LLM initialized: {model_name} (Free Llama3 70B with tool calling)")
                 
             elif provider == "openai":
-                # OPENAI - EXCELENTE SUPORTE A TOOL CALLING
                 if not OPENAI_AVAILABLE:
                     raise ImportError("OpenAI not available. Install with: pip install openai langchain-openai")
                 
