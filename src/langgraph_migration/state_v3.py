@@ -88,7 +88,7 @@ class MessagesStateTXT2SQL(TypedDict):
     - Proper message history tracking
     """
     
-    # PRIMARY: Messages state (official LangGraph pattern)
+    # PRIMARY: Messages state
     messages: Annotated[Sequence[BaseMessage], add_messages]
     
     # Core query information

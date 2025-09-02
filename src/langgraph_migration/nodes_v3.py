@@ -375,16 +375,17 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         # Create ChatPromptTemplate with dynamic table rules
         sql_prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a SQL expert assistant for Brazilian healthcare (SUS) data analysis.
+            ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
-📋 CORE INSTRUCTIONS:
-1. Generate syntactically correct SQLite queries
-2. Use proper table and column names from the schema
+📋 CORE POSTGRESQL INSTRUCTIONS:
+1. Generate syntactically correct PostgreSQL queries
+2. Use proper table and column names with double quotes: "COLUMN_NAME"
 3. Handle Portuguese language questions appropriately
 4. Return only the SQL query, no explanation
 5. Use appropriate WHERE clauses for filtering
 6. Include LIMIT clauses when appropriate (default LIMIT 100)
 7. Use proper JOINs when querying multiple tables
+8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
 
 🔍 DATABASE SCHEMA:
 {schema_context}"""),
@@ -952,46 +953,48 @@ def _select_relevant_tables(
                 # Fallback for tables not in descriptions
                 table_desc_lines.append(f"- {table_name}: Database table")
         
-        # Create enhanced selection prompt
+        # Create streamlined selection prompt for structured response
         selection_prompt = f"""POSTGRESQL TABLE SELECTION - Brazilian SUS Healthcare System
 
-        AVAILABLE TABLES:
-        {chr(10).join(table_desc_lines)}
-        
-        CRITICAL SELECTION RULES FOR SIH-RS DATABASE:
-        ====================================================
-        
-        🏥 CORE QUERIES - Primary Table Selection:
-        • internacoes: ALWAYS use for patient counts, general hospitalization queries
-        • mortes: Use ONLY when explicitly asking about deaths/mortality ("mortes", "óbitos", "falecimentos")  
-        • uti_detalhes: Use ONLY for ICU/intensive care queries ("UTI", "terapia intensiva", "cuidados intensivos")
-        • obstetricos: Use ONLY for maternal/obstetric care ("obstétricos", "gestantes", "pré-natal")
-        
-        🔍 LOOKUP TABLES - Always join when names/descriptions needed:
-        • cid10: Join when need disease/diagnosis NAMES (not for counting patients - count from internacoes)
-        • procedimentos: Join when need procedure NAMES (not for counting - count from internacoes)  
-        • hospital: Join when need hospital/facility information
-        • municipios: Join when need city/municipality NAMES or geographic data
-        
-        📊 SPECIALIZED ANALYSIS:
-        • dado_ibge: Use for socioeconomic indicators, population data, demographic analysis
-        • condicoes_especificas: Use for specific medical conditions (VDRL, STD screening)
-        • instrucao: Use for patient education level analysis
-        
-        ❌ AVOID THESE TABLES:
-        • diagnosticos_secundarios: Empty table - no data available
-        • infehosp: Empty table - no data available  
-        • cbor, vincprev: Only for very specific administrative queries
-        
-        🎯 SELECTION LOGIC:
-        1. Start with internacoes for most patient/hospitalization queries
-        2. Add mortes ONLY if mortality is explicitly mentioned
-        3. Add lookup tables (cid10, procedimentos, hospital, municipios) when descriptions are needed
-        4. Add specialized tables only for their specific domains
-        
-        USER QUERY: "{user_query}"
-        
-        Select ONLY the table name(s) most relevant to this query. Answer with table names separated by commas:"""
+AVAILABLE TABLES:
+{chr(10).join(table_desc_lines)}
+
+CRITICAL SELECTION RULES FOR SIH-RS DATABASE:
+====================================================
+
+🏥 CORE QUERIES - Primary Table Selection:
+• internacoes: ALWAYS use for patient counts, general hospitalization queries
+• mortes: Use ONLY when explicitly asking about deaths/mortality ("mortes", "óbitos", "falecimentos")  
+• uti_detalhes: Use ONLY for ICU/intensive care queries ("UTI", "terapia intensiva", "cuidados intensivos")
+• obstetricos: Use ONLY for maternal/obstetric care ("obstétricos", "gestantes", "pré-natal")
+
+🔍 LOOKUP TABLES - Always join when names/descriptions needed:
+• cid10: Join when need disease/diagnosis NAMES (not for counting patients - count from internacoes)
+• procedimentos: Join when need procedure NAMES (not for counting - count from internacoes)  
+• hospital: Join when need hospital/facility information
+• municipios: Join when need city/municipality NAMES or geographic data
+
+📊 SPECIALIZED ANALYSIS:
+• dado_ibge: Use for socioeconomic indicators, population data, demographic analysis
+• condicoes_especificas: Use for specific medical conditions (VDRL, STD screening)
+• instrucao: Use for patient education level analysis
+
+❌ AVOID THESE TABLES:
+• diagnosticos_secundarios: Empty table - no data available
+• infehosp: Empty table - no data available  
+• cbor, vincprev: Only for very specific administrative queries
+
+🎯 SELECTION LOGIC:
+1. Start with internacoes for most patient/hospitalization queries
+2. Add mortes ONLY if mortality is explicitly mentioned
+3. Add lookup tables (cid10, procedimentos, hospital, municipios) when descriptions are needed
+4. Add specialized tables only for their specific domains
+
+USER QUERY: "{user_query}"
+
+IMPORTANT: Respond with ONLY the table names separated by commas. No explanation or reasoning.
+
+TABLES:"""
 
         # Usar LLM unbound para seleção
         llm = llm_manager._llm
@@ -999,112 +1002,21 @@ def _select_relevant_tables(
         from langchain_core.messages import HumanMessage
         response = llm.invoke([HumanMessage(content=selection_prompt)])
         
-        # Parse resposta (ROBUSTO - extrai nomes de tabelas de respostas verbosas)
+        # Parse response using simplified approach
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
         
         print(f"   🤖 LLM Raw Response: '{selected_tables_str}'")
         
-        # Extract table names using robust parsing
-        selected_tables = []
-        parsed_tables = []
-        import re
+        # Simplified parsing with validation
+        selected_tables = _parse_llm_table_selection(selected_tables_str, available_tables)
         
-        if selected_tables_str:
-            # Method 1: Direct comma-separated names
-            if ',' in selected_tables_str:
-                parsed_tables = [table.strip() for table in selected_tables_str.split(',')]
-            else:
-                parsed_tables = [selected_tables_str.strip()]
-            
-            print(f"   📋 Parsed tables: {parsed_tables}")
-            
-            # Method 2: Extract from final answer section (prioritize conclusion over explanation)
-            # Look for the actual selection at the end of the response
-            final_answer_patterns = [
-                r'(?:selected table names? (?:are|is):?\s*)(.*?)(?:\n|$)',
-                r'(?:final answer (?:would be|is):?\s*)(.*?)(?:\n|$)', 
-                r'(?:therefore[,:]?\s*)(.*?)(?:\n|$)',
-                r'(?:answer:?\s*)(.*?)(?:\n|$)'
-            ]
-            
-            for pattern in final_answer_patterns:
-                match = re.search(pattern, selected_tables_str, re.IGNORECASE | re.DOTALL)
-                if match:
-                    final_section = match.group(1).strip()
-                    print(f"   📍 Found final answer section: '{final_section}'")
-                    
-                    # Extract table names from this section
-                    if ',' in final_section:
-                        candidate_tables = [t.strip() for t in final_section.split(',')]
-                    else:
-                        candidate_tables = [final_section.strip()]
-                    
-                    for candidate in candidate_tables:
-                        clean_candidate = re.sub(r'[^a-zA-Z_]', '', candidate.strip())
-                        if clean_candidate in available_tables and clean_candidate not in selected_tables:
-                            selected_tables.append(clean_candidate)
-                    
-                    # If we found tables in final section, use only those
-                    if selected_tables:
-                        break
-            
-            print(f"   🔍 Method 2 - Final answer extraction: {selected_tables}")
-            
-            # Method 3: Fallback to comprehensive pattern matching if no final section found
-            if not selected_tables:
-                for table_name in available_tables:
-                    # Look for table names in various contexts: standalone lines, comma-separated, etc.
-                    patterns = [
-                        # Standalone on line
-                        r'(?:^|\n)\s*' + re.escape(table_name) + r'\s*(?:$|\n|,)',
-                        # After colon or comma
-                        r'(?::\s*|,\s*)' + re.escape(table_name) + r'\s*(?:$|\n|,)',
-                    ]
-                    
-                    for pattern in patterns:
-                        if re.search(pattern, selected_tables_str, re.MULTILINE | re.IGNORECASE):
-                            if table_name not in selected_tables:
-                                selected_tables.append(table_name)
-                            break
-                
-                print(f"   🔍 Method 3 - Pattern extraction fallback: {selected_tables}")
-            
-            # Method 4: If no matches found, try parsing cleaned direct names (final fallback)
-            if not selected_tables:
-                for table in parsed_tables:
-                    # Clean table name (remove markdown, punctuation)
-                    clean_table = re.sub(r'[^a-zA-Z_]', '', table.strip())
-                    if clean_table in available_tables and clean_table not in selected_tables:
-                        selected_tables.append(clean_table)
-                
-                print(f"   🔍 Method 4 - Direct parsing: {selected_tables}")
+        # Validate selection
+        selected_tables = _validate_table_selection(user_query, selected_tables, available_tables)
         
-        # Method 5: Fuzzy matching for similar table names (e.g., "morte" → "mortes")
+        # Final fallback: if still no valid tables, use intelligent default
         if not selected_tables:
-            import difflib
-            for table in parsed_tables:
-                clean_table = re.sub(r'[^a-zA-Z_]', '', table.strip().lower())
-                if clean_table and len(clean_table) > 2:  # Avoid very short matches
-                    # Find close matches
-                    close_matches = difflib.get_close_matches(
-                        clean_table, 
-                        [t.lower() for t in available_tables], 
-                        n=1,           # Top 1 match
-                        cutoff=0.6     # 60% similarity threshold
-                    )
-                    
-                    if close_matches:
-                        # Find original table name (case-sensitive)
-                        for orig_table in available_tables:
-                            if orig_table.lower() == close_matches[0]:
-                                selected_tables.append(orig_table)
-                                print(f"   🔧 Fuzzy match: '{table}' → '{orig_table}'")
-                                break
-        
-        # Final fallback: se ainda nenhuma tabela válida, usar todas
-        if not selected_tables:
-            print(f"   No valid tables selected, falling back to all tables")
-            selected_tables = available_tables
+            print(f"   ⚠️ No valid tables selected, using intelligent fallback")
+            selected_tables = _get_intelligent_fallback(user_query, available_tables)
         
         print(f"   Query: '{user_query}'")
         print(f"   Available: {available_tables}")
@@ -1117,6 +1029,184 @@ def _select_relevant_tables(
         print(f"Table selection error: {e}")
         # Fallback: retornar todas as tabelas
         return available_tables
+
+
+def _parse_llm_table_selection(response: str, available_tables: List[str]) -> List[str]:
+    """
+    Simplified parsing of LLM table selection response
+    
+    Args:
+        response: Raw LLM response
+        available_tables: List of valid table names
+        
+    Returns:
+        List of valid table names extracted from response
+    """
+    import re
+    import json
+    
+    selected_tables = []
+    
+    # Method 1: Try JSON format (if present)
+    try:
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group(1))
+            if 'tables' in data:
+                tables = data['tables']
+                selected_tables = [t for t in tables if t in available_tables]
+                if selected_tables:
+                    print(f"   ✅ JSON parsing successful: {selected_tables}")
+                    return selected_tables
+    except (json.JSONDecodeError, KeyError):
+        pass
+    
+    # Method 2: Look for "TABLES:" section (structured response)
+    tables_match = re.search(r'TABLES:\s*(.+?)(?:\n|$)', response, re.IGNORECASE)
+    if tables_match:
+        tables_line = tables_match.group(1).strip()
+        candidate_tables = [t.strip() for t in tables_line.split(',')]
+        selected_tables = [t for t in candidate_tables if t in available_tables]
+        if selected_tables:
+            print(f"   ✅ Structured parsing successful: {selected_tables}")
+            return selected_tables
+    
+    # Method 3: Direct comma-separated parsing (final line preference)
+    lines = response.strip().split('\n')
+    for line in reversed(lines):  # Check from bottom up
+        line = line.strip()
+        if line and not line.startswith(('Based on', 'Therefore', 'For this', 'The', 'This')):
+            # Try comma-separated
+            if ',' in line:
+                candidate_tables = [t.strip() for t in line.split(',')]
+            else:
+                candidate_tables = [line.strip()]
+            
+            # Clean and validate candidates
+            for candidate in candidate_tables:
+                clean_candidate = re.sub(r'[^a-zA-Z_]', '', candidate.strip())
+                if clean_candidate in available_tables and clean_candidate not in selected_tables:
+                    selected_tables.append(clean_candidate)
+            
+            if selected_tables:
+                print(f"   ✅ Direct parsing successful: {selected_tables}")
+                return selected_tables
+    
+    # Method 4: Search for table names anywhere in response
+    for table_name in available_tables:
+        if re.search(r'\b' + re.escape(table_name) + r'\b', response, re.IGNORECASE):
+            if table_name not in selected_tables:
+                selected_tables.append(table_name)
+    
+    if selected_tables:
+        print(f"   ✅ Pattern matching successful: {selected_tables}")
+    else:
+        print(f"   ❌ No tables found in response")
+    
+    return selected_tables
+
+
+def _validate_table_selection(user_query: str, selected_tables: List[str], available_tables: List[str]) -> List[str]:
+    """
+    Validate and enhance table selection using business rules
+    
+    Args:
+        user_query: User's query
+        selected_tables: Tables selected by LLM
+        available_tables: All available tables
+        
+    Returns:
+        Validated and potentially enhanced table list
+    """
+    import re
+    
+    query_lower = user_query.lower()
+    validated_tables = selected_tables.copy()
+    
+    # Rule 1: Death queries MUST include mortes table
+    if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
+        if 'mortes' not in validated_tables and 'mortes' in available_tables:
+            validated_tables.append('mortes')
+            print(f"   🔧 Added 'mortes' for death query")
+    
+    # Rule 2: Procedure frequency queries need internacoes, not procedimentos
+    if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento']):
+        if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+            validated_tables.append('internacoes')
+            print(f"   🔧 Added 'internacoes' for procedure frequency analysis")
+        if 'procedimentos' in validated_tables:
+            validated_tables.remove('procedimentos')
+            print(f"   🔧 Removed 'procedimentos' - using internacoes for frequency")
+    
+    # Rule 3: Financial queries about internacoes need internacoes table
+    if any(keyword in query_lower for keyword in ['valor', 'custo', 'gasto', 'financeiro']) and 'óbito' in query_lower:
+        if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+            validated_tables.append('internacoes')
+            print(f"   🔧 Added 'internacoes' for financial data")
+    
+    # Rule 4: Multi-table analysis validation
+    if 'mortes' in validated_tables and any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
+        if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+            validated_tables.append('internacoes')
+            print(f"   🔧 Added 'internacoes' for mortality rate calculation")
+    
+    # Rule 5: Remove unnecessary over-selections for simple counting
+    if len(validated_tables) > 1:
+        simple_counting_patterns = [
+            r'quantos? \w+ foram registrad[ao]s?',
+            r'quantos? \w+ exist[em]?',
+            r'total de \w+'
+        ]
+        is_simple_count = any(re.search(pattern, query_lower) for pattern in simple_counting_patterns)
+        
+        if is_simple_count and not any(join_keyword in query_lower for join_keyword in ['por', 'com', 'em', 'de']):
+            # Keep only the most specific table for simple counting
+            priority_tables = ['mortes', 'uti_detalhes', 'obstetricos', 'condicoes_especificas', 
+                             'procedimentos', 'cid10', 'hospital', 'cbor', 'vincprev', 'instrucao']
+            
+            for priority_table in priority_tables:
+                if priority_table in validated_tables:
+                    validated_tables = [priority_table]
+                    print(f"   🎯 Simplified to single table '{priority_table}' for simple counting")
+                    break
+    
+    if validated_tables != selected_tables:
+        print(f"   📊 Validation changes: {selected_tables} → {validated_tables}")
+    
+    return validated_tables
+
+
+def _get_intelligent_fallback(user_query: str, available_tables: List[str]) -> List[str]:
+    """
+    Intelligent fallback when no tables are selected
+    
+    Args:
+        user_query: User's query
+        available_tables: Available tables
+        
+    Returns:
+        Intelligent default table selection
+    """
+    query_lower = user_query.lower()
+    
+    # Death-related queries
+    if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
+        return ['mortes'] if 'mortes' in available_tables else ['internacoes']
+    
+    # UTI queries
+    if any(keyword in query_lower for keyword in ['uti', 'terapia intensiva', 'cuidados intensivos']):
+        return ['uti_detalhes'] if 'uti_detalhes' in available_tables else ['internacoes']
+    
+    # Obstetric queries
+    if any(keyword in query_lower for keyword in ['obstétric', 'gestante', 'pré-natal', 'parto']):
+        return ['obstetricos'] if 'obstetricos' in available_tables else ['internacoes']
+    
+    # CID queries
+    if any(keyword in query_lower for keyword in ['cid', 'código', 'doença', 'diagnóstico']):
+        return ['cid10'] if 'cid10' in available_tables else ['internacoes']
+    
+    # Default to internacoes for most healthcare queries
+    return ['internacoes'] if 'internacoes' in available_tables else available_tables[:1]
 
 
 # Export all nodes

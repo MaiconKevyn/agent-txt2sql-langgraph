@@ -238,5 +238,222 @@
     "query": "SELECT i.\"PROC_REA\", COUNT(DISTINCT i.\"N_AIH\") as total_casos, COUNT(DISTINCT m.\"N_AIH\") as mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) as taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"PROC_REA\" IS NOT NULL GROUP BY i.\"PROC_REA\" HAVING COUNT(DISTINCT i.\"N_AIH\") > 100 ORDER BY taxa_mortalidade DESC LIMIT 5;",
     "tables": ["internacoes", "mortes"],
     "notes": "JOIN: Procedure mortality rate analysis"
+  },
+  {
+    "id": "GT031",
+    "difficulty": "medium",
+    "question": "Qual é o valor médio de UTI para homens?",
+    "query": "SELECT AVG(u.\"VAL_UTI\") AS valor_medio_uti_homens FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"SEXO\" = 1 AND u.\"VAL_UTI\" IS NOT NULL;",
+    "tables": ["internacoes", "uti_detalhes"]
+  },
+  {
+    "id": "GT032",
+    "difficulty": "easy",
+    "question": "Quantas mulheres foram internadas?",
+    "query": "SELECT COUNT(*) AS total_mulheres FROM internacoes WHERE \"SEXO\" = 3;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT033",
+    "difficulty": "easy",
+    "question": "Qual o valor total das diárias hospitalares?",
+    "query": "SELECT SUM(\"QT_DIARIAS\") AS total_diarias FROM internacoes WHERE \"QT_DIARIAS\" IS NOT NULL;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT034",
+    "difficulty": "easy",
+    "question": "Quantos hospitais são de natureza pública?",
+    "query": "SELECT COUNT(*) AS hospitais_publicos FROM hospital WHERE \"NATUREZA\" LIKE '%PUBLICA%' OR \"NATUREZA\" LIKE '%PUBLIC%';",
+    "tables": ["hospital"]
+  },
+  {
+    "id": "GT035",
+    "difficulty": "easy",
+    "question": "Qual a latitude e longitude de Porto Alegre?",
+    "query": "SELECT latitude, longitude FROM municipios WHERE nome = 'Porto Alegre';",
+    "tables": ["municipios"]
+  },
+  {
+    "id": "GT036",
+    "difficulty": "easy",
+    "question": "Quantos municípios estão no estado do RS?",
+    "query": "SELECT COUNT(*) AS municipios_rs FROM municipios WHERE estado = 'RS';",
+    "tables": ["municipios"]
+  },
+  {
+    "id": "GT037",
+    "difficulty": "easy",
+    "question": "Qual a idade média dos pacientes internados?",
+    "query": "SELECT AVG(\"IDADE\") AS idade_media FROM internacoes WHERE \"IDADE\" IS NOT NULL;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT038",
+    "difficulty": "easy",
+    "question": "Quantas internações duraram mais de 30 dias?",
+    "query": "SELECT COUNT(*) AS internacoes_longas FROM internacoes WHERE \"DIAS_PERM\" > 30;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT039",
+    "difficulty": "easy",
+    "question": "Qual o número total de filhos dos pacientes internados?",
+    "query": "SELECT SUM(\"NUM_FILHOS\") AS total_filhos FROM internacoes WHERE \"NUM_FILHOS\" IS NOT NULL;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT040",
+    "difficulty": "easy",
+    "question": "Quantos procedimentos têm 'CIRURGIA' no nome?",
+    "query": "SELECT COUNT(*) AS procedimentos_cirurgia FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%';",
+    "tables": ["procedimentos"]
+  },
+  {
+    "id": "GT041",
+    "difficulty": "easy",
+    "question": "Qual o diagnóstico mais comum nas internações?",
+    "query": "SELECT \"DIAG_PRINC\", COUNT(*) AS total FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL GROUP BY \"DIAG_PRINC\" ORDER BY total DESC LIMIT 1;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT042",
+    "difficulty": "medium",
+    "question": "Quantas internações ocorreram em 2015?",
+    "query": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT043",
+    "difficulty": "medium",
+    "question": "Qual o valor médio das internações por complexidade?",
+    "query": "SELECT \"COMPLEX\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"COMPLEX\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"COMPLEX\";",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT044",
+    "difficulty": "medium",
+    "question": "Quantos pacientes nasceram antes de 1950?",
+    "query": "SELECT COUNT(*) AS nascidos_antes_1950 FROM internacoes WHERE EXTRACT(YEAR FROM \"NASC\") < 1950;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT045",
+    "difficulty": "medium",
+    "question": "Qual município tem o maior salário médio?",
+    "query": "SELECT nome_municipio, salario_medio FROM dado_ibge WHERE salario_medio IS NOT NULL ORDER BY salario_medio DESC LIMIT 1;",
+    "tables": ["dado_ibge"]
+  },
+  {
+    "id": "GT046",
+    "difficulty": "medium",
+    "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
+    "query": "SELECT COUNT(*) AS internacoes_diabetes FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'E1%' AND \"DIAG_PRINC\" >= 'E10' AND \"DIAG_PRINC\" <= 'E14Z';",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT047",
+    "difficulty": "medium",
+    "question": "Qual a taxa de mortalidade infantil média no Brasil?",
+    "query": "SELECT AVG(mortalidade_infantil) AS taxa_media_mortalidade_infantil FROM dado_ibge WHERE mortalidade_infantil IS NOT NULL;",
+    "tables": ["dado_ibge"]
+  },
+  {
+    "id": "GT048",
+    "difficulty": "medium",
+    "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
+    "query": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE d.populacao > 100;",
+    "tables": ["hospital", "internacoes", "dado_ibge"]
+  },
+  {
+    "id": "GT049",
+    "difficulty": "medium",
+    "question": "Qual o procedimento com maior valor médio?",
+    "query": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT050",
+    "difficulty": "medium",
+    "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
+    "query": "SELECT COUNT(*) AS com_ambos_diagnosticos FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL AND \"DIAG_SECUN\" IS NOT NULL;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT051",
+    "difficulty": "medium",
+    "question": "Qual a diferença entre valor hospitalar e profissional médio?",
+    "query": "SELECT AVG(\"VAL_SH\" - \"VAL_SP\") AS diferenca_media FROM internacoes WHERE \"VAL_SH\" IS NOT NULL AND \"VAL_SP\" IS NOT NULL;",
+    "tables": ["internacoes"]
+  },
+  {
+    "id": "GT052",
+    "difficulty": "hard",
+    "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
+    "query": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(u.\"VAL_UTI\") AS custo_medio_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL AND u.\"VAL_UTI\" IS NOT NULL GROUP BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END;",
+    "tables": ["internacoes", "uti_detalhes"]
+  },
+  {
+    "id": "GT053",
+    "difficulty": "hard",
+    "question": "Quantas mulheres grávidas foram internadas em hospitais públicos?",
+    "query": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS mulheres_gravidas_publico FROM internacoes i JOIN obstetricos o ON i.\"N_AIH\" = o.\"N_AIH\" JOIN hospital h ON i.\"CNES\" = h.\"CNES\" WHERE i.\"SEXO\" = 3 AND (h.\"NATUREZA\" LIKE '%PUBLICA%' OR h.\"NATUREZA\" LIKE '%PUBLIC%');",
+    "tables": ["internacoes", "obstetricos", "hospital"]
+  },
+  {
+    "id": "GT054",
+    "difficulty": "hard",
+    "question": "Qual a correlação entre nível educacional e valor das internações?",
+    "query": "SELECT ins.\"INSTRU\" AS nivel_educacional, AVG(i.\"VAL_TOT\") AS valor_medio FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY valor_medio DESC;",
+    "tables": ["internacoes", "instrucao"]
+  },
+  {
+    "id": "GT055",
+    "difficulty": "hard",
+    "question": "Quais municípios têm taxa de mortalidade acima da densidade demográfica?",
+    "query": "SELECT d.nome_municipio, ROUND((COUNT(m.\"N_AIH\")::numeric / COUNT(i.\"N_AIH\") * 100), 2) AS taxa_mortalidade, d.densidade_demografica FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE d.densidade_demografica IS NOT NULL GROUP BY d.nome_municipio, d.densidade_demografica HAVING COUNT(i.\"N_AIH\") > 10 AND (COUNT(m.\"N_AIH\")::numeric / COUNT(i.\"N_AIH\") * 100) > d.densidade_demografica;",
+    "tables": ["internacoes", "mortes", "dado_ibge"]
+  },
+  {
+    "id": "GT056",
+    "difficulty": "hard",
+    "question": "Quantos profissionais CBOR trabalharam em casos que foram à óbito?",
+    "query": "SELECT COUNT(DISTINCT c.\"CBOR\") AS profissionais_casos_obito FROM cbor c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"CBOR\" IS NOT NULL;",
+    "tables": ["cbor", "mortes"]
+  },
+  {
+    "id": "GT057",
+    "difficulty": "hard",
+    "question": "Qual a eficiência financeira por tipo de hospital (custo/dia)?",
+    "query": "SELECT h.\"NATUREZA\", AVG(i.\"VAL_TOT\" / NULLIF(i.\"DIAS_PERM\", 0)) AS eficiencia_financeira FROM internacoes i JOIN hospital h ON i.\"CNES\" = h.\"CNES\" WHERE i.\"VAL_TOT\" IS NOT NULL AND i.\"DIAS_PERM\" > 0 AND h.\"NATUREZA\" IS NOT NULL GROUP BY h.\"NATUREZA\";",
+    "tables": ["internacoes", "hospital"]
+  },
+  {
+    "id": "GT058",
+    "difficulty": "hard",
+    "question": "Quantas internações de parto tiveram complicações que levaram à UTI?",
+    "query": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS partos_com_uti FROM internacoes i JOIN obstetricos o ON i.\"N_AIH\" = o.\"N_AIH\" JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"PROC_REA\" LIKE '%PARTO%' OR i.\"DIAG_PRINC\" LIKE 'O%';",
+    "tables": ["internacoes", "obstetricos", "uti_detalhes"]
+  },
+  {
+    "id": "GT059",
+    "difficulty": "hard",
+    "question": "Qual o perfil socioeconômico dos municípios com mais mortes cardiovasculares?",
+    "query": "SELECT d.nome_municipio, COUNT(m.\"N_AIH\") AS mortes_cardiovasculares, AVG(d.salario_medio) AS salario_medio, AVG(d.populacao) AS populacao FROM internacoes i JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE m.\"CID_MORTE\" LIKE 'I%' GROUP BY d.nome_municipio HAVING COUNT(m.\"N_AIH\") > 5 ORDER BY mortes_cardiovasculares DESC LIMIT 10;",
+    "tables": ["internacoes", "mortes", "dado_ibge"]
+  },
+  {
+    "id": "GT060",
+    "difficulty": "hard",
+    "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
+    "query": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS vdrl_positivo_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1';",
+    "tables": ["condicoes_especificas", "mortes"]
+  },
+  {
+    "id": "GT061",
+    "difficulty": "hard",
+    "question": "Qual a distribuição de gastos de UTI por região geográfica do Brasil?",
+    "query": "SELECT mu.estado, COUNT(u.\"N_AIH\") AS casos_uti, AVG(u.\"VAL_UTI\") AS valor_medio_uti, SUM(u.\"VAL_UTI\") AS valor_total_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d JOIN dado_ibge d ON mu.codigo_ibge = d.codigo_municipio_completo WHERE u.\"VAL_UTI\" IS NOT NULL GROUP BY mu.estado ORDER BY valor_total_uti DESC;",
+    "tables": ["internacoes", "uti_detalhes", "municipios", "dado_ibge"]
   }
 ]

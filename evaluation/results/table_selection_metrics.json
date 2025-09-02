@@ -1,57 +1,60 @@
 {
   "metadata": {
-    "timestamp": "2025-09-01T21:41:35.142044",
+    "timestamp": "2025-09-02T08:48:04.031783",
     "evaluation_type": "table_selection_accuracy",
-    "source_file": "simple_evaluation_results.json",
+    "source_file": "agent_extraction_results.json",
     "generation_time": 0.0
   },
   "overall_metrics": {
-    "correct_selections": 26,
-    "incorrect_selections": 4,
-    "total_cases": 30,
-    "accuracy_percentage": 86.67,
-    "cases_with_extra_tables": 20,
-    "cases_with_missing_tables": 4,
-    "perfect_matches": 9
+    "correct_selections": 55,
+    "incorrect_selections": 6,
+    "total_cases": 61,
+    "accuracy_percentage": 90.16,
+    "cases_with_extra_tables": 45,
+    "cases_with_missing_tables": 6,
+    "perfect_matches": 14
   },
   "by_difficulty": {
     "easy": {
-      "correct": 12,
-      "total": 12,
-      "accuracy": 100.0
+      "correct": 21,
+      "total": 22,
+      "accuracy": 95.45
     },
     "medium": {
-      "correct": 7,
-      "total": 8,
-      "accuracy": 87.5
+      "correct": 17,
+      "total": 19,
+      "accuracy": 89.47
     },
     "hard": {
-      "correct": 7,
-      "total": 10,
-      "accuracy": 70.0
+      "correct": 17,
+      "total": 20,
+      "accuracy": 85.0
     }
   },
   "summary_statistics": {
     "ground_truth_table_stats": {
       "min_tables": 1,
-      "max_tables": 3,
-      "avg_tables": 1.33
+      "max_tables": 4,
+      "avg_tables": 1.48
     },
     "agent_selected_table_stats": {
       "min_tables": 1,
-      "max_tables": 4,
-      "avg_tables": 1.93
+      "max_tables": 5,
+      "avg_tables": 2.18
     },
     "most_commonly_missed_tables": {
-      "internacoes": 3,
-      "mortes": 1
+      "cid10": 2,
+      "hospital": 1,
+      "internacoes": 1,
+      "obstetricos": 1,
+      "dado_ibge": 1
     },
     "most_commonly_extra_tables": {
-      "internacoes": 11,
-      "procedimentos": 4,
-      "municipios": 3,
-      "cid10": 2,
-      "dado_ibge": 1
+      "internacoes": 20,
+      "municipios": 12,
+      "dado_ibge": 8,
+      "mortes": 3,
+      "procedimentos": 2
     }
   },
   "detailed_results": [
@@ -63,14 +66,14 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "dado_ibge",
-        "internacoes"
+        "internacoes",
+        "mortes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
-        "dado_ibge"
+        "mortes"
       ],
       "ground_truth_count": 1,
       "agent_selected_count": 2
@@ -100,25 +103,8 @@
         "procedimentos"
       ],
       "agent_selected_tables": [
+        "internacoes",
         "procedimentos"
-      ],
-      "is_correct": true,
-      "has_extra_tables": false,
-      "missing_tables": [],
-      "extra_tables": [],
-      "ground_truth_count": 1,
-      "agent_selected_count": 1
-    },
-    {
-      "id": "GT004",
-      "difficulty": "easy",
-      "question": "Quantos códigos CID-10 estão disponíveis?",
-      "ground_truth_tables": [
-        "cid10"
-      ],
-      "agent_selected_tables": [
-        "cid10",
-        "internacoes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -130,6 +116,27 @@
       "agent_selected_count": 2
     },
     {
+      "id": "GT004",
+      "difficulty": "easy",
+      "question": "Quantos códigos CID-10 estão disponíveis?",
+      "ground_truth_tables": [
+        "cid10"
+      ],
+      "agent_selected_tables": [
+        "internacoes"
+      ],
+      "is_correct": false,
+      "has_extra_tables": true,
+      "missing_tables": [
+        "cid10"
+      ],
+      "extra_tables": [
+        "internacoes"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 1
+    },
+    {
       "id": "GT005",
       "difficulty": "easy",
       "question": "Quantos hospitais estão cadastrados?",
@@ -137,14 +144,17 @@
         "hospital"
       ],
       "agent_selected_tables": [
+        "internacoes",
         "hospital"
       ],
       "is_correct": true,
-      "has_extra_tables": false,
+      "has_extra_tables": true,
       "missing_tables": [],
-      "extra_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
       "ground_truth_count": 1,
-      "agent_selected_count": 1
+      "agent_selected_count": 2
     },
     {
       "id": "GT006",
@@ -174,14 +184,17 @@
         "uti_detalhes"
       ],
       "agent_selected_tables": [
-        "uti_detalhes"
+        "uti_detalhes",
+        "internacoes"
       ],
       "is_correct": true,
-      "has_extra_tables": false,
+      "has_extra_tables": true,
       "missing_tables": [],
-      "extra_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
       "ground_truth_count": 1,
-      "agent_selected_count": 1
+      "agent_selected_count": 2
     },
     {
       "id": "GT008",
@@ -211,14 +224,17 @@
         "cbor"
       ],
       "agent_selected_tables": [
-        "cbor"
+        "cbor",
+        "internacoes"
       ],
       "is_correct": true,
-      "has_extra_tables": false,
+      "has_extra_tables": true,
       "missing_tables": [],
-      "extra_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
       "ground_truth_count": 1,
-      "agent_selected_count": 1
+      "agent_selected_count": 2
     },
     {
       "id": "GT010",
@@ -228,8 +244,8 @@
         "obstetricos"
       ],
       "agent_selected_tables": [
-        "internacoes",
-        "obstetricos"
+        "obstetricos",
+        "internacoes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -282,17 +298,14 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "cid10",
         "internacoes"
       ],
       "is_correct": true,
-      "has_extra_tables": true,
+      "has_extra_tables": false,
       "missing_tables": [],
-      "extra_tables": [
-        "cid10"
-      ],
+      "extra_tables": [],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 1
     },
     {
       "id": "GT014",
@@ -302,19 +315,17 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "hospital",
         "internacoes",
-        "procedimentos"
+        "dado_ibge"
       ],
       "is_correct": true,
       "has_extra_tables": true,
       "missing_tables": [],
       "extra_tables": [
-        "hospital",
-        "procedimentos"
+        "dado_ibge"
       ],
       "ground_truth_count": 1,
-      "agent_selected_count": 3
+      "agent_selected_count": 2
     },
     {
       "id": "GT015",
@@ -324,16 +335,13 @@
         "mortes"
       ],
       "agent_selected_tables": [
-        "cid10",
-        "internacoes"
-      ],
-      "is_correct": false,
-      "has_extra_tables": true,
-      "missing_tables": [
+        "internacoes",
         "mortes"
       ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
       "extra_tables": [
-        "cid10",
         "internacoes"
       ],
       "ground_truth_count": 1,
@@ -347,17 +355,18 @@
         "cid10"
       ],
       "agent_selected_tables": [
-        "cid10",
         "internacoes"
       ],
-      "is_correct": true,
+      "is_correct": false,
       "has_extra_tables": true,
-      "missing_tables": [],
+      "missing_tables": [
+        "cid10"
+      ],
       "extra_tables": [
         "internacoes"
       ],
       "ground_truth_count": 1,
-      "agent_selected_count": 2
+      "agent_selected_count": 1
     },
     {
       "id": "GT017",
@@ -427,8 +436,8 @@
         "obstetricos"
       ],
       "agent_selected_tables": [
-        "internacoes",
-        "obstetricos"
+        "obstetricos",
+        "internacoes"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -466,16 +475,12 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "procedimentos"
-      ],
-      "is_correct": false,
-      "has_extra_tables": true,
-      "missing_tables": [
         "internacoes"
       ],
-      "extra_tables": [
-        "procedimentos"
-      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
       "ground_truth_count": 1,
       "agent_selected_count": 1
     },
@@ -489,19 +494,17 @@
         "mortes"
       ],
       "agent_selected_tables": [
-        "hospital",
         "internacoes",
-        "mortes",
-        "procedimentos"
+        "mortes"
       ],
-      "is_correct": true,
-      "has_extra_tables": true,
-      "missing_tables": [],
-      "extra_tables": [
-        "procedimentos"
+      "is_correct": false,
+      "has_extra_tables": false,
+      "missing_tables": [
+        "hospital"
       ],
+      "extra_tables": [],
       "ground_truth_count": 3,
-      "agent_selected_count": 4
+      "agent_selected_count": 2
     },
     {
       "id": "GT024",
@@ -534,8 +537,8 @@
         "internacoes"
       ],
       "agent_selected_tables": [
-        "hospital",
-        "internacoes"
+        "internacoes",
+        "hospital"
       ],
       "is_correct": true,
       "has_extra_tables": false,
@@ -553,8 +556,8 @@
         "mortes"
       ],
       "agent_selected_tables": [
-        "condicoes_especificas",
         "internacoes",
+        "condicoes_especificas",
         "mortes"
       ],
       "is_correct": true,
@@ -575,16 +578,15 @@
         "mortes"
       ],
       "agent_selected_tables": [
+        "internacoes",
         "mortes"
       ],
-      "is_correct": false,
+      "is_correct": true,
       "has_extra_tables": false,
-      "missing_tables": [
-        "internacoes"
-      ],
+      "missing_tables": [],
       "extra_tables": [],
       "ground_truth_count": 2,
-      "agent_selected_count": 1
+      "agent_selected_count": 2
     },
     {
       "id": "GT028",
@@ -595,9 +597,9 @@
         "uti_detalhes"
       ],
       "agent_selected_tables": [
-        "cbor",
         "internacoes",
-        "uti_detalhes"
+        "uti_detalhes",
+        "cbor"
       ],
       "is_correct": true,
       "has_extra_tables": true,
@@ -639,8 +641,374 @@
         "mortes"
       ],
       "agent_selected_tables": [
+        "internacoes",
         "procedimentos",
         "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "procedimentos"
+      ],
+      "ground_truth_count": 2,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT031",
+      "difficulty": "medium",
+      "question": "Qual é o valor médio de UTI para homens?",
+      "ground_truth_tables": [
+        "internacoes",
+        "uti_detalhes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "uti_detalhes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
+      "ground_truth_count": 2,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT032",
+      "difficulty": "easy",
+      "question": "Quantas mulheres foram internadas?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT033",
+      "difficulty": "easy",
+      "question": "Qual o valor total das diárias hospitalares?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT034",
+      "difficulty": "easy",
+      "question": "Quantos hospitais são de natureza pública?",
+      "ground_truth_tables": [
+        "hospital"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "hospital"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT035",
+      "difficulty": "easy",
+      "question": "Qual a latitude e longitude de Porto Alegre?",
+      "ground_truth_tables": [
+        "municipios"
+      ],
+      "agent_selected_tables": [
+        "dado_ibge",
+        "municipios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT036",
+      "difficulty": "easy",
+      "question": "Quantos municípios estão no estado do RS?",
+      "ground_truth_tables": [
+        "municipios"
+      ],
+      "agent_selected_tables": [
+        "municipios",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT037",
+      "difficulty": "easy",
+      "question": "Qual a idade média dos pacientes internados?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT038",
+      "difficulty": "easy",
+      "question": "Quantas internações duraram mais de 30 dias?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "mortes"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT039",
+      "difficulty": "easy",
+      "question": "Qual o número total de filhos dos pacientes internados?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "instrucao"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "instrucao"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT040",
+      "difficulty": "easy",
+      "question": "Quantos procedimentos têm 'CIRURGIA' no nome?",
+      "ground_truth_tables": [
+        "procedimentos"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "procedimentos"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT041",
+      "difficulty": "easy",
+      "question": "Qual o diagnóstico mais comum nas internações?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "diagnosticos_secundarios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "diagnosticos_secundarios"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT042",
+      "difficulty": "medium",
+      "question": "Quantas internações ocorreram em 2015?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios",
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT043",
+      "difficulty": "medium",
+      "question": "Qual o valor médio das internações por complexidade?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT044",
+      "difficulty": "medium",
+      "question": "Quantos pacientes nasceram antes de 1950?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT045",
+      "difficulty": "medium",
+      "question": "Qual município tem o maior salário médio?",
+      "ground_truth_tables": [
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "dado_ibge",
+        "municipios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT046",
+      "difficulty": "medium",
+      "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
+      "ground_truth_count": 1,
+      "agent_selected_count": 1
+    },
+    {
+      "id": "GT047",
+      "difficulty": "medium",
+      "question": "Qual a taxa de mortalidade infantil média no Brasil?",
+      "ground_truth_tables": [
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios",
+        "dado_ibge",
+        "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios",
+        "mortes",
+        "internacoes"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 4
+    },
+    {
+      "id": "GT048",
+      "difficulty": "medium",
+      "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
+      "ground_truth_tables": [
+        "hospital",
+        "internacoes",
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "dado_ibge",
+        "municipios",
+        "hospital"
       ],
       "is_correct": false,
       "has_extra_tables": true,
@@ -648,10 +1016,291 @@
         "internacoes"
       ],
       "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 3,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT049",
+      "difficulty": "medium",
+      "question": "Qual o procedimento com maior valor médio?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
         "procedimentos"
       ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "procedimentos"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT050",
+      "difficulty": "medium",
+      "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "diagnosticos_secundarios"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "diagnosticos_secundarios"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT051",
+      "difficulty": "medium",
+      "question": "Qual a diferença entre valor hospitalar e profissional médio?",
+      "ground_truth_tables": [
+        "internacoes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "dado_ibge"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "dado_ibge"
+      ],
+      "ground_truth_count": 1,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT052",
+      "difficulty": "hard",
+      "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
+      "ground_truth_tables": [
+        "internacoes",
+        "uti_detalhes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "uti_detalhes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
       "ground_truth_count": 2,
       "agent_selected_count": 2
+    },
+    {
+      "id": "GT053",
+      "difficulty": "hard",
+      "question": "Quantas mulheres grávidas foram internadas em hospitais públicos?",
+      "ground_truth_tables": [
+        "internacoes",
+        "obstetricos",
+        "hospital"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios",
+        "hospital"
+      ],
+      "is_correct": false,
+      "has_extra_tables": true,
+      "missing_tables": [
+        "obstetricos"
+      ],
+      "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 3,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT054",
+      "difficulty": "hard",
+      "question": "Qual a correlação entre nível educacional e valor das internações?",
+      "ground_truth_tables": [
+        "internacoes",
+        "instrucao"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "instrucao"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
+      "ground_truth_count": 2,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT055",
+      "difficulty": "hard",
+      "question": "Quais municípios têm taxa de mortalidade acima da densidade demográfica?",
+      "ground_truth_tables": [
+        "internacoes",
+        "mortes",
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "dado_ibge",
+        "municipios",
+        "internacoes",
+        "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios"
+      ],
+      "ground_truth_count": 3,
+      "agent_selected_count": 4
+    },
+    {
+      "id": "GT056",
+      "difficulty": "hard",
+      "question": "Quantos profissionais CBOR trabalharam em casos que foram à óbito?",
+      "ground_truth_tables": [
+        "cbor",
+        "mortes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "mortes",
+        "cbor"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
+      "ground_truth_count": 2,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT057",
+      "difficulty": "hard",
+      "question": "Qual a eficiência financeira por tipo de hospital (custo/dia)?",
+      "ground_truth_tables": [
+        "internacoes",
+        "hospital"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "hospital"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
+      "ground_truth_count": 2,
+      "agent_selected_count": 2
+    },
+    {
+      "id": "GT058",
+      "difficulty": "hard",
+      "question": "Quantas internações de parto tiveram complicações que levaram à UTI?",
+      "ground_truth_tables": [
+        "internacoes",
+        "obstetricos",
+        "uti_detalhes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "obstetricos",
+        "uti_detalhes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": false,
+      "missing_tables": [],
+      "extra_tables": [],
+      "ground_truth_count": 3,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT059",
+      "difficulty": "hard",
+      "question": "Qual o perfil socioeconômico dos municípios com mais mortes cardiovasculares?",
+      "ground_truth_tables": [
+        "internacoes",
+        "mortes",
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios",
+        "dado_ibge",
+        "condicoes_especificas",
+        "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "municipios",
+        "condicoes_especificas"
+      ],
+      "ground_truth_count": 3,
+      "agent_selected_count": 5
+    },
+    {
+      "id": "GT060",
+      "difficulty": "hard",
+      "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
+      "ground_truth_tables": [
+        "condicoes_especificas",
+        "mortes"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "condicoes_especificas",
+        "mortes"
+      ],
+      "is_correct": true,
+      "has_extra_tables": true,
+      "missing_tables": [],
+      "extra_tables": [
+        "internacoes"
+      ],
+      "ground_truth_count": 2,
+      "agent_selected_count": 3
+    },
+    {
+      "id": "GT061",
+      "difficulty": "hard",
+      "question": "Qual a distribuição de gastos de UTI por região geográfica do Brasil?",
+      "ground_truth_tables": [
+        "internacoes",
+        "uti_detalhes",
+        "municipios",
+        "dado_ibge"
+      ],
+      "agent_selected_tables": [
+        "internacoes",
+        "municipios",
+        "uti_detalhes"
+      ],
+      "is_correct": false,
+      "has_extra_tables": false,
+      "missing_tables": [
+        "dado_ibge"
+      ],
+      "extra_tables": [],
+      "ground_truth_count": 4,
+      "agent_selected_count": 3
     }
   ]
 }

@@ -2,8 +2,10 @@
 """
 Ground Truth Query Validation
 
-Executes all queries from ground_truth_realistic.json to ensure they are correct
-and return valid results from the actual database.
+Use to validate the execution of SQL queries from ground_truth.json
+
+Input: ground_truth.json
+Output: Console log with validation results
 """
 
 import json
