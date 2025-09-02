@@ -314,7 +314,7 @@ def main():
     
     # Configuration
     current_dir = Path(__file__).parent
-    agent_results_path = current_dir / "results" / "simple_evaluation_results.json"
+    agent_results_path = current_dir / "results" / "agent_extraction_results.json"
     output_dir = current_dir / "results"
     
     # Check if agent results exist

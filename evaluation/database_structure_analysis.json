@@ -1,0 +1,1513 @@
+{
+  "database_summary": {
+    "total_tables": 15,
+    "analyzed_tables": 15,
+    "tables_list": [
+      "cbor",
+      "cid10",
+      "condicoes_especificas",
+      "dado_ibge",
+      "diagnosticos_secundarios",
+      "hospital",
+      "infehosp",
+      "instrucao",
+      "internacoes",
+      "mortes",
+      "municipios",
+      "obstetricos",
+      "procedimentos",
+      "uti_detalhes",
+      "vincprev"
+    ]
+  },
+  "tables": {
+    "internacoes": {
+      "table_name": "internacoes",
+      "columns": [
+        {
+          "name": "CNES",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ESPEC",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "IDENT",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "DT_INTER",
+          "data_type": "timestamp without time zone",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "DT_SAIDA",
+          "data_type": "timestamp without time zone",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "QT_DIARIAS",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "PROC_REA",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "VAL_SH",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "VAL_SP",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "VAL_TOT",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "COBRANCA",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "DIAS_PERM",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "COMPLEX",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CID_NOTIF",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "MUNIC_MOV",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "DIAG_PRINC",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "DIAG_SECUN",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CID_ASSO",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "NASC",
+          "data_type": "timestamp without time zone",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "SEXO",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "IDADE",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "NACIONAL",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "NUM_FILHOS",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "RACA_COR",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "MUNIC_RES",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "CNES",
+          "references_table": "hospital",
+          "references_column": "CNES"
+        },
+        {
+          "column": "DIAG_PRINC",
+          "references_table": "cid10",
+          "references_column": "CID"
+        },
+        {
+          "column": "DIAG_SECUN",
+          "references_table": "cid10",
+          "references_column": "CID"
+        },
+        {
+          "column": "CID_NOTIF",
+          "references_table": "cid10",
+          "references_column": "CID"
+        },
+        {
+          "column": "CID_ASSO",
+          "references_table": "cid10",
+          "references_column": "CID"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "internacoes_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 11022199,
+      "sample_data": [
+        {
+          "CNES": "5922216",
+          "N_AIH": "4316103450186",
+          "ESPEC": "01",
+          "IDENT": "1",
+          "DT_INTER": "2016-07-22 00:00:00",
+          "DT_SAIDA": "2016-07-23 00:00:00",
+          "QT_DIARIAS": 0,
+          "PROC_REA": "0404010032",
+          "VAL_SH": 0.0,
+          "VAL_SP": 0.0,
+          "VAL_TOT": 0.0,
+          "COBRANCA": "12",
+          "DIAS_PERM": 0,
+          "COMPLEX": "02",
+          "CID_NOTIF": "0",
+          "MUNIC_MOV": "431690",
+          "DIAG_PRINC": "J350",
+          "DIAG_SECUN": "0",
+          "CID_ASSO": "0",
+          "NASC": "2009-07-16 00:00:00",
+          "SEXO": 3,
+          "IDADE": 0.0,
+          "NACIONAL": "010",
+          "NUM_FILHOS": 0,
+          "RACA_COR": "99",
+          "MUNIC_RES": "431690"
+        },
+        {
+          "CNES": "2237571",
+          "N_AIH": "4310100786662",
+          "ESPEC": "03",
+          "IDENT": "1",
+          "DT_INTER": "2010-01-24 00:00:00",
+          "DT_SAIDA": "2010-02-05 00:00:00",
+          "QT_DIARIAS": 0,
+          "PROC_REA": "0303100044",
+          "VAL_SH": 0.0,
+          "VAL_SP": 0.0,
+          "VAL_TOT": 0.0,
+          "COBRANCA": "12",
+          "DIAS_PERM": 0,
+          "COMPLEX": "02",
+          "CID_NOTIF": "0",
+          "MUNIC_MOV": "431490",
+          "DIAG_PRINC": "O141",
+          "DIAG_SECUN": "0",
+          "CID_ASSO": "0",
+          "NASC": "1977-12-08 00:00:00",
+          "SEXO": 3,
+          "IDADE": 32.0,
+          "NACIONAL": "010",
+          "NUM_FILHOS": 0,
+          "RACA_COR": "01",
+          "MUNIC_RES": "430270"
+        },
+        {
+          "CNES": "2248204",
+          "N_AIH": "4310107959971",
+          "ESPEC": "03",
+          "IDENT": "1",
+          "DT_INTER": "2010-12-10 00:00:00",
+          "DT_SAIDA": "2010-12-14 00:00:00",
+          "QT_DIARIAS": 0,
+          "PROC_REA": "0303140046",
+          "VAL_SH": 0.0,
+          "VAL_SP": 0.0,
+          "VAL_TOT": 0.0,
+          "COBRANCA": "12",
+          "DIAS_PERM": 0,
+          "COMPLEX": "02",
+          "CID_NOTIF": "0",
+          "MUNIC_MOV": "431830",
+          "DIAG_PRINC": "J449",
+          "DIAG_SECUN": "0",
+          "CID_ASSO": "0",
+          "NASC": "1930-07-07 00:00:00",
+          "SEXO": 3,
+          "IDADE": 80.0,
+          "NACIONAL": "010",
+          "NUM_FILHOS": 0,
+          "RACA_COR": "99",
+          "MUNIC_RES": "431830"
+        }
+      ]
+    },
+    "mortes": {
+      "table_name": "mortes",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CID_MORTE",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "mortes_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 569405,
+      "sample_data": [
+        {
+          "N_AIH": "4312101913691",
+          "CID_MORTE": "G459"
+        },
+        {
+          "N_AIH": "4317102961721",
+          "CID_MORTE": "0"
+        },
+        {
+          "N_AIH": "4318106128831",
+          "CID_MORTE": "0"
+        }
+      ]
+    },
+    "procedimentos": {
+      "table_name": "procedimentos",
+      "columns": [
+        {
+          "name": "PROC_REA",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "NOME_PROC",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "PROC_REA"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "procedimentos_pkey",
+          "columns": [
+            "PROC_REA"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 5394,
+      "sample_data": [
+        {
+          "PROC_REA": "101010010",
+          "NOME_PROC": "ATIVIDADE EDUCATIVA / ORIENTACAO EM GRUPO NA ATENCAO PRIMARIA"
+        },
+        {
+          "PROC_REA": "101010028",
+          "NOME_PROC": "ATIVIDADE EDUCATIVA / ORIENTACAO EM GRUPO NA ATENCAO ESPECIALIZADA"
+        },
+        {
+          "PROC_REA": "101010036",
+          "NOME_PROC": "PRATICA CORPORAL / ATIVIDADE FISICA EM GRUPO"
+        }
+      ]
+    },
+    "cid10": {
+      "table_name": "cid10",
+      "columns": [
+        {
+          "name": "CID",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CD_DESCRICAO",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "CID"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "cid10_pkey",
+          "columns": [
+            "CID"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 14254,
+      "sample_data": [
+        {
+          "CID": "P545",
+          "CD_DESCRICAO": "Hemorragia cutanea neonatal"
+        },
+        {
+          "CID": "Y085",
+          "CD_DESCRICAO": "Areas de comercio e de servicos"
+        },
+        {
+          "CID": "W434",
+          "CD_DESCRICAO": "Rua e estrada"
+        }
+      ]
+    },
+    "hospital": {
+      "table_name": "hospital",
+      "columns": [
+        {
+          "name": "CNES",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "NATUREZA",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "GESTAO",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "NAT_JUR",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "CNES"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "hospital_pkey",
+          "columns": [
+            "CNES"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 366,
+      "sample_data": [
+        {
+          "CNES": "0104523",
+          "NATUREZA": "00",
+          "GESTAO": "1",
+          "NAT_JUR": "1244"
+        },
+        {
+          "CNES": "0181927",
+          "NATUREZA": "00",
+          "GESTAO": "2",
+          "NAT_JUR": "3999"
+        },
+        {
+          "CNES": "2223538",
+          "NATUREZA": "00",
+          "GESTAO": "1",
+          "NAT_JUR": "3069"
+        }
+      ]
+    },
+    "municipios": {
+      "table_name": "municipios",
+      "columns": [
+        {
+          "name": "codigo_6d",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "codigo_ibge",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "nome",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "latitude",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "longitude",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "estado",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "codigo_6d"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "municipios_pkey",
+          "columns": [
+            "codigo_6d"
+          ],
+          "is_unique": true
+        },
+        {
+          "name": "uq_municipios_codigo_ibge",
+          "columns": [
+            "codigo_ibge"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 5570,
+      "sample_data": [
+        {
+          "codigo_6d": "520005",
+          "codigo_ibge": "5200050",
+          "nome": "Abadia de GoiÃ¡s",
+          "latitude": -16.7573,
+          "longitude": -49.4412,
+          "estado": "GO"
+        },
+        {
+          "codigo_6d": "310010",
+          "codigo_ibge": "3100104",
+          "nome": "Abadia dos Dourados",
+          "latitude": -18.4831,
+          "longitude": -47.3916,
+          "estado": "MG"
+        },
+        {
+          "codigo_6d": "520010",
+          "codigo_ibge": "5200100",
+          "nome": "AbadiÃ¢nia",
+          "latitude": -16197.0,
+          "longitude": -48.7057,
+          "estado": "GO"
+        }
+      ]
+    },
+    "dado_ibge": {
+      "table_name": "dado_ibge",
+      "columns": [
+        {
+          "name": "uf",
+          "data_type": "bigint",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 64,
+          "scale": 0
+        },
+        {
+          "name": "nome_uf",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "regiao_geografica_intermediaria",
+          "data_type": "bigint",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 64,
+          "scale": 0
+        },
+        {
+          "name": "nome_regiao_geografica_intermediaria",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "regiao_geografica_imediata",
+          "data_type": "bigint",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 64,
+          "scale": 0
+        },
+        {
+          "name": "nome_regiao_geografica_imediata",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "municipio",
+          "data_type": "bigint",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 64,
+          "scale": 0
+        },
+        {
+          "name": "codigo_municipio_completo",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "nome_municipio",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "sigla_estado",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "populacao",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "densidade_demografica",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "salario_medio",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "pessoal_ocupado",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "ideb_anos_iniciais_ensino_fundamental",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "ideb_anos_finais_ensino_fundamental",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "receita_bruta",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "dependencia_financeira",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "despesas_empenhadas",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "mortalidade_infantil",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "internacoes_por_diarreia",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        },
+        {
+          "name": "area_cidade",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "codigo_municipio_completo"
+      ],
+      "foreign_keys": [
+        {
+          "column": "codigo_municipio_completo",
+          "references_table": "municipios",
+          "references_column": "codigo_ibge"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "dado_ibge_pkey",
+          "columns": [
+            "codigo_municipio_completo"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 5570,
+      "sample_data": [
+        {
+          "uf": 11,
+          "nome_uf": "RondÃ´nia",
+          "regiao_geografica_intermediaria": 1102,
+          "nome_regiao_geografica_intermediaria": "Ji-ParanÃ¡",
+          "regiao_geografica_imediata": 110005,
+          "nome_regiao_geografica_imediata": "Cacoal",
+          "municipio": 15,
+          "codigo_municipio_completo": "1100015",
+          "nome_municipio": "Alta Floresta D'Oeste",
+          "sigla_estado": "ro",
+          "populacao": 21.49,
+          "densidade_demografica": 3.04,
+          "salario_medio": 2.1,
+          "pessoal_ocupado": 0.0,
+          "ideb_anos_iniciais_ensino_fundamental": 5.3,
+          "ideb_anos_finais_ensino_fundamental": 4.7,
+          "receita_bruta": 147825150.34,
+          "dependencia_financeira": 86.78,
+          "despesas_empenhadas": 136562752.44,
+          "mortalidade_infantil": 10.44,
+          "internacoes_por_diarreia": 131.3,
+          "area_cidade": 0.0
+        },
+        {
+          "uf": 11,
+          "nome_uf": "RondÃ´nia",
+          "regiao_geografica_intermediaria": 1102,
+          "nome_regiao_geografica_intermediaria": "Ji-ParanÃ¡",
+          "regiao_geografica_imediata": 110005,
+          "nome_regiao_geografica_imediata": "Cacoal",
+          "municipio": 379,
+          "codigo_municipio_completo": "1100379",
+          "nome_municipio": "Alto Alegre dos Parecis",
+          "sigla_estado": "ro",
+          "populacao": 11.48,
+          "densidade_demografica": 2.9,
+          "salario_medio": 2.0,
+          "pessoal_ocupado": 0.0,
+          "ideb_anos_iniciais_ensino_fundamental": 5.6,
+          "ideb_anos_finais_ensino_fundamental": 4.9,
+          "receita_bruta": 103044581.42,
+          "dependencia_financeira": 87.93,
+          "despesas_empenhadas": 98610476.04,
+          "mortalidade_infantil": 11.76,
+          "internacoes_por_diarreia": 40.8,
+          "area_cidade": 0.0
+        },
+        {
+          "uf": 11,
+          "nome_uf": "RondÃ´nia",
+          "regiao_geografica_intermediaria": 1101,
+          "nome_regiao_geografica_intermediaria": "Porto Velho",
+          "regiao_geografica_imediata": 110002,
+          "nome_regiao_geografica_imediata": "Ariquemes",
+          "municipio": 403,
+          "codigo_municipio_completo": "1100403",
+          "nome_municipio": "Alto ParaÃ­so",
+          "sigla_estado": "ro",
+          "populacao": 16.32,
+          "densidade_demografica": 6.15,
+          "salario_medio": 2.2,
+          "pessoal_ocupado": 0.0,
+          "ideb_anos_iniciais_ensino_fundamental": 5.0,
+          "ideb_anos_finais_ensino_fundamental": 4.7,
+          "receita_bruta": 111887216.06,
+          "dependencia_financeira": 87.8,
+          "despesas_empenhadas": 95665105.64,
+          "mortalidade_infantil": 23.15,
+          "internacoes_por_diarreia": 51.5,
+          "area_cidade": 0.0
+        }
+      ]
+    },
+    "uti_detalhes": {
+      "table_name": "uti_detalhes",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "UTI_MES_TO",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "MARCA_UTI",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "UTI_INT_TO",
+          "data_type": "integer",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 32,
+          "scale": 0
+        },
+        {
+          "name": "VAL_UTI",
+          "data_type": "double precision",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": 53,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "uti_detalhes_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 81287,
+      "sample_data": [
+        {
+          "N_AIH": "4322100404743",
+          "UTI_MES_TO": 0,
+          "MARCA_UTI": "75",
+          "UTI_INT_TO": 0,
+          "VAL_UTI": 27765.76
+        },
+        {
+          "N_AIH": "4316102608323",
+          "UTI_MES_TO": 0,
+          "MARCA_UTI": "75",
+          "UTI_INT_TO": 0,
+          "VAL_UTI": 21063.68
+        },
+        {
+          "N_AIH": "4314102539857",
+          "UTI_MES_TO": 0,
+          "MARCA_UTI": "75",
+          "UTI_INT_TO": 0,
+          "VAL_UTI": 27765.76
+        }
+      ]
+    },
+    "condicoes_especificas": {
+      "table_name": "condicoes_especificas",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "IND_VDRL",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "condicoes_especificas_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 1118626,
+      "sample_data": [
+        {
+          "N_AIH": "4309106081820",
+          "IND_VDRL": "1"
+        },
+        {
+          "N_AIH": "4317102378941",
+          "IND_VDRL": "1"
+        },
+        {
+          "N_AIH": "4308106071654",
+          "IND_VDRL": "1"
+        }
+      ]
+    },
+    "obstetricos": {
+      "table_name": "obstetricos",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "INSC_PN",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "obstetricos_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 376202,
+      "sample_data": [
+        {
+          "N_AIH": "4320107276188",
+          "INSC_PN": "000812211059"
+        },
+        {
+          "N_AIH": "4314103512477",
+          "INSC_PN": "201343017673"
+        },
+        {
+          "N_AIH": "4313104191980",
+          "INSC_PN": "201343003415"
+        }
+      ]
+    },
+    "instrucao": {
+      "table_name": "instrucao",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "INSTRU",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "instrucao_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 68389,
+      "sample_data": [
+        {
+          "N_AIH": "4316100119485",
+          "INSTRU": "02"
+        },
+        {
+          "N_AIH": "4318103446096",
+          "INSTRU": "01"
+        },
+        {
+          "N_AIH": "4317100248791",
+          "INSTRU": "02"
+        }
+      ]
+    },
+    "vincprev": {
+      "table_name": "vincprev",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "VINCPREV",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "vincprev_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 6461,
+      "sample_data": [
+        {
+          "N_AIH": "4317109213043",
+          "VINCPREV": "1"
+        },
+        {
+          "N_AIH": "4321101465967",
+          "VINCPREV": "1"
+        },
+        {
+          "N_AIH": "4320102237022",
+          "VINCPREV": "1"
+        }
+      ]
+    },
+    "cbor": {
+      "table_name": "cbor",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "CBOR",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "cbor_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 6461,
+      "sample_data": [
+        {
+          "N_AIH": "4317109213186",
+          "CBOR": "225125"
+        },
+        {
+          "N_AIH": "4317102990233",
+          "CBOR": "225125"
+        },
+        {
+          "N_AIH": "4317103766580",
+          "CBOR": "225250"
+        }
+      ]
+    },
+    "infehosp": {
+      "table_name": "infehosp",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "INFEHOSP",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH"
+      ],
+      "foreign_keys": [
+        {
+          "column": "N_AIH",
+          "references_table": "internacoes",
+          "references_column": "N_AIH"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "infehosp_pkey",
+          "columns": [
+            "N_AIH"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 0,
+      "sample_data": []
+    },
+    "diagnosticos_secundarios": {
+      "table_name": "diagnosticos_secundarios",
+      "columns": [
+        {
+          "name": "N_AIH",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "codigo_cid_secundario",
+          "data_type": "text",
+          "nullable": true,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        },
+        {
+          "name": "ordem_diagnostico",
+          "data_type": "text",
+          "nullable": false,
+          "default": null,
+          "max_length": null,
+          "precision": null,
+          "scale": null
+        }
+      ],
+      "primary_keys": [
+        "N_AIH",
+        "ordem_diagnostico"
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "diagnosticos_secundarios_pkey",
+          "columns": [
+            "N_AIH",
+            "ordem_diagnostico"
+          ],
+          "is_unique": true
+        }
+      ],
+      "constraints": [],
+      "row_count": 0,
+      "sample_data": []
+    }
+  }
+}
