@@ -394,13 +394,6 @@
     "tables": ["internacoes", "uti_detalhes"]
   },
   {
-    "id": "GT053",
-    "difficulty": "hard",
-    "question": "Quantas mulheres grávidas foram internadas em hospitais públicos?",
-    "query": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS mulheres_gravidas_publico FROM internacoes i JOIN obstetricos o ON i.\"N_AIH\" = o.\"N_AIH\" JOIN hospital h ON i.\"CNES\" = h.\"CNES\" WHERE i.\"SEXO\" = 3 AND (h.\"NATUREZA\" LIKE '%PUBLICA%' OR h.\"NATUREZA\" LIKE '%PUBLIC%');",
-    "tables": ["internacoes", "obstetricos", "hospital"]
-  },
-  {
     "id": "GT054",
     "difficulty": "hard",
     "question": "Qual a correlação entre nível educacional e valor das internações?",
@@ -429,13 +422,6 @@
     "tables": ["internacoes", "hospital"]
   },
   {
-    "id": "GT058",
-    "difficulty": "hard",
-    "question": "Quantas internações de parto tiveram complicações que levaram à UTI?",
-    "query": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS partos_com_uti FROM internacoes i JOIN obstetricos o ON i.\"N_AIH\" = o.\"N_AIH\" JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"PROC_REA\" LIKE '%PARTO%' OR i.\"DIAG_PRINC\" LIKE 'O%';",
-    "tables": ["internacoes", "obstetricos", "uti_detalhes"]
-  },
-  {
     "id": "GT059",
     "difficulty": "hard",
     "question": "Qual o perfil socioeconômico dos municípios com mais mortes cardiovasculares?",
@@ -448,12 +434,5 @@
     "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
     "query": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS vdrl_positivo_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1';",
     "tables": ["condicoes_especificas", "mortes"]
-  },
-  {
-    "id": "GT061",
-    "difficulty": "hard",
-    "question": "Qual a distribuição de gastos de UTI por região geográfica do Brasil?",
-    "query": "SELECT mu.estado, COUNT(u.\"N_AIH\") AS casos_uti, AVG(u.\"VAL_UTI\") AS valor_medio_uti, SUM(u.\"VAL_UTI\") AS valor_total_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d JOIN dado_ibge d ON mu.codigo_ibge = d.codigo_municipio_completo WHERE u.\"VAL_UTI\" IS NOT NULL GROUP BY mu.estado ORDER BY valor_total_uti DESC;",
-    "tables": ["internacoes", "uti_detalhes", "municipios", "dado_ibge"]
   }
 ]

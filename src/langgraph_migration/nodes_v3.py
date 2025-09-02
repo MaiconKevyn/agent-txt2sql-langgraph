@@ -377,18 +377,18 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         sql_prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
-📋 CORE POSTGRESQL INSTRUCTIONS:
-1. Generate syntactically correct PostgreSQL queries
-2. Use proper table and column names with double quotes: "COLUMN_NAME"
-3. Handle Portuguese language questions appropriately
-4. Return only the SQL query, no explanation
-5. Use appropriate WHERE clauses for filtering
-6. Include LIMIT clauses when appropriate (default LIMIT 100)
-7. Use proper JOINs when querying multiple tables
-8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
-
-🔍 DATABASE SCHEMA:
-{schema_context}"""),
+        📋 CORE POSTGRESQL INSTRUCTIONS:
+        1. Generate syntactically correct PostgreSQL queries
+        2. Use proper table and column names with double quotes: "COLUMN_NAME"
+        3. Handle Portuguese language questions appropriately
+        4. Return only the SQL query, no explanation
+        5. Use appropriate WHERE clauses for filtering
+        6. Include LIMIT clauses when appropriate (default LIMIT 100)
+        7. Use proper JOINs when querying multiple tables
+        8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+        
+        🔍 DATABASE SCHEMA:
+        {schema_context}"""),
             
             ("system", "{table_specific_rules}"),
             
@@ -720,25 +720,59 @@ def _generate_formatted_response(
     
     Uses the LLM to interpret SQL results and create natural language responses
     that are more readable and informative for end users.
+    
+    Implements output limiting to prevent excessively long responses.
     """
     try:
         # Handle empty results
         if row_count == 0:
             return "Nenhum resultado encontrado para sua consulta."
         
-        # Prepare results for formatting
+        # SAFETY LIMITS - Prevent excessively long responses
+        MAX_RESULTS_TO_SHOW = 10
+        MAX_RESULT_STRING_LENGTH = 1000  # Limit individual result strings
+        MAX_TOTAL_RESULTS_LENGTH = 5000  # Limit total results text
+        
+        # Prepare results for formatting with safety limits
         results_text = ""
         if row_count == 1 and len(results) == 1:
-            # Single result - extract the actual value
+            # Single result - extract the actual value with length limit
             result_value = results[0].get("result", "")
-            results_text = str(result_value)
-        else:
-            # Multiple results
-            for i, result in enumerate(results[:10], 1):  # Show up to 10 results
-                results_text += f"{i}. {result.get('result', '')}\n"
+            result_str = str(result_value)
             
-            if row_count > 10:
-                results_text += f"... (total de {row_count} resultados)"
+            # Apply length limit to prevent huge single results
+            if len(result_str) > MAX_RESULT_STRING_LENGTH:
+                results_text = result_str[:MAX_RESULT_STRING_LENGTH] + f"... (resultado truncado, {len(result_str)} caracteres total)"
+            else:
+                results_text = result_str
+        else:
+            # Multiple results with comprehensive limiting
+            results_to_show = min(len(results), MAX_RESULTS_TO_SHOW)
+            
+            for i, result in enumerate(results[:results_to_show], 1):
+                result_value = result.get('result', '')
+                result_str = str(result_value)
+                
+                # Limit individual result length
+                if len(result_str) > MAX_RESULT_STRING_LENGTH:
+                    result_str = result_str[:MAX_RESULT_STRING_LENGTH] + "..."
+                
+                line = f"{i}. {result_str}\n"
+                
+                # Check if adding this line would exceed total length limit
+                if len(results_text) + len(line) > MAX_TOTAL_RESULTS_LENGTH:
+                    results_text += f"... (saída truncada para evitar resposta excessivamente longa)\n"
+                    break
+                    
+                results_text += line
+            
+            # Add count information
+            if row_count > results_to_show:
+                results_text += f"... (mostrando {results_to_show} de {row_count} resultados)"
+        
+        # Final safety check - ensure total results text isn't too long
+        if len(results_text) > MAX_TOTAL_RESULTS_LENGTH:
+            results_text = results_text[:MAX_TOTAL_RESULTS_LENGTH] + "... (resposta truncada por segurança)"
         
         # Create prompt for response formatting
         formatting_prompt = f"""Transforme o resultado técnico em uma resposta natural e concisa em português.
@@ -771,6 +805,11 @@ def _generate_formatted_response(
         if format_result["success"]:
             formatted_response = format_result["response"].strip()
             
+            # FINAL SAFETY CHECK - Limit total response length
+            MAX_FINAL_RESPONSE_LENGTH = 2000
+            if len(formatted_response) > MAX_FINAL_RESPONSE_LENGTH:
+                formatted_response = formatted_response[:MAX_FINAL_RESPONSE_LENGTH] + "... (resposta limitada por segurança)"
+            
             # Basic validation - if response is too short or seems broken, fallback
             if len(formatted_response) < 10 or "erro" in formatted_response.lower():
                 return _generate_fallback_response(user_query, results_text, row_count)
@@ -788,6 +827,13 @@ def _generate_formatted_response(
 
 def _generate_fallback_response(user_query: str, results_text: str, row_count: int) -> str:
     """Generate basic fallback response when LLM formatting fails"""
+    
+    # Apply safety limits to fallback response as well
+    MAX_FALLBACK_LENGTH = 1000
+    
+    # Limit results_text for fallback
+    if len(results_text) > MAX_FALLBACK_LENGTH:
+        results_text = results_text[:MAX_FALLBACK_LENGTH] + "... (resposta truncada)"
     if row_count == 0:
         return "Nenhum resultado encontrado para sua consulta."
     elif row_count == 1:
