@@ -1,11 +1,11 @@
 """
 Database Connection Service - Infrastructure Layer
 
-🎯 OBJETIVO:
+ OBJETIVO:
 Gerenciar conexões com o banco de dados SUS (SQLite), fornecendo interfaces
 padronizadas tanto para LangChain quanto para operações SQLite nativas.
 
-🔄 POSIÇÃO NO FLUXO (INFRASTRUCTURE):
+ POSIÇÃO NO FLUXO (INFRASTRUCTURE):
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │ Application     │ -> │ Database        │ -> │ SQLite SUS      │
 │ Services        │    │ Connection      │    │ Database        │
@@ -23,18 +23,18 @@ padronizadas tanto para LangChain quanto para operações SQLite nativas.
 
 🧩 RESPONSABILIDADES:
 1. 🔌 Gerenciar conexões SQLite com o banco SUS (sus_database.db)
-2. 🔄 Fornecer interfaces LangChain e SQLite nativo
+2.  Fornecer interfaces LangChain e SQLite nativo
 3. 🛡️ Garantir thread-safety (check_same_thread=False)
-4. ⚡ Otimizar reutilização de conexões
-5. 🧪 Testes de conectividade e health checks
-6. 📝 Configuração flexível de paths de banco
+4.  Otimizar reutilização de conexões
+5.  Testes de conectividade e health checks
+6.  Configuração flexível de paths de banco
 
-🔗 DEPENDÊNCIAS EXTERNAS:
+ DEPENDÊNCIAS EXTERNAS:
 - SQLite3: Driver nativo Python para SQLite
 - LangChain: SQLDatabase wrapper para operações ORM-style
 - Sistema de arquivos: Acesso ao arquivo sus_database.db
 
-🏗️ PADRÕES IMPLEMENTADOS:
+ PADRÕES IMPLEMENTADOS:
 - Factory Pattern: DatabaseConnectionFactory para criação
 - Interface Segregation: IDatabaseConnectionService abstrato
 - Dependency Inversion: Application depende de abstrações
@@ -51,7 +51,7 @@ padronizadas tanto para LangChain quanto para operações SQLite nativas.
 - Thread-safety para uso em ambiente multi-thread
 - Error handling robusto para falhas de conexão
 
-📊 TIPOS DE CONEXÃO:
+ TIPOS DE CONEXÃO:
 1. LangChain SQLDatabase: Para operações de alto nível
 2. Raw SQLite Connection: Para operações diretas e performance
 3. Test Connections: Para health checks isolados

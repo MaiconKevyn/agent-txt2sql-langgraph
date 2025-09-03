@@ -75,7 +75,7 @@ class HybridLLMManager:
             if self.config.database_type == "postgresql" or db_path.startswith("postgresql"):
                 # PostgreSQL connection - use URI directly
                 connection_string = db_path
-                print(f"🐘 Connecting to PostgreSQL: {connection_string}")
+                print(f" Connecting to PostgreSQL: {connection_string}")
             else:
                 # SQLite connection - validate file exists
                 if not os.path.exists(db_path):
@@ -91,10 +91,10 @@ class HybridLLMManager:
             if not table_names:
                 raise ValueError("No usable tables found in database")
                 
-            print(f"✅ SQLDatabase initialized with {len(table_names)} tables")
+            print(f" SQLDatabase initialized with {len(table_names)} tables")
             
         except Exception as e:
-            print(f"❌ Database initialization failed: {e}")
+            print(f" Database initialization failed: {e}")
             raise
     
     def _initialize_llm(self):
@@ -130,7 +130,7 @@ class HybridLLMManager:
                     timeout=None,
                     max_retries=2
                 )
-                print(f"✅ Groq LLM initialized: {model_name} (Free Llama3 70B with tool calling)")
+                print(f" Groq LLM initialized: {model_name} (Free Llama3 70B with tool calling)")
                 
             elif provider == "openai":
                 if not OPENAI_AVAILABLE:
@@ -147,7 +147,7 @@ class HybridLLMManager:
                     timeout=self.config.llm_timeout,
                     max_retries=2
                 )
-                print(f"✅ OpenAI LLM initialized: {model_name}")
+                print(f" OpenAI LLM initialized: {model_name}")
                 
             elif provider == "huggingface":
                 self._llm = HuggingFacePipeline.from_model_id(
@@ -170,10 +170,10 @@ class HybridLLMManager:
                     supported_providers.append("openai")
                 raise ValueError(f"Unsupported LLM provider: {provider}. Supported: {supported_providers}")
             
-            print(f"✅ LLM initialized: {model_name} ({provider})")
+            print(f" LLM initialized: {model_name} ({provider})")
             
         except Exception as e:
-            print(f"❌ LLM initialization failed: {e}")
+            print(f" LLM initialization failed: {e}")
             raise
     
     def _initialize_sql_toolkit(self):
@@ -197,15 +197,15 @@ class HybridLLMManager:
             # Store enhanced tools for use
             self._enhanced_tools = enhanced_tools
             
-            print(f"✅ Enhanced SQLDatabaseToolkit initialized with {len(enhanced_tools)} tools")
+            print(f" Enhanced SQLDatabaseToolkit initialized with {len(enhanced_tools)} tools")
             
             # Log available tools (including enhanced ones)
             for tool in enhanced_tools:
-                tool_type = "🚀 Enhanced" if "Enhanced" in str(type(tool).__name__) else "🔧 Standard"
+                tool_type = " Enhanced" if "Enhanced" in str(type(tool).__name__) else " Standard"
                 print(f"   {tool_type} {tool.name}: {tool.description[:80]}...")
                 
         except Exception as e:
-            print(f"❌ SQLDatabaseToolkit initialization failed: {e}")
+            print(f" SQLDatabaseToolkit initialization failed: {e}")
             raise
     
     def _create_enhanced_tools(self, standard_tools: List[BaseTool]) -> List[BaseTool]:
@@ -232,20 +232,20 @@ class HybridLLMManager:
             enhanced_list_tool = EnhancedListTablesTool(db=self._sql_database)
             enhanced_tools.append(enhanced_list_tool)
             
-            print(f"🚀 Enhanced sql_db_list_tables tool integrated successfully!")
-            print(f"   📊 Original tools: {len(standard_tools)}")
-            print(f"   📊 Enhanced tools: {len(enhanced_tools)}")
-            print(f"   🔄 Replaced: sql_db_list_tables → EnhancedListTablesTool")
+            print(f" Enhanced sql_db_list_tables tool integrated successfully!")
+            print(f"    Original tools: {len(standard_tools)}")
+            print(f"    Enhanced tools: {len(enhanced_tools)}")
+            print(f"    Replaced: sql_db_list_tables → EnhancedListTablesTool")
             
             return enhanced_tools
             
         except ImportError as e:
-            print(f"⚠️  Enhanced tools not available: {e}")
-            print(f"   🔄 Falling back to standard tools")
+            print(f"  Enhanced tools not available: {e}")
+            print(f"    Falling back to standard tools")
             return standard_tools
         except Exception as e:
-            print(f"⚠️  Error creating enhanced tools: {e}")
-            print(f"   🔄 Falling back to standard tools")
+            print(f"  Error creating enhanced tools: {e}")
+            print(f"    Falling back to standard tools")
             return standard_tools
     
     def _bind_tools(self):
@@ -264,13 +264,13 @@ class HybridLLMManager:
             enhanced_count = sum(1 for tool in tools if "Enhanced" in str(type(tool).__name__))
             standard_count = len(tools) - enhanced_count
             
-            print(f"✅ Tools bound to LLM: {len(tools)} tools available")
+            print(f" Tools bound to LLM: {len(tools)} tools available")
             if enhanced_count > 0:
                 print(f"Enhanced tools: {enhanced_count}")
                 print(f"Standard tools: {standard_count}")
             
         except Exception as e:
-            print(f"❌ Tool binding failed: {e}")
+            print(f" Tool binding failed: {e}")
             # Fallback: use unbound LLM
             self._bound_llm = self._llm
     
@@ -405,7 +405,7 @@ class HybridLLMManager:
             - For questions about DEATHS/MORTES/ÓBITOS: ALWAYS use MORTE = 1
             - For questions about CITIES/CIDADES: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
         
-        🎯 EXACT EXAMPLES FOR COMMON QUERIES:
+         EXACT EXAMPLES FOR COMMON QUERIES:
         - "Quantos homens morreram?" → SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1;
         - "Qual cidade com mais mortes de homens?" → SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY COUNT(*) DESC LIMIT 1;
         - "Mulheres por diagnóstico" → SELECT DIAG_PRINC, COUNT(*) FROM sus_data WHERE SEXO = 3 GROUP BY DIAG_PRINC;

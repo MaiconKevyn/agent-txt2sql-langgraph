@@ -62,7 +62,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
     """
     start_time = time.time()
     
-    print(f"🔍 CLASSIFICATION NODE: Starting query classification")
+    print(f"CLASSIFICATION NODE: Starting query classification")
     
     try:
         # Extract user query from different possible state formats
@@ -87,12 +87,12 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         
         if not user_query:
             # Debug: print state keys to understand format
-            print(f"🔍 DEBUG: State keys: {list(state.keys())}")
+            print(f"DEBUG: State keys: {list(state.keys())}")
             if "messages" in state:
-                print(f"🔍 DEBUG: Messages: {state['messages']}")
+                print(f"DEBUG: Messages: {state['messages']}")
             raise ValueError("No user query found in state")
         
-        print(f"   📝 User Query: '{user_query}'")
+        print(f"   User Query: '{user_query}'")
         
         # Store user_query in state for other nodes
         if "user_query" not in state:
@@ -207,7 +207,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"🗂️ TABLE DISCOVERY NODE: Discovering available tables")
+    print(f"TABLE DISCOVERY NODE: Discovering available tables")
     
     try:
         llm_manager = get_llm_manager()
@@ -408,7 +408,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         sql_prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
-        📋 CORE POSTGRESQL INSTRUCTIONS:
+         CORE POSTGRESQL INSTRUCTIONS:
         1. Generate syntactically correct PostgreSQL queries
         2. Use proper table and column names with double quotes: "COLUMN_NAME"
         3. Handle Portuguese language questions appropriately
@@ -418,7 +418,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
         
-        🔍 DATABASE SCHEMA:
+         DATABASE SCHEMA:
         {schema_context}"""),
             
             ("system", "{table_specific_rules}"),
@@ -453,19 +453,19 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             ai_response = f"Generated SQL query: {sql_query}"
             state = add_ai_message(state, ai_response)
             
-            print(f"   ✅ SQL Generated: {sql_query}")
+            print(f"    SQL Generated: {sql_query}")
             
         else:
             # Handle empty SQL generation
             error_message = "Failed to generate SQL query - empty response"
             state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
-            print(f"   ❌ SQL Generation Failed: Empty response")
+            print(f"    SQL Generation Failed: Empty response")
         
         # Update phase
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
         
-        print(f"   🕒 SQL Generation Time: {execution_time:.2f}s")
+        print(f"    SQL Generation Time: {execution_time:.2f}s")
         
         return state
         
@@ -477,8 +477,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
         
-        print(f"   ❌ SQL Generation Error: {str(e)}")
-        print(f"   🕒 Error Time: {execution_time:.2f}s")
+        print(f"    SQL Generation Error: {str(e)}")
+        print(f"    Error Time: {execution_time:.2f}s")
         
         return state
 
@@ -931,7 +931,7 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     ### EXEMPLOS DE CONSULTAS CORRETAS:
     =====================================
     
-    ✅ **Top 10 cidades com mais mortes de idosos (> 60 anos):**
+     **Top 10 cidades com mais mortes de idosos (> 60 anos):**
     ```sql
     SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
     FROM mortes mo
@@ -943,7 +943,7 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     LIMIT 10;
     ```
 
-    ✅ **Cidade com mais mortes de homens:**
+     **Cidade com mais mortes de homens:**
     ```sql
     SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
     FROM mortes mo
@@ -955,7 +955,7 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     LIMIT 1;
     ```
 
-    ✅ **Contar mortes de pessoas com menos de 30 anos:**
+     **Contar mortes de pessoas com menos de 30 anos:**
     ```sql
     SELECT COUNT(mo."N_AIH")
     FROM mortes mo
@@ -1031,29 +1031,29 @@ AVAILABLE TABLES:
 CRITICAL SELECTION RULES FOR SIH-RS DATABASE:
 ====================================================
 
-🏥 CORE QUERIES - Primary Table Selection:
+ CORE QUERIES - Primary Table Selection:
 • internacoes: ALWAYS use for patient counts, general hospitalization queries
 • mortes: Use ONLY when explicitly asking about deaths/mortality ("mortes", "óbitos", "falecimentos")  
 • uti_detalhes: Use ONLY for ICU/intensive care queries ("UTI", "terapia intensiva", "cuidados intensivos")
 • obstetricos: Use ONLY for maternal/obstetric care ("obstétricos", "gestantes", "pré-natal")
 
-🔍 LOOKUP TABLES - Always join when names/descriptions needed:
+ LOOKUP TABLES - Always join when names/descriptions needed:
 • cid10: Join when need disease/diagnosis NAMES (not for counting patients - count from internacoes)
 • procedimentos: Join when need procedure NAMES (not for counting - count from internacoes)  
 • hospital: Join when need hospital/facility information
 • municipios: Join when need city/municipality NAMES or geographic data
 
-📊 SPECIALIZED ANALYSIS:
+ SPECIALIZED ANALYSIS:
 • dado_ibge: Use for socioeconomic indicators, population data, demographic analysis
 • condicoes_especificas: Use for specific medical conditions (VDRL, STD screening)
 • instrucao: Use for patient education level analysis
 
-❌ AVOID THESE TABLES:
+ AVOID THESE TABLES:
 • diagnosticos_secundarios: Empty table - no data available
 • infehosp: Empty table - no data available  
 • cbor, vincprev: Only for very specific administrative queries
 
-🎯 SELECTION LOGIC:
+ SELECTION LOGIC:
 1. Start with internacoes for most patient/hospitalization queries
 2. Add mortes ONLY if mortality is explicitly mentioned
 3. Add lookup tables (cid10, procedimentos, hospital, municipios) when descriptions are needed
@@ -1074,7 +1074,7 @@ TABLES:"""
         # Parse response using simplified approach
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
         
-        print(f"   🤖 LLM Raw Response: '{selected_tables_str}'")
+        print(f"    LLM Raw Response: '{selected_tables_str}'")
         
         # Simplified parsing with validation
         selected_tables = _parse_llm_table_selection(selected_tables_str, available_tables)
@@ -1084,7 +1084,7 @@ TABLES:"""
         
         # Final fallback: if still no valid tables, use intelligent default
         if not selected_tables:
-            print(f"   ⚠️ No valid tables selected, using intelligent fallback")
+            print(f"    No valid tables selected, using intelligent fallback")
             selected_tables = _get_intelligent_fallback(user_query, available_tables)
         
         print(f"   Query: '{user_query}'")
@@ -1125,7 +1125,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                 tables = data['tables']
                 selected_tables = [t for t in tables if t in available_tables]
                 if selected_tables:
-                    print(f"   ✅ JSON parsing successful: {selected_tables}")
+                    print(f"    JSON parsing successful: {selected_tables}")
                     return selected_tables
     except (json.JSONDecodeError, KeyError):
         pass
@@ -1137,7 +1137,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
         candidate_tables = [t.strip() for t in tables_line.split(',')]
         selected_tables = [t for t in candidate_tables if t in available_tables]
         if selected_tables:
-            print(f"   ✅ Structured parsing successful: {selected_tables}")
+            print(f"    Structured parsing successful: {selected_tables}")
             return selected_tables
     
     # Method 3: Direct comma-separated parsing (final line preference)
@@ -1158,7 +1158,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                     selected_tables.append(clean_candidate)
             
             if selected_tables:
-                print(f"   ✅ Direct parsing successful: {selected_tables}")
+                print(f"    Direct parsing successful: {selected_tables}")
                 return selected_tables
     
     # Method 4: Search for table names anywhere in response
@@ -1168,9 +1168,9 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                 selected_tables.append(table_name)
     
     if selected_tables:
-        print(f"   ✅ Pattern matching successful: {selected_tables}")
+        print(f"    Pattern matching successful: {selected_tables}")
     else:
-        print(f"   ❌ No tables found in response")
+        print(f"    No tables found in response")
     
     return selected_tables
 
@@ -1196,28 +1196,28 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
     if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
         if 'mortes' not in validated_tables and 'mortes' in available_tables:
             validated_tables.append('mortes')
-            print(f"   🔧 Added 'mortes' for death query")
+            print(f"    Added 'mortes' for death query")
     
     # Rule 2: Procedure frequency queries need internacoes, not procedimentos
     if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento']):
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"   🔧 Added 'internacoes' for procedure frequency analysis")
+            print(f"    Added 'internacoes' for procedure frequency analysis")
         if 'procedimentos' in validated_tables:
             validated_tables.remove('procedimentos')
-            print(f"   🔧 Removed 'procedimentos' - using internacoes for frequency")
+            print(f"    Removed 'procedimentos' - using internacoes for frequency")
     
     # Rule 3: Financial queries about internacoes need internacoes table
     if any(keyword in query_lower for keyword in ['valor', 'custo', 'gasto', 'financeiro']) and 'óbito' in query_lower:
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"   🔧 Added 'internacoes' for financial data")
+            print(f"    Added 'internacoes' for financial data")
     
     # Rule 4: Multi-table analysis validation
     if 'mortes' in validated_tables and any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"   🔧 Added 'internacoes' for mortality rate calculation")
+            print(f"    Added 'internacoes' for mortality rate calculation")
     
     # Rule 5: Remove unnecessary over-selections for simple counting
     if len(validated_tables) > 1:
@@ -1236,11 +1236,11 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
             for priority_table in priority_tables:
                 if priority_table in validated_tables:
                     validated_tables = [priority_table]
-                    print(f"   🎯 Simplified to single table '{priority_table}' for simple counting")
+                    print(f"    Simplified to single table '{priority_table}' for simple counting")
                     break
     
     if validated_tables != selected_tables:
-        print(f"   📊 Validation changes: {selected_tables} → {validated_tables}")
+        print(f"    Validation changes: {selected_tables} → {validated_tables}")
     
     return validated_tables
 
