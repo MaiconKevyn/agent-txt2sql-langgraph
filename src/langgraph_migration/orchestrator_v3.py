@@ -14,6 +14,11 @@ from typing import Dict, Any, Optional, Union, List
 from dataclasses import dataclass
 from datetime import datetime
 import json
+from dotenv import load_dotenv
+import os
+
+# Load environment variables for LangSmith tracing
+load_dotenv()
 
 from .workflow_v3 import (
     create_production_sql_agent,
@@ -222,7 +227,10 @@ class LangGraphOrchestrator:
         user_query: str,
         session_id: str = None,
         streaming: bool = False,
-        config: dict = None
+        config: dict = None,
+        run_name: str = None,
+        tags: List[str] = None,
+        metadata: Dict[str, Any] = None
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Process a user query using the LangGraph workflow
@@ -232,6 +240,9 @@ class LangGraphOrchestrator:
             session_id: Optional session identifier
             streaming: Whether to return streaming results
             config: Additional configuration
+            run_name: Custom name for LangSmith trace
+            tags: Tags for filtering in LangSmith
+            metadata: Additional metadata for LangSmith trace
             
         Returns:
             Query result dictionary or list of streaming updates
@@ -255,6 +266,29 @@ class LangGraphOrchestrator:
             # Track query
             self._total_queries += 1
             
+            # Prepare LangSmith configuration
+            langsmith_config = config or {}
+            if run_name:
+                langsmith_config["run_name"] = run_name
+            if tags:
+                langsmith_config["tags"] = tags
+            if metadata:
+                langsmith_config["metadata"] = metadata
+            
+            # Add default metadata for tracking
+            default_metadata = {
+                "session_id": session_id,
+                "query_number": self._total_queries,
+                "model_provider": self._current_model.provider,
+                "model_name": self._current_model.model_name,
+                "environment": self.environment
+            }
+            
+            if "metadata" in langsmith_config:
+                langsmith_config["metadata"].update(default_metadata)
+            else:
+                langsmith_config["metadata"] = default_metadata
+            
             if streaming:
                 # Return streaming results
                 results = []
@@ -262,7 +296,7 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=config
+                    config=langsmith_config
                 ):
                     results.append(update)
                 
@@ -281,7 +315,7 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=config
+                    config=langsmith_config
                 )
                 
                 # Calculate execution time
@@ -596,6 +630,55 @@ class LangGraphOrchestrator:
         """
         
         print(workflow_structure)
+
+    def process_query_with_tracing(
+        self,
+        user_query: str,
+        session_id: str = None,
+        run_name: str = None,
+        project_name: str = "txt2sql-agent"
+    ) -> Dict[str, Any]:
+        """
+        Process a query with enhanced LangSmith tracing
+        
+        Args:
+            user_query: User's natural language question
+            session_id: Optional session identifier  
+            run_name: Custom name for the trace
+            project_name: LangSmith project name
+            
+        Returns:
+            Query result with enhanced tracing metadata
+        """
+        # Generate meaningful run name if not provided
+        if not run_name:
+            run_name = f"txt2sql_query_{self._total_queries + 1}"
+        
+        # Create comprehensive tags
+        tags = [
+            f"model:{self._current_model.model_name}",
+            f"provider:{self._current_model.provider}",
+            f"env:{self.environment}",
+            "txt2sql",
+            "langgraph-v3"
+        ]
+        
+        # Enhanced metadata for debugging
+        metadata = {
+            "project": project_name,
+            "orchestrator_version": "3.0",
+            "user_query_length": len(user_query),
+            "user_query_preview": user_query[:100] + "..." if len(user_query) > 100 else user_query
+        }
+        
+        # Execute with tracing
+        return self.process_query(
+            user_query=user_query,
+            session_id=session_id,
+            run_name=run_name,
+            tags=tags,
+            metadata=metadata
+        )
 
     def health_check(self) -> Dict[str, Any]:
         """

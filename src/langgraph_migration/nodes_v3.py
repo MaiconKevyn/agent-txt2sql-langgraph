@@ -63,11 +63,42 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
     start_time = time.time()
     
     print(f"🔍 CLASSIFICATION NODE: Starting query classification")
-    print(f"   📝 User Query: '{state['user_query']}'")
     
     try:
+        # Extract user query from different possible state formats
+        user_query = None
+        
+        # Try getting from user_query field (custom format)
+        if "user_query" in state:
+            user_query = state["user_query"]
+        # Try getting from messages (LangGraph Studio format)
+        elif "messages" in state and state["messages"]:
+            # Get the last human message
+            for msg in reversed(state["messages"]):
+                if hasattr(msg, 'type') and msg.type == 'human':
+                    user_query = msg.content
+                    break
+                elif isinstance(msg, dict) and msg.get('type') == 'human':
+                    user_query = msg.get('content', '')
+                    break
+                elif isinstance(msg, dict) and msg.get('role') == 'human':
+                    user_query = msg.get('content', '')
+                    break
+        
+        if not user_query:
+            # Debug: print state keys to understand format
+            print(f"🔍 DEBUG: State keys: {list(state.keys())}")
+            if "messages" in state:
+                print(f"🔍 DEBUG: Messages: {state['messages']}")
+            raise ValueError("No user query found in state")
+        
+        print(f"   📝 User Query: '{user_query}'")
+        
+        # Store user_query in state for other nodes
+        if "user_query" not in state:
+            state["user_query"] = user_query
+        
         llm_manager = get_llm_manager()
-        user_query = state["user_query"]
         
         # Create optimized classification prompt for faster response
         classification_prompt = f"""Classify this query:
@@ -874,78 +905,70 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
     if "internacoes" not in base_schema.lower():
         return base_schema
     
-    # Enhanced PostgreSQL SIH-RS mappings
+    # Enhanced PostgreSQL SIH-RS mappings based on direct DB inspection
     sus_mappings = """
 
-    CRITICAL VALUE MAPPINGS FOR SIH-RS POSTGRESQL DATA - PADRÃO SUS:
+    CRITICAL VALUE MAPPINGS & JOIN LOGIC FOR SIH-RS POSTGRESQL DATA:
     ===================================================================
     
-    SEXO (Gender) - CÓDIGOS PADRÃO SUS:
-    - "SEXO" = 1  →  MASCULINO/HOMEM (MALE - FOR QUESTIONS ABOUT MEN)
-    - "SEXO" = 3  →  FEMININO/MULHER (FEMALE - FOR QUESTIONS ABOUT WOMEN)
-    NEVER USE "SEXO" = 2 (does not exist in SUS system!)
+    ### COLUNAS E VALORES ESSENCIAIS:
+    - **SEXO (na tabela internacoes):**
+      - `i."SEXO" = 1` → MASCULINO/HOMEM
+      - `i."SEXO" = 3` → FEMININO/MULHER
+    - **IDADE (na tabela internacoes):**
+      - `i."IDADE"` → Usar para filtros de idade (ex: `i."IDADE" < 30`).
+    - **MUNICÍPIO (para nomes de cidades):**
+      - A tabela `municipios` contém `nome` e `codigo_6d`.
     
-    MUNIC_RES - MUNICÍPIO DE RESIDÊNCIA:
-    - Contains 6-digit IBGE municipal codes (e.g., 430490 = Porto Alegre)
-    - JOIN with municipios table for readable city names
+    ### LÓGICA DE JUNÇÃO (JOIN) OBRIGATÓRIA:
+    - As tabelas `mortes` e `internacoes` **NÃO** contêm nomes de cidades, apenas códigos.
+    - Para obter o **NOME DA CIDADE/MUNICÍPIO**, a junção **SEMPRE** deve seguir este caminho:
+      1. Junte `mortes` com `internacoes` usando `N_AIH` (se a pergunta envolver mortes).
+         - `FROM mortes mo JOIN internacoes i ON mo."N_AIH" = i."N_AIH"`
+      2. Junte o resultado com `municipios` usando o código do município da tabela `internacoes`.
+         - `JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d`
+
+    ### EXEMPLOS DE CONSULTAS CORRETAS:
+    =====================================
     
-    POSTGRESQL COLUMN NAMES REQUIRE DOUBLE QUOTES:
-    - Always use "COLUMN_NAME" (with quotes) for column references
-    - Example: "SEXO", "IDADE", "MUNIC_RES", "DIAG_PRINC", "CID", "CD_DESCRICAO"
-    
-    QUERY EXAMPLES WITH CORRECT POSTGRESQL SYNTAX:
-    ===============================================
-    
-    ✅ TOTAL INTERNAÇÕES:
-    SELECT COUNT(*) FROM internacoes;
-    
-    ✅ INTERNAÇÕES POR SEXO:
-    -- Homens internados
-    SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 1;
-    
-    -- Mulheres internadas  
-    SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 3;
-    
-    ✅ CIDADES COM MAIS INTERNAÇÕES (WITH JOIN):
-    SELECT m."nome" as cidade, COUNT(*) as total_internacoes 
-    FROM internacoes i 
-    JOIN municipios m ON i."MUNIC_RES" = m."codigo" 
-    GROUP BY m."nome" 
-    ORDER BY total_internacoes DESC 
-    LIMIT 5;
-    
-    ✅ DIAGNÓSTICOS MAIS COMUNS:
-    SELECT c."CD_DESCRICAO", COUNT(*) as total_casos 
-    FROM internacoes i 
-    JOIN cid10 c ON i."DIAG_PRINC" = c."CID" 
-    GROUP BY c."CD_DESCRICAO" 
-    ORDER BY total_casos DESC 
+    ✅ **Top 10 cidades com mais mortes de idosos (> 60 anos):**
+    ```sql
+    SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
+    FROM mortes mo
+    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+    JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+    WHERE i."IDADE" > 60 AND mo."CID_MORTE" IS NOT NULL
+    GROUP BY mu.nome
+    ORDER BY total_mortes DESC
     LIMIT 10;
-    
-    ✅ BUSCAR DESCRIÇÃO CID:
-    SELECT "CD_DESCRICAO" FROM cid10 WHERE "CID" = 'F190';
-    
-    ✅ DIAGNÓSTICOS POR IDADE:
-    SELECT "IDADE", COUNT(*) as total_casos
-    FROM internacoes 
-    WHERE "IDADE" IS NOT NULL 
-    GROUP BY "IDADE" 
-    ORDER BY "IDADE";
-    
-    IMPORTANT NOTES FOR POSTGRESQL SIH-RS:
-    - All gender codes follow SUS official standards: 1=Masculino, 3=Feminino
-    - "MUNIC_RES" contains IBGE 6-digit codes - JOIN with municipios table for names
-    - Tables: internacoes (main data), cid10 (diagnoses), municipios (cities)
-    - For city queries: JOIN internacoes with municipios on "MUNIC_RES" = "codigo"
-    
-    MANDATORY POSTGRESQL RULES:
-    - "SEXO" = 1 for questions about HOMENS/MASCULINO/MEN/MALES
-    - "SEXO" = 3 for questions about MULHERES/FEMININO/WOMEN/FEMALES  
-    - For city names: JOIN with municipios table using "MUNIC_RES" = municipios."codigo"
-    - For diagnosis descriptions: JOIN with cid10 table using "DIAG_PRINC" = cid10."CID"
-    - For CID lookups: SELECT "CD_DESCRICAO" FROM cid10 WHERE "CID" = 'code'
-    - ALWAYS use double quotes around ALL column names: "COLUMN_NAME"
-    - CID10 columns: "CID" and "CD_DESCRICAO" (always with quotes)
+    ```
+
+    ✅ **Cidade com mais mortes de homens:**
+    ```sql
+    SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
+    FROM mortes mo
+    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+    JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+    WHERE i."SEXO" = 1
+    GROUP BY mu.nome
+    ORDER BY total_mortes DESC
+    LIMIT 1;
+    ```
+
+    ✅ **Contar mortes de pessoas com menos de 30 anos:**
+    ```sql
+    SELECT COUNT(mo."N_AIH")
+    FROM mortes mo
+    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+    WHERE i."IDADE" < 30;
+    ```
+
+    ### REGRAS OBRIGATÓRIAS PARA O LLM:
+    1.  Para qualquer pergunta sobre **cidades/municípios**, a junção com a tabela `municipios` é obrigatória para obter o nome.
+    2.  A condição de JOIN para municípios é **SEMPRE** `i."MUNIC_RES" = mu.codigo_6d`.
+    3.  Se a pergunta envolve **mortes**, a condição de JOIN entre `mortes` e `internacoes` é **SEMPRE** `mo."N_AIH" = i."N_AIH"`.
+    4.  Para filtros de **idade** ou **sexo**, use as colunas da tabela `internacoes` (`i."IDADE"`, `i."SEXO"`).
+    5.  **SEMPRE** use aspas duplas para nomes de colunas que são case-sensitive (ex: `"N_AIH"`, `"IDADE"`).
     """
     
     return base_schema + sus_mappings

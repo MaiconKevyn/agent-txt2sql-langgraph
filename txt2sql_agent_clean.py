@@ -16,6 +16,11 @@ Each service has a single, well-defined responsibility and can be tested indepen
 import sys
 import argparse
 from typing import Optional
+from dotenv import load_dotenv
+import os
+
+# Load environment variables for LangSmith tracing
+load_dotenv()
 
 # Import the clean architecture components
 from src.application.config.simple_config import (
@@ -109,8 +114,20 @@ def debug_query_execution(orchestrator, user_query: str):
             session_id=f"debug_{hash(user_query) % 10000}"
         )
         
-        # Stream workflow execution with detailed debugging
-        for update in orchestrator._workflow.stream(initial_state, config=config):
+        # Use process_query with streaming to maintain LangSmith integration
+        session_id = f"debug_{hash(user_query) % 10000}"
+        results = orchestrator.process_query(
+            user_query=user_query,
+            session_id=session_id,
+            streaming=True,
+            config=config,
+            run_name=f"debug_query_{session_id}",
+            tags=["debug", "txt2sql_agent_clean"],
+            metadata={"debug_mode": True, "script": "txt2sql_agent_clean.py"}
+        )
+        
+        # Process streaming results
+        for update in results:
             for node_name, node_state in update.items():
                 
                 print(f"\n🔍 STEP {step_counter}: {node_name.upper()}")
@@ -553,9 +570,17 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 # Debug mode with detailed step-by-step workflow
                 debug_query_execution(orchestrator, args.query)
             else:
-                # Normal mode
+                # Normal mode with LangSmith tracing
                 print(f"🔍 Processando consulta: {args.query}")
-                result = orchestrator.process_query(args.query)
+                session_id = f"clean_{hash(args.query) % 10000}"
+                result = orchestrator.process_query(
+                    user_query=args.query,
+                    session_id=session_id,
+                    streaming=False,
+                    run_name=f"clean_query_{session_id}",
+                    tags=["production", "txt2sql_agent_clean"],
+                    metadata={"script": "txt2sql_agent_clean.py", "mode": "single_query"}
+                )
                 
                 if result["success"]:
                     # Show response
