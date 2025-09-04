@@ -111,19 +111,19 @@ class EnhancedListTablesTool(BaseTool):
             
             # Validate database is available
             if not self.db:
-                return "❌ Database não disponível para enhanced list tables tool."
+                return " Database não disponível para enhanced list tables tool."
             
             # Get available tables from database
             table_names = self.db.get_usable_table_names()
             
             if not table_names:
-                return "❌ Nenhuma tabela encontrada no banco de dados."
+                return " Nenhuma tabela encontrada no banco de dados."
             
             # Build CONCISE output (performance optimized)
             if TOOL_CONFIGURATION.get("concise_mode", False):
                 result_parts = []  # No header in concise mode
             else:
-                result_parts = ["📋 TABELAS COM DESCRIÇÕES:"]
+                result_parts = [" TABELAS COM DESCRIÇÕES:"]
             
             # Add detailed information for each table
             for table_name in sorted(table_names):
@@ -170,14 +170,14 @@ class EnhancedListTablesTool(BaseTool):
         # Standard format (if concise_mode is False)
         sections = [f"\n{table_name}:"]
         sections.append(f"  {table_info['title']}")
-        sections.append(f"  📝 {table_info['description']}")
+        sections.append(f"   {table_info['description']}")
         
         # Only show critical mappings in standard mode
         if self.include_mappings:
             mappings = table_info.get('value_mappings', {})
             if mappings:
                 mapping_items = [f"{k}={v}" for k, v in mappings.items()]
-                sections.append(f"  ⚠️  {', '.join(mapping_items)}")
+                sections.append(f"    {', '.join(mapping_items)}")
         
         return "\n".join(sections)
     
@@ -220,7 +220,7 @@ class EnhancedListTablesTool(BaseTool):
             Default table information dictionary
         """
         return {
-            "title": f"📊 Tabela: {table_name}",
+            "title": f" Tabela: {table_name}",
             "description": f"Tabela de dados {table_name}",
             "purpose": "Análise baseada no schema e conteúdo da tabela",
             "use_cases": [
@@ -264,7 +264,7 @@ class EnhancedListTablesTool(BaseTool):
             table_names = self.db.get_usable_table_names()
             basic_list = ", ".join(table_names)
             
-            return f"""❌ Enhanced descriptions failed: {error_msg[:100]}
+            return f""" Enhanced descriptions failed: {error_msg[:100]}
             
             TABELAS DISPONÍVEIS:
             {basic_list}
@@ -272,7 +272,7 @@ class EnhancedListTablesTool(BaseTool):
             Use sql_db_schema para obter mais informações sobre cada tabela."""
             
         except Exception:
-            return f"❌ Erro ao listar tabelas: {error_msg[:100]}..."
+            return f" Erro ao listar tabelas: {error_msg[:100]}..."
 
 
 # Factory function for easy instantiation

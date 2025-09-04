@@ -28,7 +28,7 @@ from src.application.config.simple_config import (
 )
 # MIGRATION V3: Use LangGraph V3 Orchestrator (official patterns)
 from src.langgraph_migration.orchestrator_v3 import LangGraphOrchestrator, create_production_orchestrator
-from src.application.services.user_interface_service import InterfaceType
+from src.application.config.simple_config import InterfaceType
 
 # Global agent instance - now using LangGraph V3 Orchestrator
 agent: Optional[LangGraphOrchestrator] = None
@@ -55,7 +55,7 @@ app.add_middleware(
 # Request/Response models
 class QueryRequest(BaseModel):
     question: str
-    model: str = "llama3"
+    model: str = "llama3.1:8b"
 
 class QueryResponse(BaseModel):
     success: bool
@@ -74,7 +74,7 @@ class HealthResponse(BaseModel):
     services: Dict[str, Any]
 
 class SchemaResponse(BaseModel):
-    schema: str
+    schema_info: str
     timestamp: str
 
 def initialize_agent(model_name: str = None) -> LangGraphOrchestrator:
@@ -260,7 +260,7 @@ async def root():
                     resultDiv.innerHTML = `
                         <div class="result">
                             <h4>📊 Database Schema</h4>
-                            <pre>${data.schema}</pre>
+                            <pre>${data.schema_info}</pre>
                         </div>
                     `;
                 } catch (error) {
@@ -292,8 +292,13 @@ async def query_database(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty")
     
     try:
-        # Use LangGraph V3 orchestrator for query processing
-        result = agent.process_query(request.question)
+        # Use LangGraph V3 orchestrator with LangSmith tracing
+        result = agent.process_query(
+            user_query=request.question,
+            run_name=f"api_query_{int(datetime.now().timestamp())}",
+            tags=["api", "production", "txt2sql_api_server"],
+            metadata={"source": "api_server", "model": request.model}
+        )
         
         return QueryResponse(
             success=result["success"],
@@ -371,7 +376,7 @@ async def get_schema(table: Optional[str] = None):
                 schema_text = f"Erro ao obter schema: {result.get('error_message', 'Erro desconhecido')}"
         
         return SchemaResponse(
-            schema=schema_text,
+            schema_info=schema_text,
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:
@@ -389,8 +394,10 @@ async def get_available_tables():
         result = agent.process_query(tables_query)
         
         if result["success"]:
-            # Default main tables (since we know the schema)
-            main_tables = ['sus_data', 'cid_detalhado']
+            # Current PostgreSQL tables (based on actual schema)
+            main_tables = ['internacoes', 'mortes', 'procedimentos', 'municipios', 'hospital', 
+                          'cbor', 'cid10', 'diagnosticos_secundarios', 'dado_ibge', 'condicoes_especificas',
+                          'infehosp', 'instrucao', 'obstetricos', 'uti_detalhes', 'vincprev']
         else:
             main_tables = []
         
@@ -430,8 +437,9 @@ async def agent_health_check():
 async def get_available_models():
     """Get available LLM models"""
     return {
-        "models": ["llama3", "mistral"],
-        "default": "llama3",
+        "models": ["llama3.1:8b", "mistral", "llama3"],
+        "default": "llama3.1:8b",
+        "current": agent.get_current_model() if agent else None,
         "timestamp": datetime.now().isoformat()
     }
 

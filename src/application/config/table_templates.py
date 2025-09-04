@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 # PostgreSQL-specific templates for all 15 SIH-RS tables
 TABLE_TEMPLATES = {
     "internacoes": """
-        🏥 INTERNACOES TABLE RULES - MAIN HOSPITALIZATION DATA:
+         INTERNACOES TABLE RULES - MAIN HOSPITALIZATION DATA:
         
         MANDATORY VALUE MAPPINGS (NEVER MAKE MISTAKES):
         - For questions about MEN/HOMENS/MASCULINO: ALWAYS use "SEXO" = 1
@@ -56,7 +56,7 @@ TABLE_TEMPLATES = {
 """,
 
     "mortes": """
-        🚨 MORTES TABLE RULES - DEATH RECORDS DURING HOSPITALIZATION:
+        MORTES TABLE RULES - DEATH RECORDS DURING HOSPITALIZATION:
         
         MANDATORY USAGE RULES:
         - PRIMARY TABLE for ALL death counts and mortality statistics
@@ -95,7 +95,7 @@ TABLE_TEMPLATES = {
 """,
 
     "cid10": """
-        🔍 CID10 TABLE RULES - ICD-10 DISEASE CODES (REFERENCE TABLE):
+         CID10 TABLE RULES - ICD-10 DISEASE CODES (REFERENCE TABLE):
         
         MANDATORY USAGE RULES:
         - Use for: Disease code lookups, descriptions, JOIN operations
@@ -135,7 +135,7 @@ TABLE_TEMPLATES = {
 """,
 
     "hospital": """
-        🏥 HOSPITAL TABLE RULES - HEALTHCARE FACILITIES:
+         HOSPITAL TABLE RULES - HEALTHCARE FACILITIES:
         
         MANDATORY USAGE RULES:
         - Use for: Hospital counts, facility analysis, public/private classification
@@ -172,7 +172,7 @@ TABLE_TEMPLATES = {
 """,
 
     "municipios": """
-        🌍 MUNICIPIOS TABLE RULES - BRAZILIAN MUNICIPALITIES:
+        MUNICIPIOS TABLE RULES - BRAZILIAN MUNICIPALITIES:
         
         MANDATORY USAGE RULES:
         - Use for: Geographic queries, municipality names, coordinates
@@ -205,7 +205,7 @@ TABLE_TEMPLATES = {
 """,
 
     "dado_ibge": """
-        📊 DADO_IBGE TABLE RULES - MUNICIPALITY SOCIOECONOMIC DATA:
+         DADO_IBGE TABLE RULES - MUNICIPALITY SOCIOECONOMIC DATA:
         
         MANDATORY USAGE RULES:
         - PRIMARY TABLE for municipality demographic and economic analysis
@@ -247,7 +247,7 @@ TABLE_TEMPLATES = {
 """,
 
     "uti_detalhes": """
-        🏥 UTI_DETALHES TABLE RULES - INTENSIVE CARE UNIT DATA:
+         UTI_DETALHES TABLE RULES - INTENSIVE CARE UNIT DATA:
         
         MANDATORY USAGE RULES:
         - PRIMARY TABLE for UTI/ICU statistics and costs
@@ -287,7 +287,7 @@ TABLE_TEMPLATES = {
 """,
 
     "procedimentos": """
-        🔧 PROCEDIMENTOS TABLE RULES - MEDICAL PROCEDURES REFERENCE:
+         PROCEDIMENTOS TABLE RULES - MEDICAL PROCEDURES REFERENCE:
         
         MANDATORY USAGE RULES:
         - Reference table for procedure codes and descriptions
@@ -327,7 +327,7 @@ TABLE_TEMPLATES = {
 """,
 
     "obstetricos": """
-        🤱 OBSTETRICOS TABLE RULES - OBSTETRIC/MATERNITY DATA:
+        OBSTETRICOS TABLE RULES - OBSTETRIC/MATERNITY DATA:
         
         MANDATORY USAGE RULES:
         - Use for: Pregnancy, childbirth, maternity, obstetric cases
@@ -363,7 +363,7 @@ TABLE_TEMPLATES = {
 """,
 
     "condicoes_especificas": """
-        🧪 CONDICOES_ESPECIFICAS TABLE RULES - SPECIAL MEDICAL CONDITIONS:
+         CONDICOES_ESPECIFICAS TABLE RULES - SPECIAL MEDICAL CONDITIONS:
         
         MANDATORY USAGE RULES:
         - Use for: Special conditions, VDRL testing, syphilis screening
@@ -443,7 +443,7 @@ TABLE_TEMPLATES = {
 """,
 
     "vincprev": """
-        💼 VINCPREV TABLE RULES - SOCIAL SECURITY LINKAGE:
+        VINCPREV TABLE RULES - SOCIAL SECURITY LINKAGE:
         
         MANDATORY USAGE RULES:
         - Use for: Social security, employment status, pension analysis
@@ -476,7 +476,7 @@ TABLE_TEMPLATES = {
 """,
 
     "cbor": """
-        💼 CBOR TABLE RULES - PROFESSIONAL OCCUPATION CLASSIFICATION:
+        CBOR TABLE RULES - PROFESSIONAL OCCUPATION CLASSIFICATION:
         
         MANDATORY USAGE RULES:
         - Use for: Occupational analysis, professional classification, job-health correlation
@@ -514,13 +514,13 @@ TABLE_TEMPLATES = {
 """,
 
     "infehosp": """
-        🦠 INFEHOSP TABLE RULES - HOSPITAL INFECTIONS:
+        INFEHOSP TABLE RULES - HOSPITAL INFECTIONS:
         
         MANDATORY USAGE RULES:
         - Use for: Hospital-acquired infections, nosocomial infections
         - "N_AIH" links to internacoes  
         - "INFEHOSP" = Hospital infection indicator
-        - ⚠️ WARNING: This table is currently EMPTY (0 records)
+        -  WARNING: This table is currently EMPTY (0 records)
         
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH", "INFEHOSP"
@@ -538,13 +538,13 @@ TABLE_TEMPLATES = {
 """,
 
     "diagnosticos_secundarios": """
-        📋 DIAGNOSTICOS_SECUNDARIOS TABLE RULES - SECONDARY DIAGNOSES:
+         DIAGNOSTICOS_SECUNDARIOS TABLE RULES - SECONDARY DIAGNOSES:
         
         MANDATORY USAGE RULES:
         - Use for: Secondary diagnoses, comorbidities, additional conditions
         - Composite key: ("N_AIH", "ordem_diagnostico")
         - "codigo_cid_secundario" = Secondary ICD-10 code
-        - ⚠️ WARNING: This table is currently EMPTY (0 records)
+        -  WARNING: This table is currently EMPTY (0 records)
         
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH", "codigo_cid_secundario", "ordem_diagnostico"
@@ -602,7 +602,7 @@ def build_table_specific_prompt(selected_tables: List[str]) -> str:
         return "No specific table rules available."
     
     rules = []
-    rules.append("📋 POSTGRESQL TABLE-SPECIFIC RULES AND EXAMPLES:")
+    rules.append(" POSTGRESQL TABLE-SPECIFIC RULES AND EXAMPLES:")
     rules.append("=" * 60)
     
     for table in selected_tables:
@@ -664,14 +664,14 @@ def validate_template_coverage(tables: List[str]) -> Dict[str, bool]:
 
 # Multi-table JOIN rules for PostgreSQL
 MULTI_TABLE_RULES = """
-🔗 MULTI-TABLE POSTGRESQL JOIN RULES:
+MULTI-TABLE POSTGRESQL JOIN RULES:
 
 CRITICAL JOIN PATTERNS:
-- internacoes ↔ hospital: internacoes."CNES" = hospital."CNES"
-- internacoes ↔ cid10: internacoes."DIAG_PRINC" = cid10."CID" 
-- internacoes ↔ mortes: internacoes."N_AIH" = mortes."N_AIH"
-- internacoes ↔ uti_detalhes: internacoes."N_AIH" = uti_detalhes."N_AIH"
-- municipios ↔ dado_ibge: municipios."codigo_ibge" = dado_ibge."codigo_municipio_completo"
+- internacoes  hospital: internacoes."CNES" = hospital."CNES"
+- internacoes  cid10: internacoes."DIAG_PRINC" = cid10."CID" 
+- internacoes  mortes: internacoes."N_AIH" = mortes."N_AIH"
+- internacoes  uti_detalhes: internacoes."N_AIH" = uti_detalhes."N_AIH"
+- municipios  dado_ibge: municipios."codigo_ibge" = dado_ibge."codigo_municipio_completo"
 
 JOIN BEST PRACTICES:
 - Always use table aliases for clarity (e.g., i.\"SEXO\", h.\"NATUREZA\")

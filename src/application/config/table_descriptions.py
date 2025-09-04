@@ -251,7 +251,7 @@ POSTGRESQL TABLE SELECTION GUIDE:
 • mortes = Deaths during hospitalization
 • municipios = Brazilian cities (geographic data)
 • Always use "COLUMN_NAME" (with double quotes) for PostgreSQL columns
-• Key relationships: internacoes ↔ hospital(CNES), cid10(DIAG_PRINC), municipios(MUNIC_RES)
+• Key relationships: internacoes  hospital(CNES), cid10(DIAG_PRINC), municipios(MUNIC_RES)
 """,
     
     "full_guide": """
