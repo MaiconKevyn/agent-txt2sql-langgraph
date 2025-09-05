@@ -16,7 +16,7 @@ from langchain_core.tools import BaseTool
 
 from langchain_core.prompts import ChatPromptTemplate
 
-from .state_v3 import (
+from .state import (
     MessagesStateTXT2SQL,
     QueryRoute,
     ExecutionPhase,

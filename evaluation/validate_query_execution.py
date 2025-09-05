@@ -30,7 +30,7 @@ def validate_ground_truth_queries(ground_truth_path: str):
     database_path = "postgresql://postgres:1234@localhost:5432/sih_rs"
     db = DatabaseManager(database_path)
     
-    print(f"🔍 Validating {len(test_cases)} queries from ground truth")
+    print(f" Validating {len(test_cases)} queries from ground truth")
     print("="*60)
     
     valid_queries = 0
@@ -44,9 +44,9 @@ def validate_ground_truth_queries(ground_truth_path: str):
         difficulty = test_case.get("difficulty", "unknown")
         
         print(f"\n[{i+1}/{len(test_cases)}] {test_id} ({difficulty})")
-        print(f"📝 Question: {question}")
-        print(f"🎯 Tables: {tables}")
-        print(f"🔧 Query: {query}")
+        print(f" Question: {question}")
+        print(f" Tables: {tables}")
+        print(f" Query: {query}")
         
         try:
             # Execute query
@@ -58,14 +58,14 @@ def validate_ground_truth_queries(ground_truth_path: str):
                 row_count = result['row_count']
                 
                 if row_count > 0:
-                    print(f"✅ Valid - {row_count} rows returned")
-                    print(f"📊 Sample: {data[0] if data else 'No data'}")
+                    print(f" Valid - {row_count} rows returned")
+                    print(f" Sample: {data[0] if data else 'No data'}")
                     valid_queries += 1
                 else:
-                    print(f"⚠️  Valid but empty result")
+                    print(f"  Valid but empty result")
                     valid_queries += 1
             else:
-                print(f"❌ Invalid - Error: {result['error']}")
+                print(f" Invalid - Error: {result['error']}")
                 invalid_queries.append({
                     "id": test_id,
                     "error": result['error'],
@@ -73,7 +73,7 @@ def validate_ground_truth_queries(ground_truth_path: str):
                 })
                 
         except Exception as e:
-            print(f"❌ Invalid - Error: {str(e)}")
+            print(f" Invalid - Error: {str(e)}")
             invalid_queries.append({
                 "id": test_id,
                 "error": str(e),
@@ -81,7 +81,7 @@ def validate_ground_truth_queries(ground_truth_path: str):
             })
     
     print(f"\n{'='*60}")
-    print(f"📊 VALIDATION SUMMARY")
+    print(f" VALIDATION SUMMARY")
     print(f"{'='*60}")
     print(f"Total queries: {len(test_cases)}")
     print(f"Valid queries: {valid_queries}")
@@ -89,7 +89,7 @@ def validate_ground_truth_queries(ground_truth_path: str):
     print(f"Success rate: {valid_queries/len(test_cases)*100:.1f}%")
     
     if invalid_queries:
-        print(f"\n❌ INVALID QUERIES ({len(invalid_queries)}):")
+        print(f"\n INVALID QUERIES ({len(invalid_queries)}):")
         for invalid in invalid_queries:
             print(f"  {invalid['id']}: {invalid['error']}")
             print(f"    Query: {invalid['query']}")
@@ -103,16 +103,16 @@ def main():
     ground_truth_path = current_dir / "ground_truth.json"
     
     if not Path(ground_truth_path).exists():
-        print(f"❌ Ground truth file not found: {ground_truth_path}")
+        print(f" Ground truth file not found: {ground_truth_path}")
         return 1
     
     success, invalid_queries = validate_ground_truth_queries(ground_truth_path)
     
     if success:
-        print(f"\n🎉 All queries are valid!")
+        print(f"\n All queries are valid!")
         return 0
     else:
-        print(f"\n⚠️  {len(invalid_queries)} queries need to be fixed")
+        print(f"\n  {len(invalid_queries)} queries need to be fixed")
         return 1
 
 

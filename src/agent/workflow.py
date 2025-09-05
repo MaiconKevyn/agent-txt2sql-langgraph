@@ -12,13 +12,13 @@ from typing import Literal
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from .state_v3 import (
+from .state import (
     MessagesStateTXT2SQL,
     QueryRoute,
     ExecutionPhase,
     should_retry
 )
-from .nodes_v3 import (
+from .nodes import (
     query_classification_node,
     list_tables_node,
     get_schema_node,
@@ -377,7 +377,7 @@ def execute_sql_workflow(
     
     try:
         # Import here to avoid circular dependencies
-        from .state_v3 import create_initial_messages_state, state_to_legacy_format
+        from .state import create_initial_messages_state, state_to_legacy_format
         
         # Create initial state
         if session_id is None:
@@ -444,7 +444,7 @@ def stream_sql_workflow(
     
     try:
         # Import here to avoid circular dependencies
-        from .state_v3 import create_initial_messages_state
+        from .state import create_initial_messages_state
         
         # Create initial state
         if session_id is None:

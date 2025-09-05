@@ -8,8 +8,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from src.application.config.simple_config import ApplicationConfig, OrchestratorConfig
-from src.langgraph_migration.orchestrator_v3 import LangGraphOrchestrator
+from ..application.config.simple_config import ApplicationConfig, OrchestratorConfig
+from src.agent.orchestrator import LangGraphOrchestrator
 
 def test_basic_queries():
     """Testa queries básicas com PostgreSQL SIH-RS"""
@@ -27,7 +27,7 @@ def test_basic_queries():
         # Inicializar LangGraph Orchestrator
         print("\n1. Inicializando LangGraph Orchestrator...")
         orchestrator = LangGraphOrchestrator(config, orchestrator_config)
-        print("✅ Orchestrator inicializado com sucesso!")
+        print(" Orchestrator inicializado com sucesso!")
         
         # Queries de teste
         test_queries = [
@@ -53,22 +53,22 @@ def test_basic_queries():
                     execution_time = result.get('execution_time', 'N/A')
                     query_type = result.get('query_type', 'N/A')
                     
-                    print(f"✅ Tipo: {query_type}")
-                    print(f"✅ Tempo: {execution_time}s")
-                    print(f"✅ Resposta: {answer[:200]}...")
+                    print(f" Tipo: {query_type}")
+                    print(f" Tempo: {execution_time}s")
+                    print(f" Resposta: {answer[:200]}...")
                     
                 else:
-                    print(f"✅ Resposta: {str(result)[:200]}...")
+                    print(f" Resposta: {str(result)[:200]}...")
                     
             except Exception as e:
-                print(f"❌ Erro na query {i}: {e}")
+                print(f" Erro na query {i}: {e}")
                 continue
         
-        print("\n🎉 TESTE DE QUERIES CONCLUÍDO!")
+        print("\n TESTE DE QUERIES CONCLUÍDO!")
         return True
         
     except Exception as e:
-        print(f"\n❌ ERRO no teste: {e}")
+        print(f"\n ERRO no teste: {e}")
         import traceback
         traceback.print_exc()
         return False

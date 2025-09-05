@@ -222,22 +222,22 @@ class TableSelectionMetricsGenerator:
         Returns:
             Complete metrics report
         """
-        print("🔍 Generating Table Selection Metrics")
+        print(" Generating Table Selection Metrics")
         print("=" * 50)
         
         # Load agent results
         try:
             agent_results = self.load_agent_results()
-            print(f"📊 Loaded {len(agent_results)} test cases")
+            print(f" Loaded {len(agent_results)} test cases")
         except Exception as e:
-            print(f"❌ Failed to load agent results: {e}")
+            print(f" Failed to load agent results: {e}")
             return {}
         
         start_time = time.time()
         
         # Analyze each test case
         for i, test_case in enumerate(agent_results, 1):
-            print(f"🔄 Analyzing {test_case['id']} ({i}/{len(agent_results)})")
+            print(f" Analyzing {test_case['id']} ({i}/{len(agent_results)})")
             
             detailed_result = self.analyze_single_case(test_case)
             self.detailed_results.append(detailed_result)
@@ -245,10 +245,10 @@ class TableSelectionMetricsGenerator:
             # Show result
             if detailed_result["is_correct"]:
                 extra_info = f" (+{len(detailed_result['extra_tables'])} extra)" if detailed_result["has_extra_tables"] else ""
-                print(f"  ✅ Correct{extra_info}")
+                print(f"   Correct{extra_info}")
             else:
                 missing_info = f" (-{len(detailed_result['missing_tables'])} missing)" if detailed_result["missing_tables"] else ""
-                print(f"  ❌ Incorrect{missing_info}")
+                print(f"   Incorrect{missing_info}")
         
         generation_time = time.time() - start_time
         
@@ -273,7 +273,7 @@ class TableSelectionMetricsGenerator:
         
         # Print summary
         print(f"\n{'=' * 50}")
-        print("📊 TABLE SELECTION METRICS SUMMARY")
+        print(" TABLE SELECTION METRICS SUMMARY")
         print(f"{'=' * 50}")
         print(f"Total Cases: {overall_metrics['total_cases']}")
         print(f"Correct Selections: {overall_metrics['correct_selections']}")
@@ -319,7 +319,7 @@ def main():
     
     # Check if agent results exist
     if not agent_results_path.exists():
-        print(f"❌ Agent results file not found: {agent_results_path}")
+        print(f" Agent results file not found: {agent_results_path}")
         print("Available files in results directory:")
         results_dir = current_dir / "results"
         if results_dir.exists():
@@ -341,12 +341,12 @@ def main():
             # Save metrics
             output_file = generator.save_metrics(metrics)
             
-            print(f"\n🎉 Table selection metrics generated successfully!")
+            print(f"\n Table selection metrics generated successfully!")
             print(f"📁 Results: {output_file}")
             
             return 0
         else:
-            print(f"\n❌ Metrics generation failed")
+            print(f"\n Metrics generation failed")
             return 1
             
     except Exception as e:

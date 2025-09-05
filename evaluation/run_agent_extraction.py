@@ -23,7 +23,7 @@ from typing import Dict, List, Any, Optional
 # Add root to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.langgraph_migration.orchestrator_v3 import LangGraphOrchestrator
+from src.agent.orchestrator import LangGraphOrchestrator
 
 
 class AgentDataExtractor:
@@ -70,7 +70,7 @@ class AgentDataExtractor:
         question = test_case["question"]
         test_id = test_case["id"]
         
-        print(f"🔄 Processing {test_id}: {question}")
+        print(f" Processing {test_id}: {question}")
         
         start_time = time.time()
         
@@ -124,10 +124,10 @@ class AgentDataExtractor:
             
             if success:
                 self.successful_runs += 1
-                print(f"✅ Success - Tables: {agent_selected_tables}")
+                print(f" Success - Tables: {agent_selected_tables}")
             else:
                 self.failed_runs += 1
-                print(f"❌ Failed - Error: {error}")
+                print(f" Failed - Error: {error}")
                 
             return enhanced_case
             
@@ -146,7 +146,7 @@ class AgentDataExtractor:
             })
             
             self.failed_runs += 1
-            print(f"❌ Exception - {str(e)}")
+            print(f" Exception - {str(e)}")
             
             return enhanced_case
     
@@ -157,15 +157,15 @@ class AgentDataExtractor:
         Returns:
             Complete agent response data for analysis
         """
-        print("🚀 Starting Agent Data Extraction")
+        print(" Starting Agent Data Extraction")
         print("=" * 50)
         
         # Load ground truth
         try:
             ground_truth = self.load_ground_truth()
-            print(f"📊 Loaded {len(ground_truth)} test cases")
+            print(f" Loaded {len(ground_truth)} test cases")
         except Exception as e:
-            print(f"❌ Failed to load ground truth: {e}")
+            print(f" Failed to load ground truth: {e}")
             return {}
         
         start_time = time.time()
@@ -196,7 +196,7 @@ class AgentDataExtractor:
         }
         
         print(f"\n{'=' * 50}")
-        print("📊 EXTRACTION SUMMARY")
+        print(" EXTRACTION SUMMARY")
         print(f"{'=' * 50}")
         print(f"Total Cases: {len(test_cases)}")
         print(f"Successful: {self.successful_runs}")
@@ -234,7 +234,7 @@ def main():
     
     # Check if ground truth exists
     if not ground_truth_path.exists():
-        print(f"❌ Ground truth file not found: {ground_truth_path}")
+        print(f" Ground truth file not found: {ground_truth_path}")
         print("Available files:")
         for file in current_dir.glob("*.json"):
             print(f"  - {file.name}")
@@ -254,12 +254,12 @@ def main():
             # Save results
             output_file = extractor.save_results(results)
             
-            print(f"\n🎉 Data extraction completed successfully!")
+            print(f"\n Data extraction completed successfully!")
             print(f"📁 Results: {output_file}")
             
             return 0
         else:
-            print(f"\n❌ Data extraction failed")
+            print(f"\n Data extraction failed")
             return 1
             
     except Exception as e:

@@ -21,14 +21,14 @@ from typing import Dict, Any, List
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.langgraph_migration.nodes_v3 import (
+from src.agent.nodes import (
     query_classification_node,
     list_tables_node,
     get_schema_node,
     generate_sql_node,
     get_llm_manager
 )
-from src.langgraph_migration.state_v3 import create_initial_messages_state
+from src.agent.state import create_initial_messages_state
 from src.application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
 
 
@@ -46,10 +46,10 @@ class SimpleLLMContextTest:
         """Run single query through pipeline, capturing LLM context at each step"""
         
         print("=" * 80)
-        print("🔬 SIMPLE LLM CONTEXT TEST")
+        print(" SIMPLE LLM CONTEXT TEST")
         print("=" * 80)
-        print(f"📝 Test Query: '{self.test_query}'")
-        print(f"🎯 Goal: Track LLM context through each node")
+        print(f" Test Query: '{self.test_query}'")
+        print(f" Goal: Track LLM context through each node")
         print()
         
         # Create initial state
@@ -58,12 +58,12 @@ class SimpleLLMContextTest:
             session_id="simple_test"
         )
         
-        print("🚀 PIPELINE EXECUTION WITH LLM CONTEXT CAPTURE:")
+        print(" PIPELINE EXECUTION WITH LLM CONTEXT CAPTURE:")
         print()
         
         # STEP 1: Query Classification Node
         print("1️⃣ QUERY CLASSIFICATION NODE:")
-        print("   🧠 LLM Usage: YES - Classifies query type")
+        print("    LLM Usage: YES - Classifies query type")
         print(f"   📥 Input: '{self.test_query}'")
         
         # Capture what would be sent to LLM in classification
@@ -93,7 +93,7 @@ class SimpleLLMContextTest:
         
         # STEP 2: Table Discovery & Selection
         print("2️⃣ TABLE DISCOVERY & SELECTION NODE:")
-        print("   🧠 LLM Usage: YES - Selects relevant tables")
+        print("    LLM Usage: YES - Selects relevant tables")
         print(f"   📥 Input: Query route = {query_route.value if query_route else 'None'}")
         
         # Execute table selection to get the actual context used
@@ -106,7 +106,7 @@ class SimpleLLMContextTest:
         
         # STEP 3: Schema Context
         print("3️⃣ SCHEMA CONTEXT NODE:")
-        print("   🧠 LLM Usage: NO - Direct database schema retrieval")
+        print("    LLM Usage: NO - Direct database schema retrieval")
         print(f"   📥 Input: Selected tables = {selected_tables}")
         
         state_after_schema = get_schema_node(state_after_tables)
@@ -117,7 +117,7 @@ class SimpleLLMContextTest:
         
         # STEP 4: SQL Generation (KEY STEP)
         print("4️⃣ SQL GENERATION NODE:")
-        print("   🧠 LLM Usage: YES - Generates SQL with dynamic templates")
+        print("    LLM Usage: YES - Generates SQL with dynamic templates")
         print(f"   📥 Input: Query + Schema + Selected Tables")
         
         # Generate the dynamic template context
@@ -128,7 +128,7 @@ class SimpleLLMContextTest:
             table_rules = build_table_specific_prompt(selected_tables)
             template_type = "Single-table"
         
-        print(f"   🎯 Template Type: {template_type}")
+        print(f"    Template Type: {template_type}")
         print(f"   📏 Template Size: {len(table_rules)} characters")
         
         # Create the complete context that will be sent to LLM
@@ -136,7 +136,7 @@ class SimpleLLMContextTest:
         =====================================
         You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
         
-        📋 CORE POSTGRESQL INSTRUCTIONS:
+         CORE POSTGRESQL INSTRUCTIONS:
         1. Generate syntactically correct PostgreSQL queries
         2. Use proper table and column names with double quotes: "COLUMN_NAME"
         3. Handle Portuguese language questions appropriately
@@ -146,7 +146,7 @@ class SimpleLLMContextTest:
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
         
-        🔍 DATABASE SCHEMA:
+         DATABASE SCHEMA:
         {schema_context}
         
         SYSTEM MESSAGE 2 (Dynamic Table-Specific Rules):
@@ -183,53 +183,53 @@ class SimpleLLMContextTest:
             generated_sql = state_after_sql.get("generated_sql", "No SQL generated")
             print(f"   📤 Output: {generated_sql}")
         except Exception as e:
-            print(f"   ❌ SQL Generation Error: {str(e)}")
+            print(f"    SQL Generation Error: {str(e)}")
         
         print()
         
         # STEP 5: Summary of LLM Usage
         print("5️⃣ LLM USAGE SUMMARY:")
-        print("   📊 Total LLM Calls in Pipeline:")
-        print("      1. Query Classification ✅ (Simple classification)")
-        print("      2. Table Selection ✅ (Intelligent selection)")
-        print("      3. Schema Retrieval ❌ (Direct database access)")
-        print("      4. SQL Generation ✅ (Dynamic template injection)")
-        print("      5. SQL Validation ❌ (Rule-based, optional LLM)")
-        print("      6. SQL Execution ❌ (Direct database execution)")
-        print("      7. Response Generation ✅ (Format results, not captured)")
+        print("    Total LLM Calls in Pipeline:")
+        print("      1. Query Classification  (Simple classification)")
+        print("      2. Table Selection  (Intelligent selection)")
+        print("      3. Schema Retrieval  (Direct database access)")
+        print("      4. SQL Generation  (Dynamic template injection)")
+        print("      5. SQL Validation  (Rule-based, optional LLM)")
+        print("      6. SQL Execution  (Direct database execution)")
+        print("      7. Response Generation  (Format results, not captured)")
         print()
         
         # STEP 6: Key Findings
         print("6️⃣ KEY FINDINGS:")
-        print(f"   🎯 Query: '{self.test_query}'")
-        print(f"   📋 Tables Selected: {selected_tables}")
+        print(f"    Query: '{self.test_query}'")
+        print(f"    Tables Selected: {selected_tables}")
         print(f"   📏 Dynamic Context Size: {len(table_rules):,} chars")
-        print(f"   🔧 Template Type: {template_type}")
+        print(f"    Template Type: {template_type}")
         print()
         
         # Check if the dynamic template contains relevant guidance
         relevant_guidance = []
         if "UTI" in table_rules.upper():
-            relevant_guidance.append("✅ UTI-specific guidance")
+            relevant_guidance.append(" UTI-specific guidance")
         if "HOMENS" in table_rules or "MASCULINO" in table_rules or '"SEXO" = 1' in table_rules:
-            relevant_guidance.append("✅ Gender mapping (men)")
+            relevant_guidance.append(" Gender mapping (men)")
         if "VAL_UTI" in table_rules:
-            relevant_guidance.append("✅ UTI cost fields")
+            relevant_guidance.append(" UTI cost fields")
         if "JOIN" in table_rules:
-            relevant_guidance.append("✅ Multi-table JOIN guidance")
+            relevant_guidance.append(" Multi-table JOIN guidance")
         if "PostgreSQL" in table_rules:
-            relevant_guidance.append("✅ PostgreSQL syntax")
+            relevant_guidance.append(" PostgreSQL syntax")
         
-        print("   🔍 Relevant Guidance Found:")
+        print("    Relevant Guidance Found:")
         for guidance in relevant_guidance:
             print(f"      {guidance}")
         
         if not relevant_guidance:
-            print("      ⚠️ No specific guidance found for this query")
+            print("       No specific guidance found for this query")
         
         print()
         print("=" * 80)
-        print("✅ SIMPLE LLM CONTEXT TEST COMPLETED")
+        print(" SIMPLE LLM CONTEXT TEST COMPLETED")
         print("=" * 80)
         print()
         print("📁 Files Generated:")
@@ -237,7 +237,7 @@ class SimpleLLMContextTest:
         print(f"   • {self.output_dir}/04_sql_generation_llm_context.txt")  
         print(f"   • {self.output_dir}/04_dynamic_templates_only.txt")
         print()
-        print("🎯 This test demonstrates that dynamic templates are successfully")
+        print(" This test demonstrates that dynamic templates are successfully")
         print("   injected into the SQL generation context based on selected tables.")
     
     def save_context(self, filename: str, title: str, content: str):
