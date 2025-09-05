@@ -20,7 +20,7 @@ import os
 # Load environment variables for LangSmith tracing
 load_dotenv()
 
-from .workflow_v3 import (
+from .workflow import (
     create_production_sql_agent,
     create_development_sql_agent,
     create_testing_sql_agent,
@@ -28,7 +28,7 @@ from .workflow_v3 import (
     stream_sql_workflow
 )
 from .llm_manager import HybridLLMManager
-from .state_v3 import create_initial_messages_state, state_to_legacy_format
+from .state import create_initial_messages_state, state_to_legacy_format
 from ..application.config.simple_config import ApplicationConfig, OrchestratorConfig
 
 

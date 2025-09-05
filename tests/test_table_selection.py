@@ -8,8 +8,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.application.config.simple_config import ApplicationConfig, OrchestratorConfig
-from src.langgraph_migration.orchestrator_v3 import LangGraphOrchestrator
+from ..application.config.simple_config import ApplicationConfig, OrchestratorConfig
+from src.agent.orchestrator import LangGraphOrchestrator
 
 def test_table_selection():
     """Testa seleção inteligente de tabelas"""
@@ -24,7 +24,7 @@ def test_table_selection():
         # Inicializar LangGraph Orchestrator
         print("1. Inicializando LangGraph Orchestrator...")
         orchestrator = LangGraphOrchestrator(config, orchestrator_config)
-        print("✅ Orchestrator inicializado com sucesso!")
+        print(" Orchestrator inicializado com sucesso!")
         
         # Queries específicas para testar seleção
         test_cases = [
@@ -61,21 +61,21 @@ def test_table_selection():
                 # Para capturar quais tabelas foram selecionadas
                 result = orchestrator.process_query(query)
                 
-                print(f"✅ Query processada com sucesso")
+                print(f" Query processada com sucesso")
                 print(f"Resultado: {type(result)}")
                 
                 # Em um ambiente real, aqui extrairíamos as tabelas selecionadas
                 # do state do workflow para validar a seleção
                 
             except Exception as e:
-                print(f"❌ Erro no teste {i}: {e}")
+                print(f" Erro no teste {i}: {e}")
                 continue
         
         print("\nTESTE DE SELEÇÃO CONCLUÍDO!")
         return True
         
     except Exception as e:
-        print(f"\n❌ ERRO no teste: {e}")
+        print(f"\n ERRO no teste: {e}")
         import traceback
         traceback.print_exc()
         return False

@@ -19,15 +19,16 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+# Add project root to path
+project_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+sys.path.append(project_root)
 
 from src.application.config.simple_config import (
     ApplicationConfig,
     OrchestratorConfig
 )
-# MIGRATION V3: Use LangGraph V3 Orchestrator (official patterns)
-from src.langgraph_migration.orchestrator_v3 import LangGraphOrchestrator, create_production_orchestrator
+# TXT2SQL Agent Orchestrator
+from src.agent.orchestrator import LangGraphOrchestrator, create_production_orchestrator
 from src.application.config.simple_config import InterfaceType
 
 # Global agent instance - now using LangGraph V3 Orchestrator
@@ -111,53 +112,53 @@ async def startup_event():
         llm_provider = os.getenv("LLM_PROVIDER", config.llm_provider)
         llm_model = os.getenv("LLM_MODEL", config.llm_model)
         
-        print(f"🤖 Initializing LLM: {llm_model} ({llm_provider.title()})")
+        print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
         
         agent = initialize_agent()
         
         # Get detailed model information
         try:
             model_info = agent.get_current_model()
-            print("✅ TXT2SQL LangGraph V3 Agent initialized successfully")
+            print(" TXT2SQL LangGraph V3 Agent initialized successfully")
             print()
-            print("📊 Model Information:")
-            print(f"   🔸 Provider: {model_info.get('provider', 'Unknown')}")
-            print(f"   🔸 Model: {model_info.get('model_name', 'Unknown')}")
-            print(f"   🔸 Version: LangGraph V3 Official Patterns")
+            print(" Model Information:")
+            print(f"    Provider: {model_info.get('provider', 'Unknown')}")
+            print(f"    Model: {model_info.get('model_name', 'Unknown')}")
+            print(f"    Version: LangGraph V3 Official Patterns")
             
             # Show device info if available
             if 'device' in model_info:
                 device_info = model_info['device']
                 if 'cuda' in str(device_info).lower():
-                    print(f"   🔸 Device: {device_info} 🚀")
+                    print(f"    Device: {device_info} ")
                 else:
-                    print(f"   🔸 Device: {device_info}")
+                    print(f"    Device: {device_info}")
             
             # Show quantization info for HuggingFace models
             if model_info.get('provider') == 'HuggingFace':
                 if model_info.get('load_in_4bit'):
-                    print("   🔸 Quantization: 4-bit (enabled) 💾")
+                    print("    Quantization: 4-bit (enabled) ")
                 elif model_info.get('load_in_8bit'):
-                    print("   🔸 Quantization: 8-bit (enabled) 💾")
+                    print("    Quantization: 8-bit (enabled) ")
                 else:
-                    print("   🔸 Quantization: Full precision")
+                    print("    Quantization: Full precision")
                 
                 if model_info.get('cuda_available'):
-                    print("   🔸 CUDA: Available ⚡")
+                    print("    CUDA: Available ")
                 else:
-                    print("   🔸 CUDA: Not available")
+                    print("    CUDA: Not available")
             
             # Show availability status
-            status_icon = "✅" if model_info.get('available', False) else "❌"
-            print(f"   🔸 Status: Available {status_icon}")
+            status_icon = "" if model_info.get('available', False) else ""
+            print(f"    Status: Available {status_icon}")
             print()
             
         except Exception as model_info_error:
-            print("✅ TXT2SQL Agent initialized successfully")
-            print(f"⚠️ Could not retrieve detailed model info: {str(model_info_error)}")
+            print(" TXT2SQL Agent initialized successfully")
+            print(f" Could not retrieve detailed model info: {str(model_info_error)}")
             
     except Exception as e:
-        print(f"❌ Failed to initialize agent: {str(e)}")
+        print(f" Failed to initialize agent: {str(e)}")
         raise
 
 @app.get("/", response_class=HTMLResponse)
@@ -181,7 +182,7 @@ async def root():
     </head>
     <body>
         <div class="container">
-            <h1>🗃️ TXT2SQL API Interface</h1>
+            <h1> TXT2SQL API Interface</h1>
             <p>Ask questions about the healthcare database in natural language!</p>
             
             <div>
@@ -224,7 +225,7 @@ async def root():
                     if (data.success) {
                         resultDiv.innerHTML = `
                             <div class="result success">
-                                <h4>✅ Success</h4>
+                                <h4> Success</h4>
                                 <p><strong>Question:</strong> ${data.question}</p>
                                 <p><strong>Result:</strong> ${JSON.stringify(data.results)}</p>
                                 <p><strong>Rows:</strong> ${data.row_count}</p>
@@ -238,7 +239,7 @@ async def root():
                     } else {
                         resultDiv.innerHTML = `
                             <div class="result error">
-                                <h4>❌ Error</h4>
+                                <h4> Error</h4>
                                 <p><strong>Question:</strong> ${data.question}</p>
                                 <p><strong>Error:</strong> ${data.error_message}</p>
                             </div>
@@ -259,7 +260,7 @@ async def root():
                     
                     resultDiv.innerHTML = `
                         <div class="result">
-                            <h4>📊 Database Schema</h4>
+                            <h4> Database Schema</h4>
                             <pre>${data.schema_info}</pre>
                         </div>
                     `;
@@ -504,18 +505,18 @@ async def get_migration_statistics():
         }
 
 if __name__ == "__main__":
-    print("🚀 Starting TXT2SQL API Server - LangGraph Edition...")
-    print("🔥 MIGRATED: Now using pure refactored LangGraph system!")
-    print("📊 Code reduction: 75% overall | Performance: Optimized")
-    print("📍 Make sure Ollama is running with llama3 or mistral model")
-    print("⏹️  Press Ctrl+C to stop")
+    print(" Starting TXT2SQL API Server - LangGraph Edition...")
+    print(" MIGRATED: Now using pure refactored LangGraph system!")
+    print(" Code reduction: 75% overall | Performance: Optimized")
+    print(" Make sure Ollama is running with llama3 or mistral model")
+    print("  Press Ctrl+C to stop")
     
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     
-    print(f"🌐 API will be available at http://{host}:{port}")
-    print(f"📚 Documentation at http://{host}:{port}/docs") 
-    print(f"📈 Migration stats at http://{host}:{port}/migration-stats")
+    print(f" API will be available at http://{host}:{port}")
+    print(f" Documentation at http://{host}:{port}/docs") 
+    print(f" Migration stats at http://{host}:{port}/migration-stats")
     
     uvicorn.run(
         "api_server:app",

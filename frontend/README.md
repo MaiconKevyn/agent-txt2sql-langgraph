@@ -65,8 +65,8 @@ O servidor estará disponível em `http://localhost:3000`
 O Agent TXT2SQL deve estar rodando na porta 8000. Para iniciar o Agent:
 
 ```bash
-cd /home/maiconkevyn/PycharmProjects/txt2sql_claude
-python api_server.py
+cd /home/maiconkevyn/PycharmProjects/txt2sql_claude_s
+python src/interfaces/api/main.py
 ```
 
 ## 📡 Arquitetura da Comunicação
@@ -113,7 +113,7 @@ Se o status mostrar "Agent Offline":
 
 1. Verifique se o Agent está rodando: `http://localhost:8000/docs`
 2. Confirme que não há firewall bloqueando a porta 8000
-3. Restart o Agent: `python api_server.py`
+3. Restart o Agent: `python src/interfaces/api/main.py`
 
 ### Erro de CORS
 

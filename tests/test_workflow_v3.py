@@ -20,7 +20,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 try:
-    from src.langgraph_migration.workflow_v3 import (
+    from src.agent.workflow import (
         create_langgraph_sql_workflow,
         create_sql_agent_workflow,
         create_production_sql_agent,
@@ -33,7 +33,7 @@ try:
         route_after_sql_validation,
         route_after_sql_execution
     )
-    from src.langgraph_migration.state_v3 import (
+    from src.agent.state import (
         create_initial_messages_state,
         QueryRoute,
         ExecutionPhase,
@@ -41,7 +41,7 @@ try:
     )
     from langgraph.graph import StateGraph
 except ImportError as e:
-    print(f"❌ Import error: {e}")
+    print(f" Import error: {e}")
     print("Make sure you're running from the project root directory")
     sys.exit(1)
 
@@ -52,12 +52,12 @@ class TestWorkflowV3(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test class"""
-        print("🧪 Testing Workflow V3 - Official LangGraph SQL Agent Patterns")
+        print(" Testing Workflow V3 - Official LangGraph SQL Agent Patterns")
         print("=" * 70)
         
         # Check prerequisites
         if not os.path.exists("sus_database.db"):
-            print("⚠️ Warning: Database 'sus_database.db' not found")
+            print(" Warning: Database 'sus_database.db' not found")
             print("   Some tests may skip or fail")
     
     def setUp(self):
@@ -68,7 +68,7 @@ class TestWorkflowV3(unittest.TestCase):
     
     def test_workflow_creation(self):
         """Test LangGraph workflow creation"""
-        print("\n🏗️ Test 1: Workflow Creation")
+        print("\n Test 1: Workflow Creation")
         
         try:
             # Test basic workflow creation
@@ -79,43 +79,43 @@ class TestWorkflowV3(unittest.TestCase):
             compiled_workflow = workflow.compile()
             self.assertIsNotNone(compiled_workflow)
             
-            print("   ✅ Basic workflow created and compiled successfully")
+            print("    Basic workflow created and compiled successfully")
             
             # Test agent workflow creation
             agent_workflow = create_sql_agent_workflow()
             self.assertIsNotNone(agent_workflow)
             
-            print("   ✅ SQL Agent workflow created successfully")
+            print("    SQL Agent workflow created successfully")
             
         except Exception as e:
             self.fail(f"Workflow creation failed: {e}")
     
     def test_factory_functions(self):
         """Test workflow factory functions"""
-        print("\n🏭 Test 2: Factory Functions")
+        print("\n Test 2: Factory Functions")
         
         try:
             # Test production workflow
             prod_workflow = create_production_sql_agent()
             self.assertIsNotNone(prod_workflow)
-            print("   ✅ Production workflow created")
+            print("    Production workflow created")
             
             # Test development workflow
             dev_workflow = create_development_sql_agent()
             self.assertIsNotNone(dev_workflow)
-            print("   ✅ Development workflow created")
+            print("    Development workflow created")
             
             # Test testing workflow
             test_workflow = create_testing_sql_agent()
             self.assertIsNotNone(test_workflow)
-            print("   ✅ Testing workflow created")
+            print("    Testing workflow created")
             
         except Exception as e:
             self.fail(f"Factory functions failed: {e}")
     
     def test_routing_functions(self):
         """Test routing decision functions"""
-        print("\n🔀 Test 3: Routing Functions")
+        print("\n Test 3: Routing Functions")
         
         # Test classification routing
         try:
@@ -133,7 +133,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_classification(db_state)
             self.assertEqual(route, "database")
-            print("   ✅ Database route classification works")
+            print("    Database route classification works")
             
             # Test conversational routing
             conv_state = create_initial_messages_state("What is CID?", "test_route_conv")
@@ -149,7 +149,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_classification(conv_state)
             self.assertEqual(route, "conversational")
-            print("   ✅ Conversational route classification works")
+            print("    Conversational route classification works")
             
             # Test error routing
             error_state = create_initial_messages_state("Error query", "test_route_error")
@@ -157,14 +157,14 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_classification(error_state)
             self.assertEqual(route, "error")
-            print("   ✅ Error route classification works")
+            print("    Error route classification works")
             
         except Exception as e:
             print(f"Routing test failed: {e}")
     
     def test_sql_generation_routing(self):
         """Test SQL generation routing logic"""
-        print("\n⚡ Test 4: SQL Generation Routing")
+        print("\n Test 4: SQL Generation Routing")
         
         try:
             # Test successful generation
@@ -173,7 +173,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_generation(success_state)
             self.assertEqual(route, "validate")
-            print("   ✅ Successful SQL generation routing works")
+            print("    Successful SQL generation routing works")
             
             # Test failed generation with retry
             retry_state = create_initial_messages_state("SQL query", "test_sql_gen_retry")
@@ -183,7 +183,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_generation(retry_state)
             self.assertEqual(route, "retry")
-            print("   ✅ SQL generation retry routing works")
+            print("    SQL generation retry routing works")
             
             # Test max retries exceeded
             max_retry_state = create_initial_messages_state("SQL query", "test_sql_gen_max")
@@ -193,14 +193,14 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_generation(max_retry_state)
             self.assertEqual(route, "error")
-            print("   ✅ SQL generation max retry routing works")
+            print("    SQL generation max retry routing works")
             
         except Exception as e:
-            print(f"   ⚠️ SQL generation routing test failed: {e}")
+            print(f"    SQL generation routing test failed: {e}")
     
     def test_sql_validation_routing(self):
         """Test SQL validation routing logic"""
-        print("\n✅ Test 5: SQL Validation Routing")
+        print("\n Test 5: SQL Validation Routing")
         
         try:
             # Test successful validation
@@ -209,7 +209,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_validation(success_state)
             self.assertEqual(route, "execute")
-            print("   ✅ Successful SQL validation routing works")
+            print("    Successful SQL validation routing works")
             
             # Test validation failure with retry
             retry_state = create_initial_messages_state("SQL query", "test_sql_val_retry")
@@ -219,18 +219,18 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_validation(retry_state)
             self.assertEqual(route, "retry_generation")
-            print("   ✅ SQL validation retry routing works")
+            print("    SQL validation retry routing works")
             
         except Exception as e:
-            print(f"   ⚠️ SQL validation routing test failed: {e}")
+            print(f"    SQL validation routing test failed: {e}")
     
     def test_sql_execution_routing(self):
         """Test SQL execution routing logic"""
-        print("\n🚀 Test 6: SQL Execution Routing")
+        print("\n Test 6: SQL Execution Routing")
         
         try:
             # Test successful execution
-            from src.langgraph_migration.state_v3 import SQLExecutionResult
+            from src.agent.state import SQLExecutionResult
             
             success_state = create_initial_messages_state("SQL query", "test_sql_exec_success")
             success_state["sql_execution_result"] = SQLExecutionResult(
@@ -244,7 +244,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_execution(success_state)
             self.assertEqual(route, "response")
-            print("   ✅ Successful SQL execution routing works")
+            print("    Successful SQL execution routing works")
             
             # Test execution failure with retry
             retry_state = create_initial_messages_state("SQL query", "test_sql_exec_retry")
@@ -254,14 +254,14 @@ class TestWorkflowV3(unittest.TestCase):
             
             route = route_after_sql_execution(retry_state)
             self.assertEqual(route, "retry_execution")
-            print("   ✅ SQL execution retry routing works")
+            print("    SQL execution retry routing works")
             
         except Exception as e:
-            print(f"   ⚠️ SQL execution routing test failed: {e}")
+            print(f"    SQL execution routing test failed: {e}")
     
     def test_workflow_execution(self):
         """Test complete workflow execution"""
-        print("\n🔄 Test 7: Workflow Execution")
+        print("\n Test 7: Workflow Execution")
         
         try:
             # Create testing workflow
@@ -289,7 +289,7 @@ class TestWorkflowV3(unittest.TestCase):
             metadata = result.get("metadata", {})
             self.assertTrue(metadata.get("langgraph_v3", False))
             
-            print(f"   ✅ Workflow executed - Success: {result['success']}")
+            print(f"    Workflow executed - Success: {result['success']}")
             
             if result["success"]:
                 print(f"      Response: {result['response'][:50]}...")
@@ -303,11 +303,11 @@ class TestWorkflowV3(unittest.TestCase):
                 print(f"      Tool calls: {metrics.get('total_tools_used', 0)}")
             
         except Exception as e:
-            print(f"   ⚠️ Workflow execution test failed (may be expected): {e}")
+            print(f"    Workflow execution test failed (may be expected): {e}")
     
     def test_conversational_workflow_execution(self):
         """Test conversational workflow execution"""
-        print("\n💬 Test 8: Conversational Workflow Execution")
+        print("\n Test 8: Conversational Workflow Execution")
         
         try:
             # Create testing workflow
@@ -327,9 +327,9 @@ class TestWorkflowV3(unittest.TestCase):
             # Conversational queries should have a response
             response = result.get("response", "")
             if response:
-                print(f"   ✅ Conversational response: {response[:50]}...")
+                print(f"    Conversational response: {response[:50]}...")
             else:
-                print("   ⚠️ No conversational response generated")
+                print("    No conversational response generated")
             
             # Check metadata
             metadata = result.get("metadata", {})
@@ -338,11 +338,11 @@ class TestWorkflowV3(unittest.TestCase):
                 print(f"      Route: {route}")
             
         except Exception as e:
-            print(f"   ⚠️ Conversational workflow test failed (may be expected): {e}")
+            print(f"    Conversational workflow test failed (may be expected): {e}")
     
     def test_workflow_streaming(self):
         """Test workflow streaming capability"""
-        print("\n📡 Test 9: Workflow Streaming")
+        print("\n Test 9: Workflow Streaming")
         
         try:
             # Create testing workflow
@@ -362,7 +362,7 @@ class TestWorkflowV3(unittest.TestCase):
             
             # Check we got some updates
             self.assertGreater(len(updates), 0)
-            print(f"   ✅ Received {len(updates)} workflow updates")
+            print(f"    Received {len(updates)} workflow updates")
             
             # Check update structure
             for i, update in enumerate(updates[:3], 1):
@@ -372,11 +372,11 @@ class TestWorkflowV3(unittest.TestCase):
                     print(f"      Update {i}: {type(update).__name__}")
             
         except Exception as e:
-            print(f"   ⚠️ Workflow streaming test failed (may be expected): {e}")
+            print(f"    Workflow streaming test failed (may be expected): {e}")
     
     def test_error_handling(self):
         """Test error handling in workflow"""
-        print("\n❌ Test 10: Error Handling")
+        print("\n Test 10: Error Handling")
         
         try:
             # Create testing workflow
@@ -395,22 +395,22 @@ class TestWorkflowV3(unittest.TestCase):
             self.assertIn("error_message", result)
             
             if not result["success"]:
-                print(f"   ✅ Error handled gracefully: {result.get('error_message', 'Unknown error')[:50]}...")
+                print(f"    Error handled gracefully: {result.get('error_message', 'Unknown error')[:50]}...")
             else:
-                print("   ℹ️ Empty query was processed successfully")
+                print("    Empty query was processed successfully")
             
         except Exception as e:
-            print(f"   ⚠️ Error handling test failed: {e}")
+            print(f"    Error handling test failed: {e}")
 
 
 def run_tests():
     """Run all tests"""
-    print("🚀 Starting Workflow V3 Tests - Official LangGraph SQL Agent Patterns")
+    print(" Starting Workflow V3 Tests - Official LangGraph SQL Agent Patterns")
     print("=" * 80)
     
     # Check prerequisites
     if not os.path.exists("sus_database.db"):
-        print("⚠️ Warning: Database 'sus_database.db' not found")
+        print(" Warning: Database 'sus_database.db' not found")
         print("   Some tests may skip or fail")
         print()
     
@@ -421,30 +421,30 @@ def run_tests():
     
     # Summary
     print("\n" + "=" * 80)
-    print("📊 TEST SUMMARY")
-    print(f"   ✅ Passed: {result.testsRun - len(result.failures) - len(result.errors)}")
-    print(f"   ❌ Failed: {len(result.failures)}")
-    print(f"   🚨 Errors: {len(result.errors)}")
+    print(" TEST SUMMARY")
+    print(f"    Passed: {result.testsRun - len(result.failures) - len(result.errors)}")
+    print(f"    Failed: {len(result.failures)}")
+    print(f"    Errors: {len(result.errors)}")
     
     if result.failures:
-        print("\n❌ FAILURES:")
+        print("\n FAILURES:")
         for test, traceback in result.failures:
             print(f"   - {test}: {traceback.split('AssertionError: ')[-1].split('\\n')[0]}")
     
     if result.errors:
-        print("\n🚨 ERRORS:")
+        print("\n ERRORS:")
         for test, traceback in result.errors:
             print(f"   - {test}: {traceback.split('\\n')[-2]}")
     
     success_rate = (result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100
-    print(f"\n🎯 Success Rate: {success_rate:.1f}%")
+    print(f"\n Success Rate: {success_rate:.1f}%")
     
     if success_rate >= 80:
-        print("✅ Workflow V3 is working excellently!")
+        print(" Workflow V3 is working excellently!")
     elif success_rate >= 60:
-        print("⚠️ Workflow V3 is working well with minor issues")
+        print(" Workflow V3 is working well with minor issues")
     else:
-        print("❌ Workflow V3 needs attention")
+        print(" Workflow V3 needs attention")
     
     return result.wasSuccessful()
 

@@ -19,6 +19,10 @@ from typing import Optional
 from dotenv import load_dotenv
 import os
 
+# Add project root to path
+project_root = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+sys.path.append(project_root)
+
 # Load environment variables for LangSmith tracing
 load_dotenv()
 
@@ -28,8 +32,8 @@ from src.application.config.simple_config import (
     OrchestratorConfig,
     InterfaceType
 )
-# Import LangGraph V3 orchestrator (migrated from legacy)
-from src.langgraph_migration.orchestrator_v3 import (
+# Import TXT2SQL Agent orchestrator
+from src.agent.orchestrator import (
     LangGraphOrchestrator
 )
 
@@ -77,9 +81,9 @@ def debug_query_execution(orchestrator, user_query: str):
     """
     import time
     
-    print("🔍 DEBUG MODE: Workflow Step-by-Step Analysis")
+    print(" DEBUG MODE: Workflow Step-by-Step Analysis")
     print("=" * 70)
-    print(f"📝 Query: {user_query}")
+    print(f" Query: {user_query}")
     print("=" * 70)
     
     # Track debug data
@@ -107,7 +111,7 @@ def debug_query_execution(orchestrator, user_query: str):
         }
         
         # Create proper initial state
-        from src.langgraph_migration.state_v3 import create_initial_messages_state
+        from src.agent.state import create_initial_messages_state
         
         initial_state = create_initial_messages_state(
             user_query=user_query,
@@ -130,7 +134,7 @@ def debug_query_execution(orchestrator, user_query: str):
         for update in results:
             for node_name, node_state in update.items():
                 
-                print(f"\n🔍 STEP {step_counter}: {node_name.upper()}")
+                print(f"\n STEP {step_counter}: {node_name.upper()}")
                 print("-" * 50)
                 
                 # Extract and display relevant data based on node type
@@ -146,10 +150,10 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["route"] = str(route)
                     step_data["data"]["confidence"] = confidence
                     
-                    print(f"📋 Classification: {route}")
-                    print(f"🎯 Confidence: {confidence}")
+                    print(f" Classification: {route}")
+                    print(f" Confidence: {confidence}")
                     if route:
-                        print(f"➡️  Next: {'SQL Pipeline' if str(route).endswith('DATABASE') else 'Direct Response'}")
+                        print(f"   Next: {'SQL Pipeline' if str(route).endswith('DATABASE') else 'Direct Response'}")
                 
                 # 2. Table Discovery Node
                 elif node_name == "list_tables":
@@ -161,16 +165,16 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["available_tables"] = available
                     step_data["data"]["selected_tables"] = selected
                     
-                    print(f"🗂️  Tables Available: {len(available)}")
-                    print(f"    📊 Full list: {available[:5]}{'...' if len(available) > 5 else ''}")
-                    print(f"🎯 Tables Selected: {len(selected)}")
-                    print(f"    🔍 Selected: {selected}")
+                    print(f"  Tables Available: {len(available)}")
+                    print(f"     Full list: {available[:5]}{'...' if len(available) > 5 else ''}")
+                    print(f" Tables Selected: {len(selected)}")
+                    print(f"     Selected: {selected}")
                     
                     if selected:
                         if "mortes" in selected:
-                            print(f"    ✅ Great! Selected 'mortes' table for death queries")
+                            print(f"     Great! Selected 'mortes' table for death queries")
                         if "procedimentos" in selected:
-                            print(f"    ✅ Great! Selected 'procedimentos' table for procedure queries")
+                            print(f"     Great! Selected 'procedimentos' table for procedure queries")
                 
                 # 3. Schema Node
                 elif node_name == "get_schema":
@@ -180,12 +184,12 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["schema_size"] = len(schema_context)
                     step_data["data"]["sus_enhanced"] = enhanced_mappings
                     
-                    print(f"📋 Schema Context: {len(schema_context)} characters")
-                    print(f"🔧 SUS Mappings: {'✅ Enhanced' if enhanced_mappings else '❌ Not enhanced'}")
+                    print(f" Schema Context: {len(schema_context)} characters")
+                    print(f" SUS Mappings: {' Enhanced' if enhanced_mappings else ' Not enhanced'}")
                     
                     # Show partial schema for debug
                     if schema_context and len(schema_context) > 100:
-                        print(f"    📄 Schema preview: {schema_context[:100]}...")
+                        print(f"     Schema preview: {schema_context[:100]}...")
                 
                 # 4. SQL Generation Node
                 elif node_name == "generate_sql":
@@ -196,18 +200,18 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["sql"] = sql
                     step_data["data"]["tables_used"] = selected_tables
                     
-                    print(f"🤖 SQL Generated:")
-                    print(f"    📝 Query: {sql}")
-                    print(f"    🗂️  Using tables: {selected_tables}")
+                    print(f" SQL Generated:")
+                    print(f"     Query: {sql}")
+                    print(f"      Using tables: {selected_tables}")
                     
                     # Validate SQL quality
                     if sql:
                         if "COUNT(*)" in sql.upper():
-                            print(f"    ✅ Count query detected")
+                            print(f"     Count query detected")
                         if any(table in sql.lower() for table in ["mortes", "procedimentos"]):
-                            print(f"    ✅ Using specialized healthcare tables")
+                            print(f"     Using specialized healthcare tables")
                         if "SELECT *" in sql.upper():
-                            print(f"    ⚠️  Warning: SELECT * detected (might be inefficient)")
+                            print(f"      Warning: SELECT * detected (might be inefficient)")
                 
                 # 5. SQL Validation Node
                 elif node_name == "validate_sql":
@@ -218,13 +222,13 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["validated_sql"] = validated_sql
                     step_data["data"]["errors"] = validation_errors
                     
-                    print(f"✅ SQL Validation:")
+                    print(f" SQL Validation:")
                     if validated_sql:
-                        print(f"    ✅ Validation passed")
-                        print(f"    📝 Validated SQL: {validated_sql}")
+                        print(f"     Validation passed")
+                        print(f"     Validated SQL: {validated_sql}")
                     
                     if validation_errors:
-                        print(f"    ❌ Validation errors: {validation_errors}")
+                        print(f"     Validation errors: {validation_errors}")
                 
                 # 6. SQL Execution Node
                 elif node_name == "execute_sql":
@@ -247,12 +251,12 @@ def debug_query_execution(orchestrator, user_query: str):
                     }
                     step_data["data"]["execution"] = debug_data["execution_results"]
                     
-                    print(f"⚡ SQL Execution:")
+                    print(f" SQL Execution:")
                     if success:
-                        print(f"    ✅ Execution successful")
-                        print(f"    📊 Results: {len(results)} rows returned")
+                        print(f"     Execution successful")
+                        print(f"     Results: {len(results)} rows returned")
                         if results:
-                            print(f"    🔍 First row: {results[0]}")
+                            print(f"     First row: {results[0]}")
                             # Handle different result formats
                             first_row = results[0]
                             if isinstance(first_row, dict) and 'result' in first_row:
@@ -265,15 +269,15 @@ def debug_query_execution(orchestrator, user_query: str):
                                         parsed_result = ast.literal_eval(result_str)
                                         if parsed_result and len(parsed_result) > 0:
                                             count_value = parsed_result[0][0] if isinstance(parsed_result[0], tuple) else parsed_result[0]
-                                            print(f"    📈 Count result: {count_value:,}")
+                                            print(f"     Count result: {count_value:,}")
                                     except:
                                         pass
                             elif isinstance(first_row, (list, tuple)) and len(first_row) == 1:
                                 count_value = first_row[0]
                                 if isinstance(count_value, (int, float)):
-                                    print(f"    📈 Count result: {count_value:,}")
+                                    print(f"     Count result: {count_value:,}")
                     else:
-                        print(f"    ❌ Execution failed: {error}")
+                        print(f"     Execution failed: {error}")
                 
                 # 7. Response Generation Node
                 elif node_name == "generate_response":
@@ -287,17 +291,17 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["success"] = success
                     step_data["data"]["completed"] = completed
                     
-                    print(f"💬 Response Generation:")
-                    print(f"    📝 Final response: {response}")
-                    print(f"    ✅ Success: {success}")
-                    print(f"    🏁 Completed: {completed}")
+                    print(f" Response Generation:")
+                    print(f"     Final response: {response}")
+                    print(f"     Success: {success}")
+                    print(f"     Completed: {completed}")
                 
                 # 8. Generic state info
                 else:
                     # Show any other relevant state information
                     relevant_keys = [k for k in node_state.keys() if not k.startswith("_")]
                     if relevant_keys:
-                        print(f"🔍 State keys: {relevant_keys}")
+                        print(f" State keys: {relevant_keys}")
                 
                 # Add step to debug data
                 debug_data["steps"].append(step_data)
@@ -308,24 +312,24 @@ def debug_query_execution(orchestrator, user_query: str):
         # Final summary
         total_time = time.time() - debug_data["start_time"]
         
-        print(f"\n🎯 DEBUG SUMMARY")
+        print(f"\n DEBUG SUMMARY")
         print("=" * 70)
-        print(f"📝 Query: {debug_data['question']}")
-        print(f"📋 Classification: {debug_data['classification']}")
-        print(f"🗂️  Tables discovered: {len(debug_data['tables_discovered']) if debug_data['tables_discovered'] else 0}")
-        print(f"🎯 Tables selected: {debug_data['tables_selected']}")
-        print(f"🤖 SQL generated: {debug_data['sql_generated']}")
+        print(f" Query: {debug_data['question']}")
+        print(f" Classification: {debug_data['classification']}")
+        print(f"  Tables discovered: {len(debug_data['tables_discovered']) if debug_data['tables_discovered'] else 0}")
+        print(f" Tables selected: {debug_data['tables_selected']}")
+        print(f" SQL generated: {debug_data['sql_generated']}")
         if debug_data['execution_results']:
             results = debug_data['execution_results']
-            print(f"⚡ Execution: {'✅ Success' if results['success'] else '❌ Failed'} ({results['row_count']} rows)")
-        print(f"💬 Response: {debug_data['final_response'][:100] if debug_data['final_response'] else 'N/A'}{'...' if debug_data['final_response'] and len(debug_data['final_response']) > 100 else ''}")
-        print(f"⏱️  Total time: {total_time:.2f}s")
-        print(f"🔍 Steps executed: {len(debug_data['steps'])}")
+            print(f" Execution: {' Success' if results['success'] else ' Failed'} ({results['row_count']} rows)")
+        print(f" Response: {debug_data['final_response'][:100] if debug_data['final_response'] else 'N/A'}{'...' if debug_data['final_response'] and len(debug_data['final_response']) > 100 else ''}")
+        print(f"   Total time: {total_time:.2f}s")
+        print(f" Steps executed: {len(debug_data['steps'])}")
         
     except KeyboardInterrupt:
-        print(f"\n\n⚠️ Debug interrupted by user")
+        print(f"\n\n Debug interrupted by user")
     except Exception as e:
-        print(f"\n❌ Debug error: {str(e)}")
+        print(f"\n Debug error: {str(e)}")
         import traceback
         traceback.print_exc()
 
@@ -334,7 +338,7 @@ def start_interactive_debug_session(orchestrator):
     """
     Start interactive session with debug mode enabled
     """
-    print("🔍 TEXT2SQL DEBUG MODE - Interactive Session")
+    print(" TEXT2SQL DEBUG MODE - Interactive Session")
     print("=" * 60)
     print("Digite 'exit', 'quit' ou 'sair' para sair")
     print("Cada query será executada com debug detalhado")
@@ -342,11 +346,11 @@ def start_interactive_debug_session(orchestrator):
     
     while True:
         try:
-            user_input = input("\n💬 Sua pergunta (debug mode): ").strip()
+            user_input = input("\n Sua pergunta (debug mode): ").strip()
             
             # Handle exit commands
             if user_input.lower() in ['exit', 'quit', 'sair']:
-                print("\n👋 Até logo!")
+                print("\n Até logo!")
                 break
             elif not user_input:
                 continue
@@ -356,10 +360,10 @@ def start_interactive_debug_session(orchestrator):
             debug_query_execution(orchestrator, user_input)
             
         except KeyboardInterrupt:
-            print("\n\n👋 Até logo!")
+            print("\n\n Até logo!")
             break
         except Exception as e:
-            print(f"\n❌ Erro interno: {str(e)}")
+            print(f"\n Erro interno: {str(e)}")
             print("Digite 'exit' para sair ou tente outra pergunta.")
 
 
@@ -490,13 +494,13 @@ Componentes LangGraph V3:
 • Response Generation Node: Formatação de resposta
 
 Melhorias da V3:
-✅ Migração completa para LangGraph
-✅ PostgreSQL com 15 tabelas especializadas
-✅ Seleção inteligente de tabelas (75%+ precisão)
-✅ Suporte a healthcare brasileiro (SUS)
-✅ Visualização de workflow (--visualize-workflow)
-✅ Debug interativo com retry mechanisms
-✅ Multi-LLM support (Ollama, HuggingFace)
+ Migração completa para LangGraph
+ PostgreSQL com 15 tabelas especializadas
+ Seleção inteligente de tabelas (75%+ precisão)
+ Suporte a healthcare brasileiro (SUS)
+ Visualização de workflow (--visualize-workflow)
+ Debug interativo com retry mechanisms
+ Multi-LLM support (Ollama, HuggingFace)
 
 Database: PostgreSQL sih_rs (11M+ registros)
 Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
@@ -522,43 +526,43 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         
         # Health check mode
         if args.health_check:
-            print("🔍 Executando verificação de saúde do sistema...")
+            print(" Executando verificação de saúde do sistema...")
             health_status = orchestrator.health_check()
             
-            print(f"\n📊 Status do Sistema: {health_status['status'].upper()}")
+            print(f"\n Status do Sistema: {health_status['status'].upper()}")
             print("=" * 50)
             
             for service_name, service_health in health_status['services'].items():
-                status_icon = "✅" if service_health.get('healthy', False) else "❌"
+                status_icon = "" if service_health.get('healthy', False) else ""
                 print(f"{status_icon} {service_name.title()}: {'OK' if service_health.get('healthy', False) else 'ERRO'}")
             
             if health_status['status'] != 'healthy':
-                print(f"\n⚠️ Sistema não está completamente saudável")
+                print(f"\n Sistema não está completamente saudável")
                 sys.exit(1)
             else:
-                print(f"\n🎉 Sistema funcionando perfeitamente!")
+                print(f"\n Sistema funcionando perfeitamente!")
             return
         
         # Workflow visualization mode
         if args.visualize_workflow:
-            print("📊 Gerando diagrama visual do workflow LangGraph...")
+            print(" Gerando diagrama visual do workflow LangGraph...")
             try:
                 orchestrator.save_workflow_diagram("langgraph_workflow.png", xray=True)
-                print("✅ Diagrama visual salvo como 'langgraph_workflow.png'")
-                print("💡 Dica: Abra o arquivo PNG para ver o fluxo completo do agente")
+                print(" Diagrama visual salvo como 'langgraph_workflow.png'")
+                print(" Dica: Abra o arquivo PNG para ver o fluxo completo do agente")
             except Exception as e:
-                print(f"❌ Erro ao gerar diagrama: {str(e)}")
+                print(f" Erro ao gerar diagrama: {str(e)}")
                 sys.exit(1)
             return
         
         # Workflow structure debug mode
         if args.debug_workflow:
-            print("🔍 Exibindo estrutura textual do workflow LangGraph...")
+            print(" Exibindo estrutura textual do workflow LangGraph...")
             try:
                 orchestrator.print_workflow_structure()
-                print("\n💡 Use --visualize-workflow para gerar diagrama PNG")
+                print("\n Use --visualize-workflow para gerar diagrama PNG")
             except Exception as e:
-                print(f"❌ Erro ao exibir estrutura: {str(e)}")
+                print(f" Erro ao exibir estrutura: {str(e)}")
                 sys.exit(1)
             return
         
@@ -571,7 +575,7 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 debug_query_execution(orchestrator, args.query)
             else:
                 # Normal mode with LangSmith tracing
-                print(f"🔍 Processando consulta: {args.query}")
+                print(f" Processando consulta: {args.query}")
                 session_id = f"clean_{hash(args.query) % 10000}"
                 result = orchestrator.process_query(
                     user_query=args.query,
@@ -584,14 +588,14 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 
                 if result["success"]:
                     # Show response
-                    print(f"✅ {result['response']}")
-                    print(f"⏱️ Tempo de execução: {result['execution_time']:.2f}s")
+                    print(f" {result['response']}")
+                    print(f"   Tempo de execução: {result['execution_time']:.2f}s")
                     
                     # Show SQL for debugging if available
                     if result.get("sql_query"):
-                        print(f"🔧 SQL: {result['sql_query']}")
+                        print(f" SQL: {result['sql_query']}")
                 else:
-                    print(f"❌ Erro: {result['error_message']}")
+                    print(f" Erro: {result['error_message']}")
                     sys.exit(1)
             return
         
@@ -602,12 +606,12 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
             orchestrator.start_interactive_session()
         
     except KeyboardInterrupt:
-        print("\n\n👋 Até logo!")
+        print("\n\n Até logo!")
         sys.exit(0)
     
     except Exception as e:
-        print(f"❌ Erro fatal: {str(e)}")
-        print("\n💡 Dicas para resolução:")
+        print(f" Erro fatal: {str(e)}")
+        print("\n Dicas para resolução:")
         print("• Verifique se o Ollama está rodando: ollama serve")
         print("• Verifique se o modelo está instalado: ollama pull llama3")
         print("• Verifique se o banco PostgreSQL está acessível: postgresql://postgres:1234@localhost:5432/sih_rs")

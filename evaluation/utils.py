@@ -452,7 +452,7 @@ class ConfigManager:
             if model in available:
                 valid_models.append(model)
             else:
-                print(f"⚠️  Modelo '{model}' não encontrado. Modelos disponíveis: {list(available.keys())}")
+                print(f"  Modelo '{model}' não encontrado. Modelos disponíveis: {list(available.keys())}")
         
         return valid_models
 

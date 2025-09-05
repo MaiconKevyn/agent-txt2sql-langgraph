@@ -11,8 +11,6 @@ __pycache__/
 *.pyd
 .Python
 build/
-develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -42,6 +40,9 @@ env/
 .claude/
 .CLAUDE.md
 
+# LangGraph cache and checkpoints
+.langgraph_api/
+
 # Database and file backups
 *.db.backup
 *.db.bak
@@ -54,4 +55,4 @@ env/
 Thumbs.db
 # Ignorar toda a pasta contents
 contents/
-contents/todo.md
+
