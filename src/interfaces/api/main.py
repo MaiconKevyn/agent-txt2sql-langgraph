@@ -87,11 +87,8 @@ def initialize_agent(model_name: str = None) -> LangGraphOrchestrator:
     if model_name is not None:
         app_config.llm_model = model_name
     
-    # Override with environment variables if set
-    if os.getenv("LLM_PROVIDER"):
-        app_config.llm_provider = os.getenv("LLM_PROVIDER")
-    if os.getenv("LLM_MODEL"):
-        app_config.llm_model = os.getenv("LLM_MODEL")
+    # LLM configuration is now centralized in simple_config.py
+    # No environment variable overrides needed
     
     # Create LangGraph V3 orchestrator directly with PostgreSQL config
     orchestrator = LangGraphOrchestrator(
@@ -107,10 +104,10 @@ async def startup_event():
     """Initialize agent on startup"""
     global agent
     try:
-        # Get configuration details for logging - use simple_config as default
+        # Get configuration details for logging
         config = ApplicationConfig()
-        llm_provider = os.getenv("LLM_PROVIDER", config.llm_provider)
-        llm_model = os.getenv("LLM_MODEL", config.llm_model)
+        llm_provider = config.llm_provider
+        llm_model = config.llm_model
         
         print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
         
