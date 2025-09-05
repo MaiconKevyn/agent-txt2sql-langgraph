@@ -1,37 +1,23 @@
 # Core LLM and AI Libraries
-langchain==0.3.25
+langchain-core==0.3.74
 langchain-community==0.3.25
-langchain-experimental==0.3.4
-langgraph==0.2.62
-langchain-core>=0.3.65
-langchain-ollama==0.3.1
-langchain-openai==0.3.21
-langchain-groq==0.3.9
+langchain-ollama==0.3.6
+langchain-openai==0.3.32
+langgraph==0.6.6
 ollama==0.5.1
-transformers==4.53.1
-torch==2.7.1
-accelerate==1.8.1
-bitsandbytes==0.46.1
+
+# Observability and Tracing
+langsmith==0.3.45
 
 # Web Framework and API
 fastapi==0.115.13
 uvicorn==0.34.3
+pydantic==2.11.7
 requests==2.32.4
-python-dotenv==1.1.0
 
-# Data Processing and Analytics
-pandas==2.3.0
-sqlalchemy==2.0.41
-numpy==2.3.0
-matplotlib==3.10.3
-seaborn==0.13.2
-scipy==1.16.0
-
-# PostgreSQL Support
+# Database Support
 psycopg2-binary==2.9.10
+sqlalchemy==2.0.41
 
-# Development and Testing
-tabulate==0.9.0
-
-# User Interface
-streamlit==1.46.0
+# Environment Management
+python-dotenv==1.1.0
