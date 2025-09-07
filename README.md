@@ -2,6 +2,91 @@
 
 A modern Text-to-SQL agent using LangGraph framework with PostgreSQL support for Brazilian healthcare data (SIH-RS).
 
+## 🚀 Initial Setup
+
+### 1. Prerequisites
+
+- **Python 3.8+** (recommended: Python 3.11+)
+- **Node.js 16+** (for web interface)
+- **PostgreSQL** (local or remote)
+- **Git**
+
+### 2. Install Ollama and Model
+
+```bash
+# Install Ollama (Linux/macOS)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Start Ollama service
+ollama serve
+
+# Pull the required model (in another terminal)
+ollama pull llama3.1:8b
+
+# Verify installation
+ollama list
+```
+
+### 3. Clone and Setup Python Environment
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd txt2sql_claude_s
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# or
+.venv\Scripts\activate     # Windows
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+### 4. Environment Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+```
+
+Required `.env` configuration:
+```env
+# LangSmith Configuration (for tracing)
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key_here
+LANGCHAIN_PROJECT=txt2sql
+
+# Database Configuration  
+DATABASE_PATH=postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs
+```
+
+### 5. Web Interface Setup (Optional)
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install Node.js dependencies
+npm install
+
+# Start web interface (development mode)
+npm run dev
+
+# Access at http://localhost:3000
+```
+
+**Web Interface Features:**
+- Modern responsive design
+- Real-time query processing
+- Database schema visualization
+- Query history and examples
+- Error handling and feedback
+
 ## Quick Start
 
 ### CLI Usage
@@ -36,9 +121,17 @@ python src/interfaces/api/main.py
 ```
 txt2sql_claude_s/
 ├── src/                           # All source code
+│   ├── agent/                     # LangGraph TXT2SQL agent core
+│   │   ├── orchestrator.py       # Main orchestration logic
+│   │   ├── workflow.py            # LangGraph workflow definition
+│   │   ├── nodes.py               # Workflow nodes (classification, SQL gen, etc)
+│   │   ├── state.py               # Workflow state management
+│   │   ├── llm_manager.py         # LLM and database integration
+│   │   └── tools/                 # Custom tools (enhanced list tables)
 │   ├── application/               # Business logic & configuration
+│   │   └── config/                # Configuration files
 │   ├── infrastructure/            # External integrations (DB, etc)
-│   ├── langgraph_migration/       # LangGraph V3 workflow implementation
+│   │   └── database/              # Database connection services
 │   ├── interfaces/                # Entry points & user interfaces
 │   │   ├── api/                   # FastAPI server
 │   │   │   └── main.py           # API endpoints
@@ -48,6 +141,9 @@ txt2sql_claude_s/
 ├── evaluation/                    # Testing and metrics
 ├── tests/                         # Automated tests
 ├── frontend/                      # Web interface (Node.js)
+│   ├── package.json              # Node.js dependencies
+│   ├── server.js                 # Express.js server
+│   └── public/                   # Static web assets
 └── logs/                          # Application logs
 ```
 
@@ -71,19 +167,33 @@ txt2sql_claude_s/
 - **Execution**: Safe query execution with error handling
 - **Response**: Natural language response generation
 
-## Requirements
+## Dependencies
 
-- Python 3.8+
-- PostgreSQL database
-- Ollama with LLama3.1:8b model
-- Dependencies: `pip install -r requirements.txt`
+The project uses a minimal set of carefully selected dependencies:
 
-## Environment Setup
+### Python Dependencies (15 packages)
+```bash
+# Install all Python dependencies
+pip install -r requirements.txt
+```
 
-1. Copy `.env.example` to `.env`
-2. Configure database and LLM settings
-3. Start Ollama: `ollama serve`
-4. Pull model: `ollama pull llama3.1:8b`
+**Core Components:**
+- **LangGraph 0.6.6** - Workflow orchestration
+- **LangChain 0.3.x** - LLM integration and tools
+- **FastAPI 0.115.13** - Modern web API framework
+- **PostgreSQL** - Database support via psycopg2-binary
+- **LangSmith 0.3.45** - Observability and tracing
+
+### Node.js Dependencies (for Web Interface)
+```bash
+# Install frontend dependencies
+cd frontend && npm install
+```
+
+**Web Stack:**
+- **Express.js** - Web server framework
+- **CORS, Helmet** - Security middleware
+- **Rate Limiting** - API protection
 
 ## Migration from V2
 
