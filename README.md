@@ -1,4 +1,4 @@
-# TXT2SQL Claude - LangGraph V3
+# TXT2SQL - DataVisSUS
 
 A modern Text-to-SQL agent using LangGraph framework with PostgreSQL support for Brazilian healthcare data (SIH-RS).
 
