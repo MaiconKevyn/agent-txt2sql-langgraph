@@ -23,6 +23,11 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 from ..application.config.simple_config import ApplicationConfig
+from ..utils.sql_safety import is_select_only
+from ..utils.logging_config import get_llm_manager_logger
+
+# Initialize logger
+logger = get_llm_manager_logger()
 
 
 class HybridLLMManager:
@@ -64,13 +69,13 @@ class HybridLLMManager:
             if self.config.database_type == "postgresql" or db_path.startswith("postgresql"):
                 # PostgreSQL connection - use URI directly
                 connection_string = db_path
-                print(f" Connecting to PostgreSQL: {connection_string}")
+                logger.info("Connecting to PostgreSQL", extra={"connection_string": connection_string})
             else:
                 # SQLite connection - validate file exists
                 if not os.path.exists(db_path):
                     raise FileNotFoundError(f"Database not found: {db_path}")
                 connection_string = f"sqlite:///{db_path}"
-                print(f"📁 Connecting to SQLite: {connection_string}")
+                logger.info("Connecting to SQLite", extra={"connection_string": connection_string})
             
             # Create SQLDatabase instance following LangGraph tutorial
             self._sql_database = SQLDatabase.from_uri(connection_string)
@@ -80,10 +85,10 @@ class HybridLLMManager:
             if not table_names:
                 raise ValueError("No usable tables found in database")
                 
-            print(f" SQLDatabase initialized with {len(table_names)} tables")
+            logger.info("SQLDatabase initialized", extra={"table_count": len(table_names)})
             
         except Exception as e:
-            print(f" Database initialization failed: {e}")
+            logger.error("Database initialization failed", extra={"error": str(e)})
             raise
     
     def _initialize_llm(self):
@@ -119,7 +124,7 @@ class HybridLLMManager:
                     timeout=None,
                     max_retries=2
                 )
-                print(f" Groq LLM initialized: {model_name} (Free Llama3 70B with tool calling)")
+                logger.info("Groq LLM initialized", extra={"model": model_name, "description": "Free Llama3 70B with tool calling"})
                 
             elif provider == "openai":
                 if not OPENAI_AVAILABLE:
@@ -136,7 +141,7 @@ class HybridLLMManager:
                     timeout=self.config.llm_timeout,
                     max_retries=2
                 )
-                print(f" OpenAI LLM initialized: {model_name}")
+                logger.info("OpenAI LLM initialized", extra={"model": model_name})
                 
             elif provider == "huggingface":
                 self._llm = HuggingFacePipeline.from_model_id(
@@ -159,10 +164,10 @@ class HybridLLMManager:
                     supported_providers.append("openai")
                 raise ValueError(f"Unsupported LLM provider: {provider}. Supported: {supported_providers}")
             
-            print(f" LLM initialized: {model_name} ({provider})")
+            logger.info("LLM initialized", extra={"model": model_name, "provider": provider})
             
         except Exception as e:
-            print(f" LLM initialization failed: {e}")
+            logger.error("LLM initialization failed", extra={"error": str(e)})
             raise
     
     def _initialize_sql_toolkit(self):
@@ -186,15 +191,19 @@ class HybridLLMManager:
             # Store enhanced tools for use
             self._enhanced_tools = enhanced_tools
             
-            print(f" Enhanced SQLDatabaseToolkit initialized with {len(enhanced_tools)} tools")
+            logger.info("Enhanced SQLDatabaseToolkit initialized", extra={"tool_count": len(enhanced_tools)})
             
             # Log available tools (including enhanced ones)
             for tool in enhanced_tools:
                 tool_type = " Enhanced" if "Enhanced" in str(type(tool).__name__) else " Standard"
-                print(f"   {tool_type} {tool.name}: {tool.description[:80]}...")
+                logger.debug("Tool loaded", extra={
+                    "type": tool_type,
+                    "name": tool.name,
+                    "description": tool.description[:80]
+                })
                 
         except Exception as e:
-            print(f" SQLDatabaseToolkit initialization failed: {e}")
+            logger.error("SQLDatabaseToolkit initialization failed", extra={"error": str(e)})
             raise
     
     def _create_enhanced_tools(self, standard_tools: List[BaseTool]) -> List[BaseTool]:
@@ -221,20 +230,19 @@ class HybridLLMManager:
             enhanced_list_tool = EnhancedListTablesTool(db=self._sql_database)
             enhanced_tools.append(enhanced_list_tool)
             
-            print(f" Enhanced sql_db_list_tables tool integrated successfully!")
-            print(f"    Original tools: {len(standard_tools)}")
-            print(f"    Enhanced tools: {len(enhanced_tools)}")
-            print(f"    Replaced: sql_db_list_tables → EnhancedListTablesTool")
+            logger.info("Enhanced sql_db_list_tables tool integrated", extra={
+                "original_tools": len(standard_tools),
+                "enhanced_tools": len(enhanced_tools),
+                "replacement": "sql_db_list_tables → EnhancedListTablesTool"
+            })
             
             return enhanced_tools
             
         except ImportError as e:
-            print(f"  Enhanced tools not available: {e}")
-            print(f"    Falling back to standard tools")
+            logger.warning("Enhanced tools not available, falling back to standard", extra={"error": str(e)})
             return standard_tools
         except Exception as e:
-            print(f"  Error creating enhanced tools: {e}")
-            print(f"    Falling back to standard tools")
+            logger.error("Error creating enhanced tools, falling back to standard", extra={"error": str(e)})
             return standard_tools
     
     def _bind_tools(self):
@@ -253,13 +261,15 @@ class HybridLLMManager:
             enhanced_count = sum(1 for tool in tools if "Enhanced" in str(type(tool).__name__))
             standard_count = len(tools) - enhanced_count
             
-            print(f" Tools bound to LLM: {len(tools)} tools available")
+            logger.info("Tools bound to LLM", extra={"tool_count": len(tools)})
             if enhanced_count > 0:
-                print(f"Enhanced tools: {enhanced_count}")
-                print(f"Standard tools: {standard_count}")
+                logger.debug("Tool breakdown", extra={
+                    "enhanced_count": enhanced_count,
+                    "standard_count": standard_count
+                })
             
         except Exception as e:
-            print(f" Tool binding failed: {e}")
+            logger.error("Tool binding failed", extra={"error": str(e)})
             # Fallback: use unbound LLM
             self._bound_llm = self._llm
     
@@ -630,6 +640,16 @@ class HybridLLMManager:
                     "success": False,
                     "results": [],
                     "error": "Database not initialized",
+                    "row_count": 0
+                }
+            
+            # Block non-SELECT/unsafe SQL as a second safety layer
+            ok, reason = is_select_only(sql_query)
+            if not ok:
+                return {
+                    "success": False,
+                    "results": [],
+                    "error": f"SQL execution blocked: {reason}",
                     "row_count": 0
                 }
             

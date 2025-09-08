@@ -25,6 +25,10 @@ from src.application.config.simple_config import (
 # TXT2SQL Agent Orchestrator
 from src.agent.orchestrator import LangGraphOrchestrator, create_production_orchestrator
 from src.application.config.simple_config import InterfaceType
+from src.utils.logging_config import get_api_logger
+
+# Initialize logger
+logger = get_api_logger()
 
 # Global agent instance - now using LangGraph V3 Orchestrator
 agent: Optional[LangGraphOrchestrator] = None
@@ -39,59 +43,52 @@ async def lifespan(app: FastAPI):
         llm_provider = config.llm_provider
         llm_model = config.llm_model
         
-        print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
+        logger.info("Initializing LLM", extra={"model": llm_model, "provider": llm_provider})
         
         agent = initialize_agent()
         
         # Get detailed model information
         try:
             model_info = agent.get_current_model()
-            print(" TXT2SQL LangGraph V3 Agent initialized successfully")
-            print()
-            print(" Model Information:")
-            print(f"    Provider: {model_info.get('provider', 'Unknown')}")
-            print(f"    Model: {model_info.get('model_name', 'Unknown')}")
-            print(f"    Version: LangGraph V3 Official Patterns")
+            logger.info("TXT2SQL Agent initialized successfully", extra={
+                "provider": model_info.get('provider', 'Unknown'),
+                "model": model_info.get('model_name', 'Unknown'),
+                "version": "LangGraph V3 Official Patterns"
+            })
             
             # Show device info if available
             if 'device' in model_info:
                 device_info = model_info['device']
-                if 'cuda' in str(device_info).lower():
-                    print(f"    Device: {device_info} ")
-                else:
-                    print(f"    Device: {device_info}")
+                cuda_available = 'cuda' in str(device_info).lower()
+                logger.info("Device information", extra={
+                    "device": device_info,
+                    "cuda_enabled": cuda_available
+                })
             
             # Show quantization info for HuggingFace models
             if model_info.get('provider') == 'HuggingFace':
-                if model_info.get('load_in_4bit'):
-                    print("    Quantization: 4-bit (enabled) ")
-                elif model_info.get('load_in_8bit'):
-                    print("    Quantization: 8-bit (enabled) ")
-                else:
-                    print("    Quantization: Full precision")
+                quantization = "4-bit" if model_info.get('load_in_4bit') else \
+                               "8-bit" if model_info.get('load_in_8bit') else "Full precision"
+                logger.info("Model quantization", extra={"quantization": quantization})
                 
-                if model_info.get('cuda_available'):
-                    print("    CUDA: Available ")
-                else:
-                    print("    CUDA: Not available")
+                logger.info("CUDA availability", extra={"cuda_available": model_info.get('cuda_available', False)})
             
-            # Show availability status
-            status_icon = "" if model_info.get('available', False) else ""
-            print(f"    Status: Available {status_icon}")
-            print()
+            # Log availability status
+            available = model_info.get('available', False)
+            logger.info("Model status", extra={"available": available})
             
         except Exception as model_info_error:
-            print(" TXT2SQL Agent initialized successfully")
-            print(f" Could not retrieve detailed model info: {str(model_info_error)}")
+            logger.info("TXT2SQL Agent initialized successfully")
+            logger.warning("Could not retrieve detailed model info", extra={"error": str(model_info_error)})
             
     except Exception as e:
-        print(f" Failed to initialize agent: {str(e)}")
+        logger.error("Failed to initialize agent", extra={"error": str(e)})
         raise
     
     yield
     
     # Shutdown
-    print(" Shutting down TXT2SQL Agent...")
+    logger.info("Shutting down TXT2SQL Agent")
 
 # FastAPI app
 app = FastAPI(
@@ -504,18 +501,21 @@ async def get_migration_statistics():
         }
 
 if __name__ == "__main__":
-    print(" Starting TXT2SQL API Server - LangGraph Edition...")
-    print(" MIGRATED: Now using pure refactored LangGraph system!")
-    print(" Code reduction: 75% overall | Performance: Optimized")
-    print(" Make sure Ollama is running with llama3 or mistral model")
-    print("  Press Ctrl+C to stop")
+    logger.info("Starting TXT2SQL API Server", extra={
+        "edition": "LangGraph",
+        "migration_status": "Complete - pure refactored LangGraph system",
+        "performance": "Optimized - 75% code reduction",
+        "requirements": "Ollama with llama3 or mistral model"
+    })
     
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     
-    print(f" API will be available at http://{host}:{port}")
-    print(f" Documentation at http://{host}:{port}/docs") 
-    print(f" Migration stats at http://{host}:{port}/migration-stats")
+    logger.info("API endpoints configured", extra={
+        "api_url": f"http://{host}:{port}",
+        "docs_url": f"http://{host}:{port}/docs",
+        "stats_url": f"http://{host}:{port}/migration-stats"
+    })
     
     uvicorn.run(
         "src.interfaces.api.main:app",

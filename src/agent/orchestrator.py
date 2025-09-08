@@ -1,5 +1,6 @@
 import time
 import logging
+import logging.handlers
 from typing import Dict, Any, Optional, Union, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -74,15 +75,15 @@ class LangGraphOrchestrator:
         self._failed_queries = 0
         self._total_execution_time = 0.0
         
+        # Setup structured logging first
+        self._setup_logging()
+        
         # Initialize workflow
         self._initialize_workflow()
         
         # Performance tracking
         self._query_history = []
         self._max_history = 1000
-        
-        # Setup structured logging
-        self._setup_logging()
     
     def _initialize_workflow(self):
         """Initialize the appropriate workflow based on environment"""
@@ -109,37 +110,49 @@ class LangGraphOrchestrator:
                 max_retries=self.app_config.llm_max_retries
             )
             
-            print(f" LangGraph Orchestrator initialized ({self.environment} mode)")
-            print(f"   Model: {self._current_model.model_name} ({self._current_model.provider})")
+            self.logger.info("LangGraph Orchestrator initialized", extra={
+                "environment": self.environment,
+                "model": self._current_model.model_name,
+                "provider": self._current_model.provider
+            })
             
         except Exception as e:
-            print(f" Failed to initialize LangGraph Orchestrator: {e}")
+            self.logger.error("Failed to initialize LangGraph Orchestrator", extra={"error": str(e)})
             raise
     
     def _setup_logging(self):
         """Setup structured logging for production monitoring"""
-        # Create logger for orchestrator
-        self.logger = logging.getLogger(f"orchestrator_v3_{self.environment}")
+        from ..utils.logging_config import get_orchestrator_logger
+        
+        # Use centralized logging configuration
+        self.logger = get_orchestrator_logger()
+        
+        # Set appropriate log level based on environment
         self.logger.setLevel(logging.INFO if self.environment == "production" else logging.DEBUG)
         
-        # Avoid duplicate handlers
-        if not self.logger.handlers:
-            # Console handler with structured format
-            console_handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            console_handler.setFormatter(formatter)
-            self.logger.addHandler(console_handler)
-            
-            # File handler for production
-            if self.environment == "production":
-                try:
-                    file_handler = logging.FileHandler('logs/orchestrator_v3.log')
-                    file_handler.setFormatter(formatter)
-                    self.logger.addHandler(file_handler)
-                except:
-                    pass  # Continue without file logging if directory doesn't exist
+        # Production-specific file handler with rotation (in addition to centralized config)
+        if self.environment == "production" and not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in self.logger.handlers):
+            try:
+                # Ensure logs directory exists
+                import os
+                os.makedirs('logs', exist_ok=True)
+                
+                # Add dedicated rotating file handler for orchestrator
+                file_handler = logging.handlers.RotatingFileHandler(
+                    'logs/orchestrator_v3.log',
+                    maxBytes=100*1024*1024,  # 100MB
+                    backupCount=10,
+                    encoding='utf-8'
+                )
+                
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                file_handler.setFormatter(formatter)
+                self.logger.addHandler(file_handler)
+                
+            except Exception as e:
+                self.logger.warning("Failed to setup production file handler", extra={"error": str(e)})
     
     def switch_model(
         self,
@@ -161,7 +174,7 @@ class LangGraphOrchestrator:
             True if switch was successful, False otherwise
         """
         try:
-            print(f" Switching model: {model_name} ({provider})")
+            self.logger.info("Switching model", extra={"model": model_name, "provider": provider})
             
             # Create new configuration
             new_config = ApplicationConfig(
@@ -189,7 +202,7 @@ class LangGraphOrchestrator:
             # Test the new model
             test_result = new_llm_manager.health_check()
             if test_result["status"] != "healthy":
-                print(f" Model switch failed: {test_result}")
+                self.logger.error("Model switch failed", extra={"test_result": test_result})
                 return False
             
             # Update configuration and managers
@@ -205,11 +218,11 @@ class LangGraphOrchestrator:
                 max_retries=self.app_config.llm_max_retries
             )
             
-            print(f" Model switched successfully to {model_name} ({provider})")
+            self.logger.info("Model switched successfully", extra={"model": model_name, "provider": provider})
             return True
             
         except Exception as e:
-            print(f" Model switch failed: {e}")
+            self.logger.error("Model switch failed", extra={"error": str(e)})
             return False
     
     def process_query(
@@ -547,7 +560,7 @@ class LangGraphOrchestrator:
             # Exact same pattern as documentation
             display(Image(self._workflow.get_graph(xray=xray).draw_mermaid_png()))
         except ImportError:
-            print("IPython not available. Use save_workflow_diagram() instead.")
+            self.logger.warning("IPython not available. Use save_workflow_diagram() instead.")
 
     def save_workflow_diagram(self, filename: str = "workflow.png", xray: bool = True):
         """
@@ -561,14 +574,14 @@ class LangGraphOrchestrator:
             png_data = self.get_workflow_visualization(xray=xray)
             with open(filename, "wb") as f:
                 f.write(png_data)
-            print(f" Workflow diagram saved to {filename}")
+            self.logger.info("Workflow diagram saved", extra={"filename": filename})
         except Exception as e:
-            print(f" Failed to save workflow diagram: {str(e)}")
+            self.logger.error("Failed to save workflow diagram", extra={"error": str(e)})
 
     def print_workflow_structure(self):
         """Print text representation of workflow structure"""
         if not self._workflow:
-            print(" Workflow not initialized")
+            self.logger.error("Workflow not initialized")
             return
         
         print("LangGraph Text2SQL Workflow Structure:")
@@ -726,7 +739,7 @@ class LangGraphOrchestrator:
         self._failed_queries = 0
         self._total_execution_time = 0.0
         self._query_history = []
-        print(" Performance metrics reset")
+        self.logger.info("Performance metrics reset")
     
     def start_interactive_session(self):
         """
@@ -735,6 +748,7 @@ class LangGraphOrchestrator:
         Reads user questions from stdin and prints model responses. Type
         'sair', 'exit' or 'quit' to finish.
         """
+        self.logger.info("Starting interactive session")
         print(" TXT2SQL - Sessão Interativa (LangGraph)")
         print("=" * 60)
         print("Digite 'sair', 'exit' ou 'quit' para encerrar")
@@ -746,6 +760,7 @@ class LangGraphOrchestrator:
                 if not user_input:
                     continue
                 if user_input.lower() in ["sair", "exit", "quit"]:
+                    self.logger.info("Interactive session ended by user")
                     print("\n Até logo!")
                     break
                 
@@ -773,9 +788,11 @@ class LangGraphOrchestrator:
                     error_msg = result.get("error_message") if isinstance(result, dict) else str(result)
                     print(f"\n Erro: {error_msg}")
             except KeyboardInterrupt:
+                self.logger.info("Interactive session interrupted by user")
                 print("\n\n Até logo!")
                 break
             except Exception as e:
+                self.logger.error("Interactive session error", extra={"error": str(e)})
                 print(f"\n Erro interno: {str(e)}")
 
     def __str__(self) -> str:
