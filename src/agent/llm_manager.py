@@ -545,38 +545,73 @@ class HybridLLMManager:
             Validation result
         """
         try:
-            if not self._sql_database:
+            if not self._sql_database or not hasattr(self._sql_database, "_engine"):
                 return {
                     "is_valid": False,
                     "error": "Database not initialized",
                     "suggestions": []
                 }
-            
-            # Try to explain the query (validates syntax)
-            connection = self._sql_database._engine.connect()
-            
-            # For SQLite, use EXPLAIN QUERY PLAN
-            explain_query = f"EXPLAIN QUERY PLAN {sql_query}"
-            result = connection.execute(explain_query)
-            result.fetchall()  # Consume result
-            
-            connection.close()
-            
+
+            # Detect SQL dialect from SQLAlchemy engine
+            engine = self._sql_database._engine
+            dialect_name = getattr(getattr(engine, "dialect", None), "name", "") or ""
+
+            # Choose appropriate EXPLAIN variant
+            # - PostgreSQL: EXPLAIN
+            # - SQLite: EXPLAIN QUERY PLAN
+            # - Fallback: EXPLAIN
+            if dialect_name.lower().startswith("postgres"):
+                explain_prefix = "EXPLAIN"
+            elif dialect_name.lower().startswith("sqlite"):
+                explain_prefix = "EXPLAIN QUERY PLAN"
+            else:
+                explain_prefix = "EXPLAIN"
+
+            # Use SQLAlchemy text() for 2.0 compatibility
+            from sqlalchemy import text
+
+            # Execute EXPLAIN to validate syntax without running the query
+            # Using context manager to ensure connection closure
+            explain_sql = f"{explain_prefix} {sql_query}"
+            with engine.connect() as connection:
+                result = connection.execute(text(explain_sql))
+                # Consume results to ensure execution (some drivers require fetch)
+                try:
+                    result.fetchall()
+                except Exception:
+                    # Some dialects/queries may not support fetchall on EXPLAIN
+                    pass
+
             return {
                 "is_valid": True,
                 "error": None,
                 "suggestions": []
             }
-            
+
         except Exception as e:
+            # Provide dialect-aware suggestions
+            suggestions = [
+                "Check table and column names",
+                "Verify SQL syntax",
+                "Ensure proper WHERE clause formatting",
+            ]
+
+            if 'dialect_name' in locals() and dialect_name.lower().startswith("postgres"):
+                suggestions.extend([
+                    "Quote case-sensitive identifiers with double quotes",
+                    "Use ILIKE for case-insensitive matches",
+                    "Avoid SQLite-specific functions (e.g., strftime) on PostgreSQL",
+                ])
+            elif 'dialect_name' in locals() and dialect_name.lower().startswith("sqlite"):
+                suggestions.extend([
+                    "SQLite does not support EXTRACT or ILIKE",
+                    "Use datetime functions compatible with SQLite",
+                ])
+
             return {
                 "is_valid": False,
                 "error": str(e),
-                "suggestions": [
-                    "Check table and column names",
-                    "Verify SQL syntax",
-                    "Ensure proper WHERE clause formatting"
-                ]
+                "suggestions": suggestions,
             }
     
     def execute_sql_query(self, sql_query: str) -> Dict[str, Any]:

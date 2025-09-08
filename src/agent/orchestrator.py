@@ -728,6 +728,56 @@ class LangGraphOrchestrator:
         self._query_history = []
         print(" Performance metrics reset")
     
+    def start_interactive_session(self):
+        """
+        Simple interactive CLI session.
+        
+        Reads user questions from stdin and prints model responses. Type
+        'sair', 'exit' or 'quit' to finish.
+        """
+        print(" TXT2SQL - Sessão Interativa (LangGraph)")
+        print("=" * 60)
+        print("Digite 'sair', 'exit' ou 'quit' para encerrar")
+        print("=" * 60)
+        
+        while True:
+            try:
+                user_input = input("\n Sua pergunta: ").strip()
+                if not user_input:
+                    continue
+                if user_input.lower() in ["sair", "exit", "quit"]:
+                    print("\n Até logo!")
+                    break
+                
+                session_id = f"interactive_{int(time.time() * 1000) % 100000}"
+                result = self.process_query(
+                    user_query=user_input,
+                    session_id=session_id,
+                    streaming=False,
+                    run_name=f"interactive_query_{session_id}",
+                    tags=["interactive", "cli"],
+                    metadata={"source": "cli_interactive", "environment": self.environment}
+                )
+                
+                if isinstance(result, dict) and result.get("success"):
+                    response_text = result.get("response") or "(sem resposta)"
+                    print(f"\n {response_text}")
+                    if result.get("sql_query"):
+                        print(f" SQL: {result['sql_query']}")
+                    if result.get("execution_time") is not None:
+                        try:
+                            print(f" Tempo: {float(result['execution_time']):.2f}s")
+                        except Exception:
+                            pass
+                else:
+                    error_msg = result.get("error_message") if isinstance(result, dict) else str(result)
+                    print(f"\n Erro: {error_msg}")
+            except KeyboardInterrupt:
+                print("\n\n Até logo!")
+                break
+            except Exception as e:
+                print(f"\n Erro interno: {str(e)}")
+
     def __str__(self) -> str:
         """String representation of orchestrator"""
         return (

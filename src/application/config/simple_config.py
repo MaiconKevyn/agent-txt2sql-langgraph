@@ -53,7 +53,7 @@ class ApplicationConfig:
     query_processing_type: str = "comprehensive"
     
     # Query classification configuration
-    enable_query_classification: bool = False
+    enable_query_classification: bool = True
     query_classification_confidence_threshold: float = 0.7
 
 @dataclass

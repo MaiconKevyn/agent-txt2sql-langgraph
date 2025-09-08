@@ -2,6 +2,7 @@ import sys
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,13 +29,78 @@ from src.application.config.simple_config import InterfaceType
 # Global agent instance - now using LangGraph V3 Orchestrator
 agent: Optional[LangGraphOrchestrator] = None
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    global agent
+    try:
+        # Startup
+        config = ApplicationConfig()
+        llm_provider = config.llm_provider
+        llm_model = config.llm_model
+        
+        print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
+        
+        agent = initialize_agent()
+        
+        # Get detailed model information
+        try:
+            model_info = agent.get_current_model()
+            print(" TXT2SQL LangGraph V3 Agent initialized successfully")
+            print()
+            print(" Model Information:")
+            print(f"    Provider: {model_info.get('provider', 'Unknown')}")
+            print(f"    Model: {model_info.get('model_name', 'Unknown')}")
+            print(f"    Version: LangGraph V3 Official Patterns")
+            
+            # Show device info if available
+            if 'device' in model_info:
+                device_info = model_info['device']
+                if 'cuda' in str(device_info).lower():
+                    print(f"    Device: {device_info} ")
+                else:
+                    print(f"    Device: {device_info}")
+            
+            # Show quantization info for HuggingFace models
+            if model_info.get('provider') == 'HuggingFace':
+                if model_info.get('load_in_4bit'):
+                    print("    Quantization: 4-bit (enabled) ")
+                elif model_info.get('load_in_8bit'):
+                    print("    Quantization: 8-bit (enabled) ")
+                else:
+                    print("    Quantization: Full precision")
+                
+                if model_info.get('cuda_available'):
+                    print("    CUDA: Available ")
+                else:
+                    print("    CUDA: Not available")
+            
+            # Show availability status
+            status_icon = "" if model_info.get('available', False) else ""
+            print(f"    Status: Available {status_icon}")
+            print()
+            
+        except Exception as model_info_error:
+            print(" TXT2SQL Agent initialized successfully")
+            print(f" Could not retrieve detailed model info: {str(model_info_error)}")
+            
+    except Exception as e:
+        print(f" Failed to initialize agent: {str(e)}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    print(" Shutting down TXT2SQL Agent...")
+
 # FastAPI app
 app = FastAPI(
     title="TXT2SQL API - LangGraph",
     description="LangGraph-powered Text-to-SQL API for SUS Healthcare Data with Clean Architecture",
     version="3.0.0-langgraph",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS middleware for web frontend
@@ -93,64 +159,6 @@ def initialize_agent(model_name: str = None) -> LangGraphOrchestrator:
     
     return orchestrator
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize agent on startup"""
-    global agent
-    try:
-        # Get configuration details for logging
-        config = ApplicationConfig()
-        llm_provider = config.llm_provider
-        llm_model = config.llm_model
-        
-        print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
-        
-        agent = initialize_agent()
-        
-        # Get detailed model information
-        try:
-            model_info = agent.get_current_model()
-            print(" TXT2SQL LangGraph V3 Agent initialized successfully")
-            print()
-            print(" Model Information:")
-            print(f"    Provider: {model_info.get('provider', 'Unknown')}")
-            print(f"    Model: {model_info.get('model_name', 'Unknown')}")
-            print(f"    Version: LangGraph V3 Official Patterns")
-            
-            # Show device info if available
-            if 'device' in model_info:
-                device_info = model_info['device']
-                if 'cuda' in str(device_info).lower():
-                    print(f"    Device: {device_info} ")
-                else:
-                    print(f"    Device: {device_info}")
-            
-            # Show quantization info for HuggingFace models
-            if model_info.get('provider') == 'HuggingFace':
-                if model_info.get('load_in_4bit'):
-                    print("    Quantization: 4-bit (enabled) ")
-                elif model_info.get('load_in_8bit'):
-                    print("    Quantization: 8-bit (enabled) ")
-                else:
-                    print("    Quantization: Full precision")
-                
-                if model_info.get('cuda_available'):
-                    print("    CUDA: Available ")
-                else:
-                    print("    CUDA: Not available")
-            
-            # Show availability status
-            status_icon = "" if model_info.get('available', False) else ""
-            print(f"    Status: Available {status_icon}")
-            print()
-            
-        except Exception as model_info_error:
-            print(" TXT2SQL Agent initialized successfully")
-            print(f" Could not retrieve detailed model info: {str(model_info_error)}")
-            
-    except Exception as e:
-        print(f" Failed to initialize agent: {str(e)}")
-        raise
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -510,7 +518,7 @@ if __name__ == "__main__":
     print(f" Migration stats at http://{host}:{port}/migration-stats")
     
     uvicorn.run(
-        "api_server:app",
+        "src.interfaces.api.main:app",
         host=host,
         port=port,
         reload=True,
