@@ -1,8 +1,3 @@
-"""
-Table Descriptions Configuration - COMPREHENSIVE POSTGRESQL VERSION
-Complete descriptions for all 15 tables with proper PostgreSQL column quoting and SUS domain mappings
-"""
-
 TABLE_DESCRIPTIONS = {
     "internacoes": {
         "title": "Internações SIH-RS (MAIN TABLE)",

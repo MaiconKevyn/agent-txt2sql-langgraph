@@ -1,6 +1,3 @@
-"""
-Simple Configuration - Replace dependency injection with direct configuration
-"""
 from dataclasses import dataclass
 from typing import Optional
 from enum import Enum

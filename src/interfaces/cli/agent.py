@@ -1,18 +1,3 @@
-#!/usr/bin/env python3
-"""
-TXT2SQL Agent with Clean Architecture - Following Single Responsibility Principle
-
-This new implementation addresses all SRP violations mentioned in the presentation:
-- Database connection management: IDatabaseConnectionService
-- LLM communication: ILLMCommunicationService  
-- Schema introspection: ISchemaIntrospectionService
-- User interface logic: IUserInterfaceService
-- Error handling: IErrorHandlingService
-- Query processing: IQueryProcessingService
-
-Each service has a single, well-defined responsibility and can be tested independently.
-"""
-
 import sys
 import argparse
 from typing import Optional

@@ -1,14 +1,3 @@
-"""
-HybridLLMManager - LangGraph V3 Migration
-
-Following official LangGraph SQL Agent tutorial patterns:
-- SQLDatabaseToolkit integration
-- Proper tool binding with llm.bind_tools()
-- MessagesState compatibility
-- Multi-provider LLM support
-- Official LangGraph best practices
-"""
-
 import os
 import sqlite3
 from typing import List, Dict, Any, Optional, Union

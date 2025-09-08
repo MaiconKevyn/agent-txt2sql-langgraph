@@ -1,13 +1,3 @@
-"""
-LangGraph Nodes V3 - Official SQL Agent Tutorial Patterns
-
-Following the exact patterns from LangGraph SQL Agent tutorial:
-- Tool-based nodes with proper tool calling
-- MessagesState integration
-- Official LangGraph best practices
-- Proper error handling and routing
-"""
-
 import time
 from typing import Dict, Any, List, Literal
 

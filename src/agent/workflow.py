@@ -1,13 +1,3 @@
-"""
-LangGraph Workflow V3 - Official SQL Agent Tutorial Patterns
-
-Following the exact structure from LangGraph SQL Agent tutorial:
-- StateGraph with MessagesState
-- Tool-based conditional routing
-- Proper error handling and retries
-- Official LangGraph best practices
-"""
-
 from typing import Literal
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
