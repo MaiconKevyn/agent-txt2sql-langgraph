@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-FastAPI Server for TXT2SQL Agent - Clean Architecture
-Provides REST API endpoints for the text-to-SQL functionality
-"""
-
 import sys
 import os
 from typing import Dict, Any, Optional

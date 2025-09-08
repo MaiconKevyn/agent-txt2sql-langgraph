@@ -1,14 +1,3 @@
-"""
-Enhanced State Management V3 - LangGraph Official Patterns
-
-Following official LangGraph SQL Agent tutorial patterns:
-- MessagesState as primary state pattern
-- Proper message handling and history
-- Tool calling integration
-- Hybrid structured + message state
-- Official LangGraph best practices
-"""
-
 from typing import TypedDict, Optional, List, Dict, Any, Annotated, Sequence
 from datetime import datetime
 from enum import Enum

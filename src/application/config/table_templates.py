@@ -1,12 +1,3 @@
-"""
-Table-Specific PostgreSQL Prompt Templates for SIH-RS Database
-Dynamic prompt system that provides specific rules, mappings, and examples
-based on the tables selected during the table selection process.
-
-This module implements table-specific templates that are dynamically injected
-into the SQL generation context, providing precise guidance for each table.
-"""
-
 from typing import List, Dict, Optional
 
 

@@ -1,13 +1,3 @@
-"""
-Main Orchestrator V3 - LangGraph Official Patterns
-
-Primary interface for the LangGraph V3 migration following official patterns:
-- Easy LLM model switching
-- Production-ready SQL Agent
-- Complete API compatibility
-- Official LangGraph best practices
-"""
-
 import time
 import logging
 from typing import Dict, Any, Optional, Union, List
