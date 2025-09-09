@@ -23,7 +23,7 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 from ..application.config.simple_config import ApplicationConfig
-from ..utils.sql_safety import is_select_only
+from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
 from ..utils.logging_config import get_llm_manager_logger
 
 # Initialize logger
@@ -534,9 +534,9 @@ class HybridLLMManager:
         
         # Remove markdown formatting
         sql_query = sql_query.replace("```sql", "").replace("```", "")
-        
-        # Remove extra whitespace
-        sql_query = " ".join(sql_query.split())
+
+        # Remove comments and extra whitespace
+        sql_query = sanitize_sql_for_execution(sql_query)
         
         # Ensure query ends with semicolon
         if not sql_query.strip().endswith(";"):
@@ -577,12 +577,15 @@ class HybridLLMManager:
             else:
                 explain_prefix = "EXPLAIN"
 
+            # Sanitize SQL to remove comments before validation
+            cleaned_sql = sanitize_sql_for_execution(sql_query)
+
             # Use SQLAlchemy text() for 2.0 compatibility
             from sqlalchemy import text
 
             # Execute EXPLAIN to validate syntax without running the query
             # Using context manager to ensure connection closure
-            explain_sql = f"{explain_prefix} {sql_query}"
+            explain_sql = f"{explain_prefix} {cleaned_sql}"
             with engine.connect() as connection:
                 result = connection.execute(text(explain_sql))
                 # Consume results to ensure execution (some drivers require fetch)
@@ -653,8 +656,11 @@ class HybridLLMManager:
                     "row_count": 0
                 }
             
+            # Sanitize SQL to remove comments before execution
+            cleaned_sql = sanitize_sql_for_execution(sql_query)
+
             # Execute query using SQLDatabase
-            result = self._sql_database.run(sql_query)
+            result = self._sql_database.run(cleaned_sql)
             
             # Parse result (SQLDatabase returns string format)
             if isinstance(result, str):

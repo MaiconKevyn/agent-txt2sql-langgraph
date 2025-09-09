@@ -25,6 +25,13 @@ TABLE_TEMPLATES = {
         - → cid10: internacoes."DIAG_PRINC" = cid10."CID"
         - → mortes: internacoes."N_AIH" = mortes."N_AIH"
         - → uti_detalhes: internacoes."N_AIH" = uti_detalhes."N_AIH"
+
+        DIAGNOSIS DESCRIPTION RULES (CID LOOKUPS):
+        - When a query asks for diagnosis names, rankings, "diagnósticos mais comuns", or any output involving disease names,
+          ALWAYS JOIN with the cid10 table on internacoes."DIAG_PRINC" = cid10."CID"
+        - SELECT both the code cid10."CID" and the description cid10."CD_DESCRICAO" in the result set, together with the metric (e.g., COUNT(*))
+        - Use ILIKE for case-insensitive description searches; use proper GROUP BY over both code and description
+        - Seasonal filter (Southern Hemisphere): Inverno (winter) months are 6, 7, and 8 (June, July, August)
         
         EXACT QUERY EXAMPLES:
         -- Men count
@@ -44,6 +51,15 @@ TABLE_TEMPLATES = {
         FROM internacoes 
         WHERE "DT_INTER" IS NOT NULL 
         GROUP BY EXTRACT(YEAR FROM "DT_INTER");
+
+        -- Top 3 most common diagnoses in winter with descriptions
+        SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total
+        FROM internacoes i
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE EXTRACT(MONTH FROM i."DT_INTER") IN (6,7,8)
+        GROUP BY c."CID", c."CD_DESCRICAO"
+        ORDER BY total DESC
+        LIMIT 3;
 """,
 
     "mortes": """
@@ -700,6 +716,15 @@ JOIN dado_ibge d ON mu."codigo_ibge" = d."codigo_municipio_completo"
 WHERE d."populacao" > 100
 GROUP BY mu."estado", d."nome_municipio", d."populacao"
 ORDER BY admissions DESC;
+
+-- Most common diagnoses with descriptions (seasonal filter - winter months 6,7,8)
+SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total
+FROM internacoes i
+JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+WHERE EXTRACT(MONTH FROM i."DT_INTER") IN (6,7,8)
+GROUP BY c."CID", c."CD_DESCRICAO"
+ORDER BY total DESC
+LIMIT 3;
 """
 
 

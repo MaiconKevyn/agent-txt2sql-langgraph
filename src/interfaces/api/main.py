@@ -114,6 +114,7 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     question: str
     model: str = "llama3.1:8b"
+    session_id: Optional[str] = None
 
 class QueryResponse(BaseModel):
     success: bool
@@ -292,6 +293,7 @@ async def query_database(request: QueryRequest):
         # Use LangGraph V3 orchestrator with LangSmith tracing
         result = agent.process_query(
             user_query=request.question,
+            session_id=request.session_id,
             run_name=f"api_query_{int(datetime.now().timestamp())}",
             tags=["api", "production", "txt2sql_api_server"],
             metadata={"source": "api_server", "model": request.model}
