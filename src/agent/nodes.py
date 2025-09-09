@@ -23,8 +23,13 @@ from .state import (
 )
 from .llm_manager import HybridLLMManager
 from ..application.config.simple_config import ApplicationConfig
+from ..utils.sql_safety import is_select_only
 from ..application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
+from ..utils.logging_config import get_nodes_logger, TXT2SQLLogger
 from typing import List
+
+# Initialize logger
+logger = get_nodes_logger()
 
 
 # Global LLM manager instance (singleton pattern)
@@ -52,7 +57,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
     """
     start_time = time.time()
     
-    print(f"CLASSIFICATION NODE: Starting query classification")
+    logger.info("Classification node started")
     
     try:
         # Extract user query from different possible state formats
@@ -76,13 +81,13 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
                     break
         
         if not user_query:
-            # Debug: print state keys to understand format
-            print(f"DEBUG: State keys: {list(state.keys())}")
+            # Debug: log state keys to understand format
+            logger.debug("State parsing failed", extra={"state_keys": list(state.keys())})
             if "messages" in state:
-                print(f"DEBUG: Messages: {state['messages']}")
+                logger.debug("Messages found in state", extra={"messages": str(state['messages'])})
             raise ValueError("No user query found in state")
         
-        print(f"   User Query: '{user_query}'")
+        logger.info("User query extracted", extra={"query": user_query[:100]})
         
         # Store user_query in state for other nodes
         if "user_query" not in state:
@@ -158,10 +163,12 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.QUERY_CLASSIFICATION, execution_time)
         
-        print(f"   Classification Result: {query_route.value}")
-        print(f"   Confidence: {confidence_score:.1f}")
-        print(f"   Time: {execution_time:.2f}s")
-        print(f"   Route: {'SQL Pipeline' if query_route == QueryRoute.DATABASE else 'Direct Response'}")
+        logger.info("Query classified successfully", extra={
+            "result": query_route.value,
+            "confidence": confidence_score,
+            "execution_time": execution_time,
+            "route_type": "SQL Pipeline" if query_route == QueryRoute.DATABASE else "Direct Response"
+        })
         
         return state
         
@@ -197,7 +204,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"TABLE DISCOVERY NODE: Discovering available tables")
+    logger.info("Table discovery node started")
     
     try:
         llm_manager = get_llm_manager()
@@ -269,9 +276,12 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.TABLE_DISCOVERY, execution_time)
         
-        print(f"   Found {len(tables)} tables: {', '.join(tables)}")
-        print(f"   Selected tables: {', '.join(state['selected_tables'])}")
-        print(f"   Time: {execution_time:.2f}s")
+        logger.info("Tables discovered", extra={
+            "total_tables": len(tables),
+            "table_list": ', '.join(tables),
+            "selected_tables": ', '.join(state['selected_tables']),
+            "execution_time": execution_time
+        })
         
         return state
         
@@ -299,7 +309,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"SCHEMA NODE: Retrieving database schema")
+    logger.info("Schema node started")
     
     try:
         llm_manager = get_llm_manager()
@@ -345,10 +355,12 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SCHEMA_ANALYSIS, execution_time)
         
-        print(f"   Schema retrieved for tables: {tables_input}")
-        print(f"   Schema context size: {len(enhanced_schema)} characters")
-        print(f"   Enhanced with SUS value mappings: {('POSTGRESQL COLUMN NAMES REQUIRE' in enhanced_schema)}")
-        print(f"   Time: {execution_time:.2f}s")
+        logger.info("Schema retrieved", extra={
+            "tables": tables_input,
+            "context_size": len(enhanced_schema),
+            "sus_enhanced": 'POSTGRESQL COLUMN NAMES REQUIRE' in enhanced_schema,
+            "execution_time": execution_time
+        })
         
         return state
         
@@ -375,8 +387,9 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     start_time = time.time()
     
-    print(f"SQL GENERATION NODE: Starting SQL generation")
-    print(f"User Query: '{state['user_query']}'")
+    logger.info("SQL generation node started", extra={
+        "user_query": state['user_query'][:100]
+    })
     
     try:
         llm_manager = get_llm_manager()
@@ -384,15 +397,15 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
         
-        print(f"Selected Tables: {selected_tables}")
+        logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
         
         # Build table-specific prompt using our new template system
         if len(selected_tables) > 1:
             table_rules = build_multi_table_prompt(selected_tables)
-            print(f"Multi-table rules applied for: {', '.join(selected_tables)}")
+            logger.debug("Multi-table rules applied", extra={"tables": selected_tables})
         else:
             table_rules = build_table_specific_prompt(selected_tables)
-            print(f"Table-specific rules applied for: {', '.join(selected_tables)}")
+            logger.debug("Table-specific rules applied", extra={"tables": selected_tables})
         
         # Create ChatPromptTemplate with dynamic table rules
         sql_prompt_template = ChatPromptTemplate.from_messages([
@@ -423,8 +436,10 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             user_query=user_query
         )
         
-        print(f"   Using ChatPromptTemplate with {len(formatted_messages)} messages")
-        print(f"   Table rules length: {len(table_rules)} chars")
+        logger.debug("Template prepared", extra={
+            "message_count": len(formatted_messages),
+            "rules_length": len(table_rules)
+        })
         
         # Use unbound LLM for direct SQL generation (bound LLM expects tool calls)
         llm = llm_manager._llm
@@ -443,19 +458,19 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             ai_response = f"Generated SQL query: {sql_query}"
             state = add_ai_message(state, ai_response)
             
-            print(f"    SQL Generated: {sql_query}")
+            logger.info("SQL generated successfully", extra={"sql": sql_query[:200]})
             
         else:
             # Handle empty SQL generation
             error_message = "Failed to generate SQL query - empty response"
             state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
-            print(f"    SQL Generation Failed: Empty response")
+            logger.warning("SQL generation failed: empty response")
         
         # Update phase
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
         
-        print(f"    SQL Generation Time: {execution_time:.2f}s")
+        logger.info("SQL generation completed", extra={"execution_time": execution_time})
         
         return state
         
@@ -467,8 +482,10 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
         
-        print(f"    SQL Generation Error: {str(e)}")
-        print(f"    Error Time: {execution_time:.2f}s")
+        logger.error("SQL generation failed", extra={
+            "error": str(e),
+            "execution_time": execution_time
+        })
         
         return state
 
@@ -570,6 +587,15 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         if not validated_sql:
             raise ValueError("No validated SQL query to execute")
         
+        # Block non-SELECT/unsafe SQL (DDL/DML or multiple statements)
+        ok, reason = is_select_only(validated_sql)
+        if not ok:
+            error_message = f"SQL execution blocked: {reason}"
+            state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
+            return state
+
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
         query_tool = next((tool for tool in tools if tool.name == "sql_db_query"), None)
@@ -841,7 +867,7 @@ def _generate_formatted_response(
             return _generate_fallback_response(user_query, results_text, row_count)
             
     except Exception as e:
-        print(f"Response formatting failed: {e}")
+        logger.error("Response formatting failed", extra={"error": str(e)})
         # Fallback to basic formatting
         return _generate_fallback_response(user_query, results_text if 'results_text' in locals() else str(results), row_count)
 
@@ -983,7 +1009,7 @@ def _select_relevant_tables(
         Lista de tabelas selecionadas relevantes para a query
     """
     try:
-        print(f"INTELLIGENT TABLE SELECTION: Analyzing query for relevant tables")
+        logger.info("Intelligent table selection started")
         
         # Import table descriptions
         from ..application.config.table_descriptions import TABLE_DESCRIPTIONS
@@ -1064,7 +1090,7 @@ TABLES:"""
         # Parse response using simplified approach
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
         
-        print(f"    LLM Raw Response: '{selected_tables_str}'")
+        logger.debug("LLM table selection response", extra={"response": selected_tables_str})
         
         # Simplified parsing with validation
         selected_tables = _parse_llm_table_selection(selected_tables_str, available_tables)
@@ -1074,18 +1100,20 @@ TABLES:"""
         
         # Final fallback: if still no valid tables, use intelligent default
         if not selected_tables:
-            print(f"    No valid tables selected, using intelligent fallback")
+            logger.warning("No valid tables selected, using fallback")
             selected_tables = _get_intelligent_fallback(user_query, available_tables)
         
-        print(f"   Query: '{user_query}'")
-        print(f"   Available: {available_tables}")
-        print(f"   Selected: {selected_tables}")
-        print(f"   Intelligence: {'Single table' if len(selected_tables) == 1 else 'Multi-table'}")
+        logger.info("Table selection completed", extra={
+            "query": user_query[:100],
+            "available": available_tables,
+            "selected": selected_tables,
+            "type": "Single table" if len(selected_tables) == 1 else "Multi-table"
+        })
         
         return selected_tables
         
     except Exception as e:
-        print(f"Table selection error: {e}")
+        logger.error("Table selection failed", extra={"error": str(e)})
         # Fallback: retornar todas as tabelas
         return available_tables
 
@@ -1115,7 +1143,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                 tables = data['tables']
                 selected_tables = [t for t in tables if t in available_tables]
                 if selected_tables:
-                    print(f"    JSON parsing successful: {selected_tables}")
+                    logger.debug("JSON parsing successful", extra={"tables": selected_tables})
                     return selected_tables
     except (json.JSONDecodeError, KeyError):
         pass
@@ -1127,7 +1155,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
         candidate_tables = [t.strip() for t in tables_line.split(',')]
         selected_tables = [t for t in candidate_tables if t in available_tables]
         if selected_tables:
-            print(f"    Structured parsing successful: {selected_tables}")
+            logger.debug("Structured parsing successful", extra={"tables": selected_tables})
             return selected_tables
     
     # Method 3: Direct comma-separated parsing (final line preference)
@@ -1148,7 +1176,7 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                     selected_tables.append(clean_candidate)
             
             if selected_tables:
-                print(f"    Direct parsing successful: {selected_tables}")
+                logger.debug("Direct parsing successful", extra={"tables": selected_tables})
                 return selected_tables
     
     # Method 4: Search for table names anywhere in response
@@ -1158,9 +1186,9 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                 selected_tables.append(table_name)
     
     if selected_tables:
-        print(f"    Pattern matching successful: {selected_tables}")
+        logger.debug("Pattern matching successful", extra={"tables": selected_tables})
     else:
-        print(f"    No tables found in response")
+        logger.warning("No tables found in LLM response")
     
     return selected_tables
 
@@ -1186,28 +1214,28 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
     if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
         if 'mortes' not in validated_tables and 'mortes' in available_tables:
             validated_tables.append('mortes')
-            print(f"    Added 'mortes' for death query")
+            logger.debug("Added 'mortes' table for death query")
     
     # Rule 2: Procedure frequency queries need internacoes, not procedimentos
     if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento']):
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"    Added 'internacoes' for procedure frequency analysis")
+            logger.debug("Added 'internacoes' for procedure frequency analysis")
         if 'procedimentos' in validated_tables:
             validated_tables.remove('procedimentos')
-            print(f"    Removed 'procedimentos' - using internacoes for frequency")
+            logger.debug("Removed 'procedimentos' - using internacoes for frequency")
     
     # Rule 3: Financial queries about internacoes need internacoes table
     if any(keyword in query_lower for keyword in ['valor', 'custo', 'gasto', 'financeiro']) and 'óbito' in query_lower:
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"    Added 'internacoes' for financial data")
+            logger.debug("Added 'internacoes' for financial data")
     
     # Rule 4: Multi-table analysis validation
     if 'mortes' in validated_tables and any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            print(f"    Added 'internacoes' for mortality rate calculation")
+            logger.debug("Added 'internacoes' for mortality rate calculation")
     
     # Rule 5: Remove unnecessary over-selections for simple counting
     if len(validated_tables) > 1:
@@ -1226,11 +1254,14 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
             for priority_table in priority_tables:
                 if priority_table in validated_tables:
                     validated_tables = [priority_table]
-                    print(f"    Simplified to single table '{priority_table}' for simple counting")
+                    logger.debug("Simplified to single table for counting", extra={"table": priority_table})
                     break
     
     if validated_tables != selected_tables:
-        print(f"    Validation changes: {selected_tables} → {validated_tables}")
+        logger.debug("Table validation completed", extra={
+            "original": selected_tables,
+            "validated": validated_tables
+        })
     
     return validated_tables
 

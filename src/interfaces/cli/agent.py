@@ -21,6 +21,7 @@ from src.application.config.simple_config import (
 from src.agent.orchestrator import (
     LangGraphOrchestrator
 )
+from src.utils.logging_config import get_cli_logger
 
 
 def create_app_config(args) -> ApplicationConfig:
@@ -57,6 +58,8 @@ def create_orchestrator_config(args) -> OrchestratorConfig:
 
 
 def debug_query_execution(orchestrator, user_query: str):
+    # Initialize logger
+    logger = get_cli_logger()
     """
     Execute query with detailed step-by-step debugging
     
@@ -66,6 +69,7 @@ def debug_query_execution(orchestrator, user_query: str):
     """
     import time
     
+    logger.info("Starting debug mode execution", extra={"query": user_query})
     print(" DEBUG MODE: Workflow Step-by-Step Analysis")
     print("=" * 70)
     print(f" Query: {user_query}")
@@ -312,17 +316,22 @@ def debug_query_execution(orchestrator, user_query: str):
         print(f" Steps executed: {len(debug_data['steps'])}")
         
     except KeyboardInterrupt:
+        logger.info("Debug session interrupted by user")
         print(f"\n\n Debug interrupted by user")
     except Exception as e:
+        logger.error("Debug execution error", extra={"error": str(e)})
         print(f"\n Debug error: {str(e)}")
         import traceback
         traceback.print_exc()
 
 
 def start_interactive_debug_session(orchestrator):
+    # Initialize logger
+    logger = get_cli_logger()
     """
     Start interactive session with debug mode enabled
     """
+    logger.info("Starting interactive debug session")
     print(" TEXT2SQL DEBUG MODE - Interactive Session")
     print("=" * 60)
     print("Digite 'exit', 'quit' ou 'sair' para sair")
@@ -335,6 +344,7 @@ def start_interactive_debug_session(orchestrator):
             
             # Handle exit commands
             if user_input.lower() in ['exit', 'quit', 'sair']:
+                logger.info("Debug session ended by user")
                 print("\n Até logo!")
                 break
             elif not user_input:
@@ -345,14 +355,18 @@ def start_interactive_debug_session(orchestrator):
             debug_query_execution(orchestrator, user_input)
             
         except KeyboardInterrupt:
+            logger.info("Debug session interrupted by user")
             print("\n\n Até logo!")
             break
         except Exception as e:
+            logger.error("Interactive debug session error", extra={"error": str(e)})
             print(f"\n Erro interno: {str(e)}")
             print("Digite 'exit' para sair ou tente outra pergunta.")
 
 
 def main():
+    # Initialize logger
+    logger = get_cli_logger()
     """Main entry point with clean architecture"""
     parser = argparse.ArgumentParser(
         description="TXT2SQL Claude - Arquitetura Limpa seguindo Princípios SOLID",
@@ -511,6 +525,7 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         
         # Health check mode
         if args.health_check:
+            logger.info("Starting system health check")
             print(" Executando verificação de saúde do sistema...")
             health_status = orchestrator.health_check()
             
@@ -522,31 +537,38 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 print(f"{status_icon} {service_name.title()}: {'OK' if service_health.get('healthy', False) else 'ERRO'}")
             
             if health_status['status'] != 'healthy':
+                logger.warning("System health check failed", extra={"status": health_status['status']})
                 print(f"\n Sistema não está completamente saudável")
                 sys.exit(1)
             else:
+                logger.info("System health check passed")
                 print(f"\n Sistema funcionando perfeitamente!")
             return
         
         # Workflow visualization mode
         if args.visualize_workflow:
+            logger.info("Generating workflow visualization")
             print(" Gerando diagrama visual do workflow LangGraph...")
             try:
                 orchestrator.save_workflow_diagram("langgraph_workflow.png", xray=True)
+                logger.info("Workflow diagram generated successfully", extra={"filename": "langgraph_workflow.png"})
                 print(" Diagrama visual salvo como 'langgraph_workflow.png'")
                 print(" Dica: Abra o arquivo PNG para ver o fluxo completo do agente")
             except Exception as e:
+                logger.error("Failed to generate workflow diagram", extra={"error": str(e)})
                 print(f" Erro ao gerar diagrama: {str(e)}")
                 sys.exit(1)
             return
         
         # Workflow structure debug mode
         if args.debug_workflow:
+            logger.info("Displaying workflow structure")
             print(" Exibindo estrutura textual do workflow LangGraph...")
             try:
                 orchestrator.print_workflow_structure()
                 print("\n Use --visualize-workflow para gerar diagrama PNG")
             except Exception as e:
+                logger.error("Failed to display workflow structure", extra={"error": str(e)})
                 print(f" Erro ao exibir estrutura: {str(e)}")
                 sys.exit(1)
             return
@@ -560,6 +582,7 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 debug_query_execution(orchestrator, args.query)
             else:
                 # Normal mode with LangSmith tracing
+                logger.info("Processing single query", extra={"query": args.query})
                 print(f" Processando consulta: {args.query}")
                 session_id = f"clean_{hash(args.query) % 10000}"
                 result = orchestrator.process_query(
@@ -572,6 +595,10 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 )
                 
                 if result["success"]:
+                    logger.info("Query processed successfully", extra={
+                        "execution_time": result['execution_time'],
+                        "sql_query": result.get('sql_query', '')
+                    })
                     # Show response
                     print(f" {result['response']}")
                     print(f"   Tempo de execução: {result['execution_time']:.2f}s")
@@ -580,21 +607,26 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                     if result.get("sql_query"):
                         print(f" SQL: {result['sql_query']}")
                 else:
+                    logger.error("Query processing failed", extra={"error": result['error_message']})
                     print(f" Erro: {result['error_message']}")
                     sys.exit(1)
             return
         
         # Interactive session mode
         if args.debug_steps:
+            logger.info("Starting interactive debug session")
             start_interactive_debug_session(orchestrator)
         else:
+            logger.info("Starting interactive session")
             orchestrator.start_interactive_session()
         
     except KeyboardInterrupt:
+        logger.info("Application interrupted by user")
         print("\n\n Até logo!")
         sys.exit(0)
     
     except Exception as e:
+        logger.error("Fatal application error", extra={"error": str(e)})
         print(f" Erro fatal: {str(e)}")
         print("\n Dicas para resolução:")
         print("• Verifique se o Ollama está rodando: ollama serve")

@@ -56,5 +56,4 @@ env/
 Thumbs.db
 # Ignorar toda a pasta contents
 contents/
-tests/
 notebooks/

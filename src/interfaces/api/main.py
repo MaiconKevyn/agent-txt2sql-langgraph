@@ -2,6 +2,7 @@ import sys
 import os
 from typing import Dict, Any, Optional
 from datetime import datetime
+from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +25,70 @@ from src.application.config.simple_config import (
 # TXT2SQL Agent Orchestrator
 from src.agent.orchestrator import LangGraphOrchestrator, create_production_orchestrator
 from src.application.config.simple_config import InterfaceType
+from src.utils.logging_config import get_api_logger
+
+# Initialize logger
+logger = get_api_logger()
 
 # Global agent instance - now using LangGraph V3 Orchestrator
 agent: Optional[LangGraphOrchestrator] = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    global agent
+    try:
+        # Startup
+        config = ApplicationConfig()
+        llm_provider = config.llm_provider
+        llm_model = config.llm_model
+        
+        logger.info("Initializing LLM", extra={"model": llm_model, "provider": llm_provider})
+        
+        agent = initialize_agent()
+        
+        # Get detailed model information
+        try:
+            model_info = agent.get_current_model()
+            logger.info("TXT2SQL Agent initialized successfully", extra={
+                "provider": model_info.get('provider', 'Unknown'),
+                "model": model_info.get('model_name', 'Unknown'),
+                "version": "LangGraph V3 Official Patterns"
+            })
+            
+            # Show device info if available
+            if 'device' in model_info:
+                device_info = model_info['device']
+                cuda_available = 'cuda' in str(device_info).lower()
+                logger.info("Device information", extra={
+                    "device": device_info,
+                    "cuda_enabled": cuda_available
+                })
+            
+            # Show quantization info for HuggingFace models
+            if model_info.get('provider') == 'HuggingFace':
+                quantization = "4-bit" if model_info.get('load_in_4bit') else \
+                               "8-bit" if model_info.get('load_in_8bit') else "Full precision"
+                logger.info("Model quantization", extra={"quantization": quantization})
+                
+                logger.info("CUDA availability", extra={"cuda_available": model_info.get('cuda_available', False)})
+            
+            # Log availability status
+            available = model_info.get('available', False)
+            logger.info("Model status", extra={"available": available})
+            
+        except Exception as model_info_error:
+            logger.info("TXT2SQL Agent initialized successfully")
+            logger.warning("Could not retrieve detailed model info", extra={"error": str(model_info_error)})
+            
+    except Exception as e:
+        logger.error("Failed to initialize agent", extra={"error": str(e)})
+        raise
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down TXT2SQL Agent")
 
 # FastAPI app
 app = FastAPI(
@@ -34,7 +96,8 @@ app = FastAPI(
     description="LangGraph-powered Text-to-SQL API for SUS Healthcare Data with Clean Architecture",
     version="3.0.0-langgraph",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS middleware for web frontend
@@ -93,64 +156,6 @@ def initialize_agent(model_name: str = None) -> LangGraphOrchestrator:
     
     return orchestrator
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize agent on startup"""
-    global agent
-    try:
-        # Get configuration details for logging
-        config = ApplicationConfig()
-        llm_provider = config.llm_provider
-        llm_model = config.llm_model
-        
-        print(f" Initializing LLM: {llm_model} ({llm_provider.title()})")
-        
-        agent = initialize_agent()
-        
-        # Get detailed model information
-        try:
-            model_info = agent.get_current_model()
-            print(" TXT2SQL LangGraph V3 Agent initialized successfully")
-            print()
-            print(" Model Information:")
-            print(f"    Provider: {model_info.get('provider', 'Unknown')}")
-            print(f"    Model: {model_info.get('model_name', 'Unknown')}")
-            print(f"    Version: LangGraph V3 Official Patterns")
-            
-            # Show device info if available
-            if 'device' in model_info:
-                device_info = model_info['device']
-                if 'cuda' in str(device_info).lower():
-                    print(f"    Device: {device_info} ")
-                else:
-                    print(f"    Device: {device_info}")
-            
-            # Show quantization info for HuggingFace models
-            if model_info.get('provider') == 'HuggingFace':
-                if model_info.get('load_in_4bit'):
-                    print("    Quantization: 4-bit (enabled) ")
-                elif model_info.get('load_in_8bit'):
-                    print("    Quantization: 8-bit (enabled) ")
-                else:
-                    print("    Quantization: Full precision")
-                
-                if model_info.get('cuda_available'):
-                    print("    CUDA: Available ")
-                else:
-                    print("    CUDA: Not available")
-            
-            # Show availability status
-            status_icon = "" if model_info.get('available', False) else ""
-            print(f"    Status: Available {status_icon}")
-            print()
-            
-        except Exception as model_info_error:
-            print(" TXT2SQL Agent initialized successfully")
-            print(f" Could not retrieve detailed model info: {str(model_info_error)}")
-            
-    except Exception as e:
-        print(f" Failed to initialize agent: {str(e)}")
-        raise
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -496,21 +501,24 @@ async def get_migration_statistics():
         }
 
 if __name__ == "__main__":
-    print(" Starting TXT2SQL API Server - LangGraph Edition...")
-    print(" MIGRATED: Now using pure refactored LangGraph system!")
-    print(" Code reduction: 75% overall | Performance: Optimized")
-    print(" Make sure Ollama is running with llama3 or mistral model")
-    print("  Press Ctrl+C to stop")
+    logger.info("Starting TXT2SQL API Server", extra={
+        "edition": "LangGraph",
+        "migration_status": "Complete - pure refactored LangGraph system",
+        "performance": "Optimized - 75% code reduction",
+        "requirements": "Ollama with llama3 or mistral model"
+    })
     
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     
-    print(f" API will be available at http://{host}:{port}")
-    print(f" Documentation at http://{host}:{port}/docs") 
-    print(f" Migration stats at http://{host}:{port}/migration-stats")
+    logger.info("API endpoints configured", extra={
+        "api_url": f"http://{host}:{port}",
+        "docs_url": f"http://{host}:{port}/docs",
+        "stats_url": f"http://{host}:{port}/migration-stats"
+    })
     
     uvicorn.run(
-        "api_server:app",
+        "src.interfaces.api.main:app",
         host=host,
         port=port,
         reload=True,
