@@ -57,3 +57,21 @@ def is_select_only(sql: str) -> Tuple[bool, str]:
 
     return True, ""
 
+
+def sanitize_sql_for_execution(sql: str) -> str:
+    """
+    Produce a "clean" SQL string safe for validation/execution:
+    - Remove comments (/* ... */ and -- ... EOL)
+    - Trim surrounding whitespace
+    - Collapse excessive internal whitespace and line breaks
+    - Keep, at most, a single trailing semicolon
+    """
+    if not sql:
+        return ""
+    cleaned = _strip_sql_comments(sql).strip()
+    # Collapse whitespace/newlines to single spaces
+    collapsed = " ".join(cleaned.split())
+    # Normalize trailing semicolon: allow at most one
+    while collapsed.endswith(";;"):
+        collapsed = collapsed[:-1]
+    return collapsed

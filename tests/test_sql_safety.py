@@ -1,6 +1,6 @@
 import pytest
 
-from src.utils.sql_safety import is_select_only
+from src.utils.sql_safety import is_select_only, sanitize_sql_for_execution
 
 
 @pytest.mark.parametrize(
@@ -35,3 +35,14 @@ def test_is_select_only_reason_messages():
     assert not ok
     assert "Múltiplas instruções" in reason
 
+
+def test_sanitize_sql_for_execution_removes_comments_and_collapses_spaces():
+    sql = """
+    -- leading comment
+    SELECT  a,  b  FROM  t  /* mid block */ WHERE a = 1;  -- end
+    """
+    sanitized = sanitize_sql_for_execution(sql)
+    assert "--" not in sanitized
+    assert "/*" not in sanitized
+    assert "  " not in sanitized  # collapsed spaces
+    assert sanitized.lower().startswith("select a, b from t where a = 1")

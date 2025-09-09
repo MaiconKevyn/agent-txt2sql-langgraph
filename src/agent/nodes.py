@@ -23,13 +23,107 @@ from .state import (
 )
 from .llm_manager import HybridLLMManager
 from ..application.config.simple_config import ApplicationConfig
-from ..utils.sql_safety import is_select_only
+from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
 from ..application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
 from ..utils.logging_config import get_nodes_logger, TXT2SQLLogger
+from ..utils.classification import (
+    detect_sql_snippets,
+    heuristic_route,
+    try_extract_json_block,
+    combine_scores,
+)
 from typing import List
 
 # Initialize logger
 logger = get_nodes_logger()
+
+# Simple cap for conversation history size (messages held in memory)
+MAX_HISTORY_MESSAGES = 30
+
+
+def _update_structured_memory_from_query(state: MessagesStateTXT2SQL, user_query: str):
+    """Extract simple filters and intents from the user query and store them in structured memory."""
+    mem = state.get("structured_memory", {}) or {}
+    q = (user_query or "").lower()
+    # Season detection (PT)
+    if any(w in q for w in ["inverno"]):
+        mem.setdefault("filters", {})["season"] = "winter"
+        mem["filters"]["months"] = [6, 7, 8]
+    if any(w in q for w in ["verao", "verão"]):
+        mem.setdefault("filters", {})["season"] = "summer"
+        mem["filters"]["months"] = [12, 1, 2]
+    # Gender
+    if any(w in q for w in ["homem", "homens", "masculino"]):
+        mem.setdefault("filters", {})["gender"] = "male"
+    if any(w in q for w in ["mulher", "mulheres", "feminino"]):
+        mem.setdefault("filters", {})["gender"] = "female"
+    # Top-K
+    import re as _re
+    m = _re.search(r"top\s*(\d+)", q)
+    if m:
+        try:
+            mem["last_top_k"] = int(m.group(1))
+        except Exception:
+            pass
+    # Store back
+    state["structured_memory"] = mem
+
+
+def _append_context_to_prompt(messages: List[BaseMessage], state: MessagesStateTXT2SQL) -> List[BaseMessage]:
+    """Append conversation context (summary + structured memory) to prompt as a system message."""
+    mem = state.get("structured_memory", {}) or {}
+    summary = state.get("conversation_summary")
+    parts = []
+    if summary:
+        parts.append(f"Conversation summary: {summary}")
+    if mem:
+        # Include only compact keys to avoid prompt bloat
+        filters = mem.get("filters", {})
+        topk = mem.get("last_top_k")
+        last_tables = mem.get("last_selected_tables")
+        last_sql = mem.get("last_sql")
+        mem_lines = ["Structured context:"]
+        if filters:
+            mem_lines.append(f"- filters: {filters}")
+        if isinstance(topk, int):
+            mem_lines.append(f"- last_top_k: {topk}")
+        if last_tables:
+            mem_lines.append(f"- last_selected_tables: {last_tables}")
+        if last_sql:
+            mem_lines.append(f"- last_sql: {last_sql[:120]}{'...' if len(last_sql) > 120 else ''}")
+        parts.append("\n".join(mem_lines))
+    if parts:
+        ctx = "\n\n".join(parts)
+        messages = [SystemMessage(content=ctx)] + messages
+    return messages
+
+
+def _maybe_summarize_history(state: MessagesStateTXT2SQL):
+    """Summarize conversation when message history exceeds the limit."""
+    try:
+        msgs = list(state.get("messages", []))
+        if len(msgs) <= MAX_HISTORY_MESSAGES:
+            return
+        # Build a small summary prompt based on last N messages
+        excerpt = msgs[-20:]
+        llm_manager = get_llm_manager()
+        llm = llm_manager._llm
+        summary_prompt = (
+            "Resuma brevemente a conversa do usuário com foco em: metas da consulta, filtros (ex.: estação, sexo, cidade), "
+            "e resultados relevantes (ex.: top-1/top-5). Não inclua detalhes irrelevantes."
+        )
+        smessages = [SystemMessage(content=summary_prompt)] + excerpt
+        sresp = llm.invoke(smessages)
+        summary_text = getattr(sresp, "content", str(sresp))
+        # Save summary in state and keep short history
+        state["conversation_summary"] = summary_text.strip()
+        state["messages"] = [SystemMessage(content=f"Resumo: {summary_text.strip()}")] + msgs[-10:]
+        logger.debug("Conversation summarized", extra={"kept": 11, "dropped": len(msgs) - 11})
+    except Exception as e:
+        # In case of failure, fallback to trimming only
+        msgs = list(state.get("messages", []))
+        state["messages"] = msgs[-MAX_HISTORY_MESSAGES:]
+        logger.debug("Summary failed; trimmed instead", extra={"error": str(e)})
 
 
 # Global LLM manager instance (singleton pattern)
@@ -89,66 +183,106 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         
         logger.info("User query extracted", extra={"query": user_query[:100]})
         
+        # Trim conversation history to keep memory bounded
+        # Maybe summarize (or trim) if history grows too much
+        _maybe_summarize_history(state)
+
         # Store user_query in state for other nodes
         if "user_query" not in state:
             state["user_query"] = user_query
+        # Update simple structured memory from the user query
+        _update_structured_memory_from_query(state, user_query)
         
         llm_manager = get_llm_manager()
         
-        # Create optimized classification prompt for faster response
-        classification_prompt = f"""Classify this query:
-        "{user_query}"
-        
-        Categories:
-        DATABASE: data queries (count, list, show, filter)
-        CONVERSATIONAL: explanations (what, how, meaning)
-        SCHEMA: structure (tables, columns)
-        
-        Response: DATABASE/CONVERSATIONAL/SCHEMA"""
-        
-        # Format messages for LLM
-        messages = format_for_llm_input(state, classification_prompt)
-        
-        # Get bound LLM (though classification doesn't need tools)
-        llm = llm_manager.get_bound_llm()
-        
-        # Invoke LLM for classification
-        response = llm.invoke(messages)
-        classification_result = response.content.strip().upper()
-        
-        # Parse classification result
-        route_mapping = {
-            "DATABASE": QueryRoute.DATABASE,
-            "CONVERSATIONAL": QueryRoute.CONVERSATIONAL,
-            "SCHEMA": QueryRoute.SCHEMA
-        }
-        
-        query_route = route_mapping.get(classification_result, QueryRoute.DATABASE)
-        
-        # Calculate confidence based on keyword matching
-        confidence_score = 0.8  # Default confidence
-        database_keywords = ["quantos", "count", "listar", "mostrar", "total", "média", "average"]
-        conversational_keywords = ["significa", "what", "como", "why", "explain", "definition"]
-        schema_keywords = ["tabelas", "tables", "colunas", "columns", "schema", "estrutura"]
-        
-        query_lower = user_query.lower()
-        
-        if any(keyword in query_lower for keyword in database_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.DATABASE else 0.6
-        elif any(keyword in query_lower for keyword in conversational_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.CONVERSATIONAL else 0.6
-        elif any(keyword in query_lower for keyword in schema_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.SCHEMA else 0.6
-        
-        # Create classification object
-        classification = QueryClassification(
-            route=query_route,
-            confidence_score=confidence_score,
-            reasoning=f"Classified as {query_route.value} based on content analysis",
-            requires_tools=query_route in [QueryRoute.DATABASE, QueryRoute.SCHEMA],
-            estimated_complexity=0.5 if query_route == QueryRoute.CONVERSATIONAL else 0.8,
-            suggested_approach=f"Use {query_route.value} processing pipeline"
-        )
+        # Heuristic pre-pass
+        heur_route_str, heur_scores = heuristic_route(user_query)
+
+        # Strong early exit: explicit SQL pasted by user
+        if detect_sql_snippets(user_query):
+            query_route = QueryRoute.DATABASE
+            confidence_score = 0.95
+            classification = QueryClassification(
+                route=query_route,
+                confidence_score=confidence_score,
+                reasoning="Explicit SQL detected in input.",
+                requires_tools=True,
+                estimated_complexity=0.8,
+                suggested_approach="Use database processing pipeline"
+            )
+        else:
+            # LLM JSON classification with few-shots
+            system_prompt = (
+                "Você é um classificador de consultas. Decida a ROTA em {DATABASE, CONVERSATIONAL, SCHEMA}.\n"
+                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>}\n"
+                "DATABASE: perguntas de dados (contagem, ranking, listar, filtros, por cidade/ano/sexo...)\n"
+                "CONVERSATIONAL: explicações/definições (\\\"o que é\\\", \\\"significa\\\", \\\"como funciona\\\", diferenças)\n"
+                "SCHEMA: estrutura do banco (tabelas, colunas, schema, dicionário de dados).\n"
+                "Exemplos:\n"
+                "Q: Quantos óbitos ocorreram em 2023?\n"
+                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"contagem temporal\\\"}\n"
+                "Q: O que significa o CID J189?\n"
+                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"pedido de definição\\\"}\n"
+                "Q: Quais colunas existem na tabela internacoes?\n"
+                "A: {\\\"route\\\":\\\"SCHEMA\\\",\\\"confidence\\\":0.95,\\\"reasons\\\":\\\"estrutura da tabela\\\"}\n"
+                "Q: Top 5 diagnósticos mais comuns no inverno\n"
+                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.85,\\\"reasons\\\":\\\"ranking de dados\\\"}\n"
+                "Q: Explique a diferença entre internacoes e mortes\n"
+                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.8,\\\"reasons\\\":\\\"explicação de conceito\\\"}"
+            )
+
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_query)
+            ]
+
+            # Prefer unbound LLM (no tools needed)
+            llm = llm_manager._llm
+            response = llm.invoke(messages)
+            content = getattr(response, "content", str(response))
+            data = try_extract_json_block(content)
+
+            llm_route = None
+            llm_conf = None
+            llm_reasons = ""
+            if isinstance(data, dict):
+                r = str(data.get("route", "")).upper().strip()
+                if r in ["DATABASE", "CONVERSATIONAL", "SCHEMA"]:
+                    llm_route = r
+                try:
+                    llm_conf = float(data.get("confidence", None))
+                except Exception:
+                    llm_conf = None
+                llm_reasons = str(data.get("reasons", "")).strip()
+
+            # Decision policy
+            threshold = 0.75
+            if llm_route and llm_conf is not None and llm_conf >= threshold:
+                final_route_str = llm_route
+                confidence_score = float(llm_conf)
+                reason = f"LLM(JSON) high confidence. Heuristic={heur_scores}"
+            else:
+                final_route_str = combine_scores(llm_route, llm_conf, heur_scores, w_llm=0.7)
+                confidence_score = float(llm_conf) if llm_conf is not None else (1.0 if heur_scores.get(final_route_str, 0) > 0 else 0.6)
+                reason = (
+                    f"Hybrid decision. llm_route={llm_route} conf={llm_conf} heur={heur_scores}"
+                    + (f"; llm_reasons={llm_reasons}" if llm_reasons else "")
+                )
+
+            query_route = {
+                "DATABASE": QueryRoute.DATABASE,
+                "CONVERSATIONAL": QueryRoute.CONVERSATIONAL,
+                "SCHEMA": QueryRoute.SCHEMA,
+            }[final_route_str]
+
+            classification = QueryClassification(
+                route=query_route,
+                confidence_score=confidence_score,
+                reasoning=reason,
+                requires_tools=query_route in [QueryRoute.DATABASE, QueryRoute.SCHEMA],
+                estimated_complexity=0.5 if query_route == QueryRoute.CONVERSATIONAL else 0.8,
+                suggested_approach=f"Use {query_route.value} processing pipeline"
+            )
         
         # Update state
         state["query_route"] = query_route
@@ -156,7 +290,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         state["requires_sql"] = query_route == QueryRoute.DATABASE
         
         # Add AI message with classification
-        ai_response = f"Query classified as {query_route.value} (confidence: {confidence_score:.1f})"
+        ai_response = f"Query classified as {classification.route.value} (confidence: {classification.confidence_score:.2f})"
         state = add_ai_message(state, ai_response)
         
         # Update phase
@@ -164,10 +298,10 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         state = update_phase(state, ExecutionPhase.QUERY_CLASSIFICATION, execution_time)
         
         logger.info("Query classified successfully", extra={
-            "result": query_route.value,
-            "confidence": confidence_score,
+            "result": classification.route.value,
+            "confidence": classification.confidence_score,
             "execution_time": execution_time,
-            "route_type": "SQL Pipeline" if query_route == QueryRoute.DATABASE else "Direct Response"
+            "route_type": "SQL Pipeline" if classification.route == QueryRoute.DATABASE else "Direct Response"
         })
         
         return state
@@ -420,7 +554,10 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         6. Include LIMIT clauses when appropriate (default LIMIT 100)
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
-        
+        9. When the question involves diagnoses, CID codes, disease names, or rankings like "diagnósticos mais comuns",
+           ALWAYS JOIN with cid10 using i."DIAG_PRINC" = c."CID" and SELECT both the code c."CID" and the description c."CD_DESCRICAO" in the results.
+           Prefer output columns ordered as: c."CID", c."CD_DESCRICAO", and the computed metric (e.g., COUNT(*) AS total).
+
          DATABASE SCHEMA:
         {schema_context}"""),
             
@@ -435,6 +572,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             table_specific_rules=table_rules,
             user_query=user_query
         )
+        # Append conversation context (summary + structured memory)
+        formatted_messages = _append_context_to_prompt(formatted_messages, state)
         
         logger.debug("Template prepared", extra={
             "message_count": len(formatted_messages),
@@ -457,6 +596,11 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             # Add AI message with generated SQL
             ai_response = f"Generated SQL query: {sql_query}"
             state = add_ai_message(state, ai_response)
+            # Keep last_sql in structured memory
+            mem = state.get("structured_memory", {}) or {}
+            mem["last_sql"] = sql_query
+            mem["last_selected_tables"] = selected_tables
+            state["structured_memory"] = mem
             
             logger.info("SQL generated successfully", extra={"sql": sql_query[:200]})
             
@@ -509,14 +653,15 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
         checker_tool = next((tool for tool in tools if tool.name == "sql_db_query_checker"), None)
-        
+
         validation_passed = True
         validation_message = "SQL query is valid"
-        
+        sanitized_sql = sanitize_sql_for_execution(generated_sql)
+
         if checker_tool:
             try:
                 # Execute query checker tool
-                checker_result = checker_tool.invoke(generated_sql)
+                checker_result = checker_tool.invoke(sanitized_sql)
                 validation_message = str(checker_result)
                 
                 # Simple validation - if no error message, consider it valid
@@ -528,13 +673,13 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
                 validation_message = f"Query checker failed: {str(checker_error)}"
         else:
             # Fallback validation using HybridLLMManager
-            validation_result = llm_manager.validate_sql_query(generated_sql)
+            validation_result = llm_manager.validate_sql_query(sanitized_sql)
             validation_passed = validation_result["is_valid"]
             validation_message = validation_result.get("error", "Validation completed")
         
         # Update state based on validation
         if validation_passed:
-            state["validated_sql"] = generated_sql
+            state["validated_sql"] = sanitized_sql
             ai_response = f"SQL query validated successfully: {generated_sql}"
         else:
             state = add_error(state, validation_message, "sql_validation_error", ExecutionPhase.SQL_VALIDATION)
@@ -596,6 +741,9 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
             return state
 
+        # Sanitize SQL to remove comments before execution
+        sanitized_sql = sanitize_sql_for_execution(validated_sql)
+
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
         query_tool = next((tool for tool in tools if tool.name == "sql_db_query"), None)
@@ -604,7 +752,7 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             raise ValueError("sql_db_query tool not found")
         
         # Execute SQL query using tool
-        tool_result = query_tool.invoke(validated_sql)
+        tool_result = query_tool.invoke(sanitized_sql)
         
         # Parse results (SQLDatabaseToolkit returns string format)
         results = []
@@ -621,14 +769,22 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         # Create execution result
         sql_execution_result = SQLExecutionResult(
             success=True,
-            sql_query=validated_sql,
+            sql_query=sanitized_sql,
             results=results,
             row_count=row_count,
             execution_time=time.time() - start_time,
             validation_passed=True
         )
-        
+
         state["sql_execution_result"] = sql_execution_result
+        # Save small preview in structured memory
+        try:
+            mem = state.get("structured_memory", {}) or {}
+            if row_count > 0:
+                mem["last_result_preview"] = results[:5]
+            state["structured_memory"] = mem
+        except Exception:
+            pass
         
         # Create tool call result
         tool_call_result = ToolCallResult(
@@ -729,6 +885,13 @@ def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         state["final_response"] = final_response
         state["success"] = not bool(state.get("current_error"))
         state["completed"] = True
+        # Save last response in structured memory
+        try:
+            mem = state.get("structured_memory", {}) or {}
+            mem["last_response"] = final_response
+            state["structured_memory"] = mem
+        except Exception:
+            pass
         
         # Add final AI message
         state = add_ai_message(state, final_response)

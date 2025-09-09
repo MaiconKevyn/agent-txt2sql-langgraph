@@ -112,6 +112,10 @@ class MessagesStateTXT2SQL(TypedDict):
     final_response: Optional[str]
     response_metadata: Dict[str, Any]
     
+    # Structured memory for multi-turn context
+    structured_memory: Dict[str, Any]
+    conversation_summary: Optional[str]
+    
     # Error handling
     errors: List[Dict[str, Any]]
     current_error: Optional[str]
@@ -182,6 +186,10 @@ def create_initial_messages_state(
         # Results
         final_response=None,
         response_metadata={},
+        
+        # Structured memory
+        structured_memory={},
+        conversation_summary=None,
         
         # Error handling
         errors=[],
