@@ -1,8 +1,29 @@
 # TXT2SQL - DataVisSUS
 
-A modern Text-to-SQL agent using LangGraph framework with PostgreSQL support for Brazilian healthcare data (SIH-RS).
+## Project Description
 
-## 🚀 Initial Setup
+TXT2SQL is a natural language to SQL query system designed for Brazilian healthcare data analysis. The system enables users to query healthcare databases using natural language questions in Portuguese, automatically generating and executing SQL queries against a PostgreSQL database containing Sistema de Informações Hospitalares (SIH-RS) data.
+
+The system processes over 11 million healthcare records across 15 specialized tables, including patient mortality data, medical procedures, hospital admissions, and diagnostic information. Built using the LangGraph workflow framework, it provides both command-line and web-based interfaces for healthcare data analysis.
+
+**Key capabilities:**
+- Natural language query processing in Portuguese
+- Automated SQL generation and validation
+- Healthcare-specific table selection and schema analysis
+- Multi-interface access (CLI, REST API, web frontend)
+- Conversation history and follow-up query support
+- Comprehensive logging and monitoring
+- SQL injection prevention and security controls
+
+**Target use cases:**
+- Healthcare data analysis and reporting
+- Medical research query assistance
+- Hospital administration data insights
+- Public health data exploration
+
+The system integrates with local language models through Ollama, supporting various model providers while maintaining data privacy and security for sensitive healthcare information.
+
+## Initial Setup
 
 ### 1. Prerequisites
 
@@ -31,8 +52,8 @@ ollama list
 
 ```bash
 # Clone repository
-git clone <repository-url>
-cd txt2sql_claude_s
+git clone https://github.com/MaiconKevyn/agent_llama3_txt2sql.git
+cd agent_llama3_txt2sql
 
 # Create virtual environment
 python -m venv .venv
@@ -116,84 +137,168 @@ python src/interfaces/api/main.py
 # Documentation at http://localhost:8000/docs
 ```
 
-## Project Structure
+## System Workflow
 
+```mermaid
+graph TD
+    A["<b>User Input</b><br/>Natural Language Query"] --> B{"<b>Interface</b>"}
+    
+    B -->|CLI| C["<b>CLI Agent</b><br/>agent.py"]
+    B -->|API| D["<b>FastAPI Server</b><br/>main.py"]
+    B -->|Web| E["<b>Frontend</b><br/>Express.js"]
+    
+    C --> F["<b>LangGraph Orchestrator</b><br/>orchestrator.py"]
+    D --> F
+    E --> D
+    
+    F --> G["<b>Query Classification Node</b><br/>DATABASE/CONVERSATIONAL/SCHEMA"]
+    
+    G -->|DATABASE| H["<b>Table Discovery Node</b><br/>Select Relevant Tables"]
+    G -->|CONVERSATIONAL| I["<b>Direct Response Node</b><br/>General Conversation"]
+    G -->|SCHEMA| J["<b>Schema Info Node</b><br/>Database Structure"]
+    
+    H --> K["<b>Schema Analysis Node</b><br/>Get Table Schemas"]
+    K --> L["<b>SQL Generation Node</b><br/>Create SQL Query"]
+    L --> M["<b>SQL Validation Node</b><br/>Syntax & Safety Check"]
+    
+    M -->|Valid| N["<b>SQL Execution Node</b><br/>Execute Against PostgreSQL"]
+    M -->|Invalid| O["<b>Error Response</b>"]
+    
+    N --> P["<b>Response Generation Node</b><br/>Format Natural Language Response"]
+    I --> P
+    J --> P
+    O --> P
+    
+    P --> Q["<b>Final Response</b><br/>Natural Language + SQL"]
+    
+    R[("<b>PostgreSQL Database</b><br/>SIH-RS Healthcare Data<br/>15 Tables, 11M+ Records")] --> N
+    
+    S["<b>LLM Manager</b><br/>Ollama Integration"] --> L
+    S --> P
+    
+    T["<b>Logging System</b><br/>Structured Logs"] --> F
+    U["<b>Session Management</b><br/>Conversation History"] --> F
+    
+    style A fill:#e1f5fe
+    style Q fill:#e8f5e8
+    style R fill:#fff3e0
+    style F fill:#f3e5f5
+    style N fill:#ffebee
 ```
-txt2sql_claude_s/
-├── src/                           # All source code
-│   ├── agent/                     # LangGraph TXT2SQL agent core
-│   │   ├── orchestrator.py       # Main orchestration logic
-│   │   ├── workflow.py            # LangGraph workflow definition
-│   │   ├── nodes.py               # Workflow nodes (classification, SQL gen, etc)
-│   │   ├── state.py               # Workflow state management
-│   │   ├── llm_manager.py         # LLM and database integration
-│   │   └── tools/                 # Custom tools (enhanced list tables)
-│   ├── application/               # Business logic & configuration
-│   │   └── config/                # Configuration files
-│   ├── infrastructure/            # External integrations (DB, etc)
-│   │   └── database/              # Database connection services
-│   ├── interfaces/                # Entry points & user interfaces
-│   │   ├── api/                   # FastAPI server
-│   │   │   └── main.py           # API endpoints
-│   │   └── cli/                   # Command-line interface
-│   │       └── agent.py          # CLI application
-│   └── utils/                     # Shared utilities
-├── evaluation/                    # Testing and metrics
-├── tests/                         # Automated tests
-├── frontend/                      # Web interface (Node.js)
-│   ├── package.json              # Node.js dependencies
-│   ├── server.js                 # Express.js server
-│   └── public/                   # Static web assets
-└── logs/                          # Application logs
-```
 
-## Features
+## Testing
 
-- 🚀 **LangGraph V3**: Modern workflow-based architecture
-- 🏥 **Healthcare Domain**: Specialized for Brazilian SIH-RS data
-- 🔍 **Intelligent Table Selection**: 75%+ accuracy in table selection
-- 📊 **PostgreSQL**: 15 specialized tables with 11M+ records
-- 🔍 **LangSmith Integration**: Complete observability and tracing
-- 🎯 **Multi-LLM Support**: Ollama, HuggingFace models
-- 🛠️ **Debug Mode**: Step-by-step workflow visualization
+This project includes a comprehensive testing suite focused on security and reliability.
 
-## Architecture
+### Running Tests
 
-- **Query Classification**: Intelligent routing (DATABASE/CONVERSATIONAL/SCHEMA)
-- **Table Discovery**: Smart table selection based on query context
-- **Schema Analysis**: Dynamic schema introspection with healthcare mappings
-- **SQL Generation**: PostgreSQL-optimized query generation
-- **SQL Validation**: Syntax and semantic validation
-- **Execution**: Safe query execution with error handling
-- **Response**: Natural language response generation
-
-## Dependencies
-
-The project uses a minimal set of carefully selected dependencies:
-
-### Python Dependencies (15 packages)
 ```bash
-# Install all Python dependencies
-pip install -r requirements.txt
+# Run all tests with verbose output
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_sql_safety.py -v
+
+# Run tests with coverage report (requires pytest-cov)
+python -m pytest tests/ --cov=src --cov-report=html
+
+# Collect tests without running (show all discovered tests)
+python -m pytest --collect-only
+
+# Run tests in parallel (requires pytest-xdist)
+python -m pytest tests/ -n auto
+
+# Run tests with detailed output for debugging
+python -m pytest tests/ -v -s --tb=long
 ```
 
-**Core Components:**
-- **LangGraph 0.6.6** - Workflow orchestration
-- **LangChain 0.3.x** - LLM integration and tools
-- **FastAPI 0.115.13** - Modern web API framework
-- **PostgreSQL** - Database support via psycopg2-binary
-- **LangSmith 0.3.45** - Observability and tracing
+### Test Structure
 
-### Node.js Dependencies (for Web Interface)
+```
+tests/
+├── conftest.py                    # Pytest configuration
+├── test_sql_safety.py            # SQL security validation tests
+└── test_sql_execution_block.py   # SQL execution blocking tests
+```
+
+### Unit Tests Overview
+
+#### 1. SQL Safety Tests (`test_sql_safety.py`)
+- **Purpose**: Validates SQL injection prevention and query safety
+- **Module Tested**: `src.utils.sql_safety.is_select_only`
+- **Test Cases**: 14 parametrized tests covering:
+  - ✅ Valid SELECT statements (basic, CTE, with comments)
+  - ❌ Dangerous statements (UPDATE, DROP, CREATE, DELETE, TRUNCATE)
+  - ❌ Multiple statements and SQL injection attempts
+  - Proper error message validation
+
+#### 2. SQL Execution Blocking Tests (`test_sql_execution_block.py`)
+- **Purpose**: Ensures dangerous SQL is blocked at multiple layers
+- **Modules Tested**: 
+  - `src.agent.nodes.execute_sql_node` (workflow level)
+  - `src.agent.llm_manager.HybridLLMManager.execute_sql_query` (manager level)
+- **Test Cases**: 2 comprehensive tests using:
+  - Mock objects to avoid heavy database initialization
+  - Monkeypatching for isolated testing
+  - State-based testing for workflow nodes
+
+### Test Framework
+
+- **Framework**: pytest 8.4.2
+- **Plugins**: anyio-4.9.0, typeguard-4.4.4, langsmith-0.3.45
+- **Configuration**: Custom setup in `conftest.py` for src-layout project structure
+
+### Test Status
+
+**All 16 tests are currently passing** ✅
+
+### Additional Testing Resources
+
+#### Evaluation Framework
+The project includes an extensive evaluation system in `/evaluation/` directory:
+- Database structure analysis
+- Agent extraction testing  
+- Query execution validation
+- Table selection metrics generation
+
+#### Test Notebooks
+- `/notebooks/test.ipynb`: Database connection testing and table listing
+
+### Logging System Testing
+
+The project includes a production-ready logging system with structured output:
+
 ```bash
-# Install frontend dependencies
-cd frontend && npm install
+# Check logging implementation after running API or CLI
+ls -la logs/
+
+# View structured logs by component
+tail -f logs/txt2sql_orchestrator.log  # Main orchestration
+tail -f logs/txt2sql_nodes.log         # Workflow nodes
+tail -f logs/txt2sql_llm_manager.log   # LLM operations
+tail -f logs/txt2sql_api.log           # API requests
+tail -f logs/txt2sql_cli.log           # CLI usage
+
+# Test logging by running a query
+python src/interfaces/cli/agent.py --query "How many patients?"
 ```
 
-**Web Stack:**
-- **Express.js** - Web server framework
-- **CORS, Helmet** - Security middleware
-- **Rate Limiting** - API protection
+**Logging Features:**
+- ✅ RotatingFileHandler (100MB max size, 10 backups)
+- ✅ Component-specific log files
+- ✅ Structured format with timestamps and context
+- ✅ Production-ready configuration
+- ✅ Replaced all 269 print() statements with structured logging
+
+### Future Test Expansion
+
+Areas for additional test coverage:
+- End-to-end LangGraph workflow tests
+- API endpoint integration tests
+- Database connection and operation tests
+- CLI interface tests
+- Performance and load tests
+- Logging system validation tests
 
 ## Migration from V2
 
