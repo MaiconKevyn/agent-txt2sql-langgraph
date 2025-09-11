@@ -30,15 +30,18 @@ def create_app_config(args) -> ApplicationConfig:
     config = ApplicationConfig()
     
     # Override with command line arguments if they differ from defaults
-    # if hasattr(args, 'database_path') and args.database_path != "sus_database.db":
-    #     config.database_path = args.database_path
-    if hasattr(args, 'model') and args.model != "llama3":
-        # Only override if user explicitly specified a different model
+    # Database URL (PostgreSQL)
+    if hasattr(args, 'db_url') and args.db_url:
+        config.database_type = "postgresql"
+        config.database_path = args.db_url
+    
+    # LLM model
+    if hasattr(args, 'model') and args.model and args.model != config.llm_model:
         config.llm_model = args.model
     if hasattr(args, 'timeout') and args.timeout != 120:
         config.llm_timeout = args.timeout
-    if hasattr(args, 'interactive'):
-        config.interface_type = InterfaceType.CLI_INTERACTIVE if args.interactive else InterfaceType.CLI_BASIC
+    # Interface sempre interativa; --basic removido
+    config.interface_type = InterfaceType.CLI_INTERACTIVE
     if hasattr(args, 'enable_logging'):
         config.enable_error_logging = args.enable_logging
     
@@ -115,8 +118,8 @@ def debug_query_execution(orchestrator, user_query: str):
             streaming=True,
             config=config,
             run_name=f"debug_query_{session_id}",
-            tags=["debug", "txt2sql_agent_clean"],
-            metadata={"debug_mode": True, "script": "txt2sql_agent_clean.py"}
+            tags=["debug", "cli_agent"],
+            metadata={"debug_mode": True, "script": "src/interfaces/cli/agent.py"}
         )
         
         # Process streaming results
@@ -130,19 +133,25 @@ def debug_query_execution(orchestrator, user_query: str):
                 step_data = {"node": node_name, "data": {}}
                 
                 # 1. Classification Node
-                if node_name == "query_classification":
+                if node_name == "classify_query":
                     route = node_state.get("query_route")
-                    classification = node_state.get("classification", {})
-                    confidence = classification.get("confidence_score", "N/A")
+                    classification = node_state.get("classification")
                     
-                    debug_data["classification"] = str(route)
-                    step_data["data"]["route"] = str(route)
+                    # Extract route and confidence correctly
+                    route_str = route.value if route else "N/A"
+                    confidence = classification.confidence_score if classification else "N/A"
+                    
+                    debug_data["classification"] = route_str
+                    step_data["data"]["route"] = route_str
                     step_data["data"]["confidence"] = confidence
                     
-                    print(f" Classification: {route}")
+                    print(f" Classification: {route_str}")
                     print(f" Confidence: {confidence}")
                     if route:
-                        print(f"   Next: {'SQL Pipeline' if str(route).endswith('DATABASE') else 'Direct Response'}")
+                        print(f"   Next: {'SQL Pipeline' if route_str == 'DATABASE' else 'Direct Response'}")
+                        if classification:
+                            print(f"   Reasoning: {classification.reasoning}")
+                            print(f"   Requires Tools: {classification.requires_tools}")
                 
                 # 2. Table Discovery Node
                 elif node_name == "list_tables":
@@ -369,42 +378,44 @@ def main():
     logger = get_cli_logger()
     """Main entry point with clean architecture"""
     parser = argparse.ArgumentParser(
-        description="TXT2SQL Claude - Arquitetura Limpa seguindo Princípios SOLID",
+        description="TXT2SQL - LangGraph V3 (PostgreSQL)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Exemplos de uso:
-  python txt2sql_agent_clean.py                    # Usar configurações padrão
-  python txt2sql_agent_clean.py --model mistral    # Usar modelo Mistral
-  python txt2sql_agent_clean.py --basic            # Interface básica (sem emojis)
-  python txt2sql_agent_clean.py --query "Quantas mortes em Porto Alegre?"  # Query única
-  python txt2sql_agent_clean.py --query "Quantas mortes?" --debug-steps    # Query com debug detalhado
-  python txt2sql_agent_clean.py --debug-steps      # Modo interativo com debug
-
-Arquitetura:
-  Este agente segue os princípios SOLID com separação clara de responsabilidades:
-  • DatabaseConnectionService: Gerencia conexões com banco
-  • LLMCommunicationService: Comunica com modelos LLM
-  • SchemaIntrospectionService: Analisa schema do banco
-  • UserInterfaceService: Gerencia interação com usuário
-  • ErrorHandlingService: Trata todos os erros
-  • QueryProcessingService: Processa consultas
-  • DependencyContainer: Injeta dependências
-  • Text2SQLOrchestrator: Coordena todos os serviços
+        Exemplos de uso:
+          python src/interfaces/cli/agent.py                              # Padrão (interativo)
+          python src/interfaces/cli/agent.py --model llama3.1:8b          # Escolher modelo LLM
+          
+          python src/interfaces/cli/agent.py --query "Quantas mortes em Porto Alegre?"   # Query única
+          python src/interfaces/cli/agent.py --query "Quantas mortes?" --debug-steps     # Query c/ debug
+          python src/interfaces/cli/agent.py --debug-steps                # Modo interativo com debug
+          python src/interfaces/cli/agent.py --db-url postgresql+psycopg2://user:pass@localhost:5432/sih_rs  # DB via CLI
+        
+        Arquitetura (LangGraph V3):
+          • LangGraphOrchestrator: Orquestração principal
+          • Nodes: Classification, Table Discovery, Schema, SQL Gen, Validation, Execution, Response
+          • LLM Manager + SQLDatabaseToolkit (LangChain)
+          • DatabaseConnectionService (PostgreSQL)
+          • Logging centralizado (logs/*)
+          • Interfaces: CLI e API FastAPI
         """
     )
     
-    # Database options
+    # Database options (PostgreSQL)
     parser.add_argument(
-        "--database-path", 
-        default="sus_database.db",
-        help="Caminho para o banco de dados SQLite (padrão: sus_database.db)"
+        "--db-url",
+        default=None,
+        help=(
+            "URL de conexão PostgreSQL (SQLAlchemy), por ex.: "
+            "postgresql+psycopg2://usuario:senha@localhost:5432/sih_rs. "
+            "Se omitido, usa ApplicationConfig ou a variável de ambiente DATABASE_URL."
+        ),
     )
     
     # LLM options
     parser.add_argument(
         "--model", 
-        default="llama3",
-        help="Modelo LLM para usar (padrão: llama3)"
+        default="llama3.1:8b",
+        help="Modelo LLM para SQL (padrão: llama3.1:8b)"
     )
     parser.add_argument(
         "--timeout", 
@@ -413,17 +424,8 @@ Arquitetura:
         help="Timeout para requisições LLM em segundos (padrão: 120)"
     )
     
-    # Interface options
-    parser.add_argument(
-        "--interactive", 
-        action="store_true",
-        help="Usar interface interativa com emojis (padrão)"
-    )
-    parser.add_argument(
-        "--basic", 
-        action="store_true",
-        help="Usar interface básica sem emojis"
-    )
+    # Interface options: --interactive removido (modo interativo é padrão)
+    # --basic removido: CLI é interativo por padrão
     
     # Query options
     parser.add_argument(
@@ -510,10 +512,7 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
     if args.disable_logging:
         args.enable_logging = False
     
-    if args.basic:
-        args.interactive = False
-    else:
-        args.interactive = True
+    # Modo interativo é padrão; --interactive foi removido
     
     try:
         # Create configuration
@@ -550,10 +549,21 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
             logger.info("Generating workflow visualization")
             print(" Gerando diagrama visual do workflow LangGraph...")
             try:
-                orchestrator.save_workflow_diagram("langgraph_workflow.png", xray=True)
-                logger.info("Workflow diagram generated successfully", extra={"filename": "langgraph_workflow.png"})
-                print(" Diagrama visual salvo como 'langgraph_workflow.png'")
-                print(" Dica: Abra o arquivo PNG para ver o fluxo completo do agente")
+                out_png = "langgraph_workflow.png"
+                orchestrator.save_workflow_diagram(out_png, xray=True)
+                if os.path.exists(out_png):
+                    logger.info("Workflow diagram generated successfully", extra={"filename": out_png})
+                    print(f" Diagrama visual salvo como '{out_png}'")
+                    print(" Dica: Abra o arquivo PNG para ver o fluxo completo do agente")
+                else:
+                    # Fallback saved as Mermaid text
+                    out_mmd = out_png.rsplit('.', 1)[0] + ".mmd"
+                    if os.path.exists(out_mmd):
+                        logger.info("Mermaid source saved", extra={"filename": out_mmd})
+                        print(f" PNG indisponível no ambiente; Mermaid salvo como '{out_mmd}'")
+                        print(" Dica: Use Mermaid Live Editor ou mmdc para renderizar.")
+                    else:
+                        print(" Não foi possível salvar o diagrama.")
             except Exception as e:
                 logger.error("Failed to generate workflow diagram", extra={"error": str(e)})
                 print(f" Erro ao gerar diagrama: {str(e)}")
@@ -584,14 +594,14 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 # Normal mode with LangSmith tracing
                 logger.info("Processing single query", extra={"query": args.query})
                 print(f" Processando consulta: {args.query}")
-                session_id = f"clean_{hash(args.query) % 10000}"
+                session_id = f"cli_{hash(args.query) % 10000}"
                 result = orchestrator.process_query(
                     user_query=args.query,
                     session_id=session_id,
                     streaming=False,
-                    run_name=f"clean_query_{session_id}",
-                    tags=["production", "txt2sql_agent_clean"],
-                    metadata={"script": "txt2sql_agent_clean.py", "mode": "single_query"}
+                    run_name=f"cli_query_{session_id}",
+                    tags=["production", "cli"],
+                    metadata={"script": "src/interfaces/cli/agent.py", "mode": "single_query"}
                 )
                 
                 if result["success"]:
@@ -630,9 +640,9 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         print(f" Erro fatal: {str(e)}")
         print("\n Dicas para resolução:")
         print("• Verifique se o Ollama está rodando: ollama serve")
-        print("• Verifique se o modelo está instalado: ollama pull llama3")
-        print("• Verifique se o banco PostgreSQL está acessível: postgresql://postgres:1234@localhost:5432/sih_rs")
-        print("• Execute health check: python txt2sql_agent_clean.py --health-check")
+        print("• Verifique se o modelo está instalado: ollama pull llama3.1:8b")
+        print("• Verifique se o banco PostgreSQL está acessível (DATABASE_URL no .env)")
+        print("• Execute health check: python src/interfaces/cli/agent.py --health-check")
         sys.exit(1)
 
 

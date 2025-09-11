@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script para rotação de logs do sistema txt2sql_claude.
-Mantém os arquivos de log com tamanho controlado.
-"""
 import os
 import time
 import shutil

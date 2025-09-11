@@ -231,7 +231,15 @@ class DatabaseStructureAnalyzer:
 
 def main():
     """Main function to run the database analysis."""
-    connection_string = "postgresql://postgres:1234@localhost:5432/sih_rs"
+    import os
+    connection_string = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("DATABASE_PATH")
+        or "postgresql://postgres@localhost:5432/sih_rs"
+    )
+    # Normalize SQLAlchemy style URL for psycopg2 if needed
+    if connection_string.startswith('postgresql+psycopg2://'):
+        connection_string = connection_string.replace('postgresql+psycopg2://', 'postgresql://', 1)
     
     # Target tables as specified
     target_tables = [

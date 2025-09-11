@@ -3,7 +3,7 @@
 ## Visão Geral
 Este documento fornece uma análise abrangente da estrutura do banco de dados PostgreSQL para o SIH-RS (Sistema de Informações Hospitalares - Rio Grande do Sul). O banco contém 15 tabelas com mais de 11 milhões de registros de internações hospitalares e dados relacionados.
 
-**Conexão do Banco:** postgresql://postgres:1234@localhost:5432/sih_rs
+**Conexão do Banco:** postgresql://postgres@localhost:5432/sih_rs (defina a senha via .env como DATABASE_URL)
 
 ---
 
