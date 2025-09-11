@@ -27,7 +27,14 @@ def validate_ground_truth_queries(ground_truth_path: str):
         test_cases = json.load(f)
     
     # Connect to database (using PostgreSQL)
-    database_path = "postgresql://postgres:1234@localhost:5432/sih_rs"
+    import os
+    database_path = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("DATABASE_PATH")
+        or "postgresql://postgres@localhost:5432/sih_rs"
+    )
+    if database_path.startswith('postgresql+psycopg2://'):
+        database_path = database_path.replace('postgresql+psycopg2://', 'postgresql://', 1)
     db = DatabaseManager(database_path)
     
     print(f" Validating {len(test_cases)} queries from ground truth")

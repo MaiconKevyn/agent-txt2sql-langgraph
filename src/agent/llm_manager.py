@@ -1,5 +1,4 @@
 import os
-import sqlite3
 from typing import List, Dict, Any, Optional, Union
 from langchain_core.language_models import BaseLLM
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
@@ -61,21 +60,29 @@ class HybridLLMManager:
         self._bind_tools()
     
     def _initialize_database(self):
-        """Initialize SQLDatabase for LangChain integration"""
+        """Initialize SQLDatabase for PostgreSQL (LangChain integration)"""
         try:
-            # Support both SQLite and PostgreSQL
-            db_path = self.config.database_path
-            
-            if self.config.database_type == "postgresql" or db_path.startswith("postgresql"):
-                # PostgreSQL connection - use URI directly
-                connection_string = db_path
-                logger.info("Connecting to PostgreSQL", extra={"connection_string": connection_string})
-            else:
-                # SQLite connection - validate file exists
-                if not os.path.exists(db_path):
-                    raise FileNotFoundError(f"Database not found: {db_path}")
-                connection_string = f"sqlite:///{db_path}"
-                logger.info("Connecting to SQLite", extra={"connection_string": connection_string})
+            db_path = self.config.database_path or ""
+            if not (self.config.database_type == "postgresql" or db_path.startswith("postgresql")):
+                raise ValueError("Database must be PostgreSQL. Defina DATABASE_URL no .env ou use --db-url.")
+
+            # Normalize driver style if needed
+            connection_string = db_path
+            if connection_string.startswith("postgresql+psycopg2://"):
+                connection_string = connection_string.replace("postgresql+psycopg2://", "postgresql://", 1)
+
+            # Redact credentials before logging
+            redacted = connection_string
+            try:
+                if "://" in connection_string and "@" in connection_string:
+                    scheme_sep = connection_string.split("://", 1)
+                    right = scheme_sep[1]
+                    if "@" in right:
+                        after_at = right.split("@", 1)[1]
+                        redacted = f"{scheme_sep[0]}://****@{after_at}"
+            except Exception:
+                redacted = "[redacted]"
+            logger.info("Connecting to PostgreSQL", extra={"connection_string": redacted})
             
             # Create SQLDatabase instance following LangGraph tutorial
             self._sql_database = SQLDatabase.from_uri(connection_string)
@@ -391,7 +398,7 @@ class HybridLLMManager:
         {schema_context}
         
         CRITICAL INSTRUCTIONS - READ CAREFULLY:
-            1. Generate syntactically correct SQLite queries
+            1. Generate syntactically correct PostgreSQL queries
             2. Use proper table and column names from the schema above
             3. Handle Portuguese language questions appropriately
             4. Return only the SQL query, no explanation
@@ -566,16 +573,8 @@ class HybridLLMManager:
             engine = self._sql_database._engine
             dialect_name = getattr(getattr(engine, "dialect", None), "name", "") or ""
 
-            # Choose appropriate EXPLAIN variant
-            # - PostgreSQL: EXPLAIN
-            # - SQLite: EXPLAIN QUERY PLAN
-            # - Fallback: EXPLAIN
-            if dialect_name.lower().startswith("postgres"):
-                explain_prefix = "EXPLAIN"
-            elif dialect_name.lower().startswith("sqlite"):
-                explain_prefix = "EXPLAIN QUERY PLAN"
-            else:
-                explain_prefix = "EXPLAIN"
+            # Choose EXPLAIN variant (PostgreSQL)
+            explain_prefix = "EXPLAIN"
 
             # Sanitize SQL to remove comments before validation
             cleaned_sql = sanitize_sql_for_execution(sql_query)
@@ -613,12 +612,7 @@ class HybridLLMManager:
                 suggestions.extend([
                     "Quote case-sensitive identifiers with double quotes",
                     "Use ILIKE for case-insensitive matches",
-                    "Avoid SQLite-specific functions (e.g., strftime) on PostgreSQL",
-                ])
-            elif 'dialect_name' in locals() and dialect_name.lower().startswith("sqlite"):
-                suggestions.extend([
-                    "SQLite does not support EXTRACT or ILIKE",
-                    "Use datetime functions compatible with SQLite",
+                    "Avoid non-PostgreSQL functions (e.g., strftime)",
                 ])
 
             return {

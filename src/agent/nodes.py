@@ -381,7 +381,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         state["available_tables"] = tables
         
         # INTELLIGENT TABLE SELECTION using LLM + Enhanced Tool context
-        selected_tables = _select_relevant_tables(
+        selected_tables, raw_selected_tables = _select_relevant_tables(
             user_query=state["user_query"],
             tool_result=tool_result,
             available_tables=tables,
@@ -389,6 +389,16 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         )
         
         state["selected_tables"] = selected_tables
+        # Enrich response metadata for tracing (LangSmith)
+        try:
+            meta = state.get("response_metadata", {}) or {}
+            meta.update({
+                "raw_selected_tables": raw_selected_tables,
+                "validated_selected_tables": selected_tables,
+            })
+            state["response_metadata"] = meta
+        except Exception:
+            pass
         
         # Create tool call result
         tool_call_result = ToolCallResult(
@@ -414,6 +424,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             "total_tables": len(tables),
             "table_list": ', '.join(tables),
             "selected_tables": ', '.join(state['selected_tables']),
+            "raw_selected_tables": ', '.join(raw_selected_tables),
             "execution_time": execution_time
         })
         
@@ -1158,7 +1169,7 @@ def _select_relevant_tables(
     tool_result: str, 
     available_tables: List[str], 
     llm_manager: HybridLLMManager
-) -> List[str]:
+) -> (List[str], List[str]):
     """
     Seleciona tabelas relevantes usando LLM + contexto das descrições completas
     
@@ -1253,13 +1264,18 @@ TABLES:"""
         # Parse response using simplified approach
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)
         
-        logger.debug("LLM table selection response", extra={"response": selected_tables_str})
+        logger.info(f"LLM table selection response: {selected_tables_str}")
         
         # Simplified parsing with validation
         selected_tables = _parse_llm_table_selection(selected_tables_str, available_tables)
+        raw_selected_tables = list(selected_tables)
+        
+        logger.info(f"Tables after parsing: {selected_tables}")
         
         # Validate selection
         selected_tables = _validate_table_selection(user_query, selected_tables, available_tables)
+        
+        logger.info(f"Tables after validation: {selected_tables}")
         
         # Final fallback: if still no valid tables, use intelligent default
         if not selected_tables:
@@ -1270,15 +1286,16 @@ TABLES:"""
             "query": user_query[:100],
             "available": available_tables,
             "selected": selected_tables,
+            "raw_selected": raw_selected_tables,
             "type": "Single table" if len(selected_tables) == 1 else "Multi-table"
         })
         
-        return selected_tables
+        return selected_tables, raw_selected_tables
         
     except Exception as e:
         logger.error("Table selection failed", extra={"error": str(e)})
         # Fallback: retornar todas as tabelas
-        return available_tables
+        return available_tables, available_tables
 
 
 def _parse_llm_table_selection(response: str, available_tables: List[str]) -> List[str]:
@@ -1297,6 +1314,8 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
     
     selected_tables = []
     
+    logger.info("Starting LLM response parsing", extra={"raw_response": response[:200]})
+    
     # Method 1: Try JSON format (if present)
     try:
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL)
@@ -1309,38 +1328,46 @@ def _parse_llm_table_selection(response: str, available_tables: List[str]) -> Li
                     logger.debug("JSON parsing successful", extra={"tables": selected_tables})
                     return selected_tables
     except (json.JSONDecodeError, KeyError):
+        logger.debug("JSON parsing failed or not found")
         pass
     
     # Method 2: Look for "TABLES:" section (structured response)
     tables_match = re.search(r'TABLES:\s*(.+?)(?:\n|$)', response, re.IGNORECASE)
     if tables_match:
         tables_line = tables_match.group(1).strip()
+        logger.debug("Found TABLES: section", extra={"tables_line": tables_line})
         candidate_tables = [t.strip() for t in tables_line.split(',')]
+        logger.debug("Candidate tables from TABLES: section", extra={"candidates": candidate_tables})
         selected_tables = [t for t in candidate_tables if t in available_tables]
         if selected_tables:
             logger.debug("Structured parsing successful", extra={"tables": selected_tables})
             return selected_tables
     
-    # Method 3: Direct comma-separated parsing (final line preference)
+    # Method 3: Direct comma-separated parsing (first line preference)
     lines = response.strip().split('\n')
-    for line in reversed(lines):  # Check from bottom up
+    for line in lines:  # Check from top to bottom to prioritize first line
         line = line.strip()
-        if line and not line.startswith(('Based on', 'Therefore', 'For this', 'The', 'This')):
-            # Try comma-separated
-            if ',' in line:
-                candidate_tables = [t.strip() for t in line.split(',')]
-            else:
-                candidate_tables = [line.strip()]
+        # Skip empty lines and obvious notes/comments
+        if not line or line.startswith(('(Note:', 'Note:', 'Based on', 'Therefore', 'For this', 'The selection', 'I selected')):
+            continue
             
-            # Clean and validate candidates
-            for candidate in candidate_tables:
-                clean_candidate = re.sub(r'[^a-zA-Z_]', '', candidate.strip())
-                if clean_candidate in available_tables and clean_candidate not in selected_tables:
-                    selected_tables.append(clean_candidate)
-            
-            if selected_tables:
-                logger.debug("Direct parsing successful", extra={"tables": selected_tables})
-                return selected_tables
+        # Try comma-separated parsing
+        if ',' in line:
+            candidate_tables = [t.strip() for t in line.split(',')]
+        else:
+            candidate_tables = [line.strip()]
+        
+        # Clean and validate candidates
+        valid_candidates = []
+        for candidate in candidate_tables:
+            # Remove non-alphanumeric characters except underscores
+            clean_candidate = re.sub(r'[^a-zA-Z0-9_]', '', candidate.strip())
+            if clean_candidate in available_tables:
+                valid_candidates.append(clean_candidate)
+        
+        if valid_candidates:
+            logger.info(f"Direct parsing successful from line: '{line}' -> {valid_candidates}")
+            return valid_candidates
     
     # Method 4: Search for table names anywhere in response
     for table_name in available_tables:
@@ -1373,11 +1400,15 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
     query_lower = user_query.lower()
     validated_tables = selected_tables.copy()
     
+    logger.info(f"Starting table validation - Query: '{user_query}' - Initial: {selected_tables}")
+    
     # Rule 1: Death queries MUST include mortes table
     if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
+        death_keywords = [k for k in ['morte', 'óbito', 'falecimento', 'mortalidade'] if k in query_lower]
+        logger.info(f"Death query detected with keywords: {death_keywords}")
         if 'mortes' not in validated_tables and 'mortes' in available_tables:
             validated_tables.append('mortes')
-            logger.debug("Added 'mortes' table for death query")
+            logger.info("Added 'mortes' table for death query")
     
     # Rule 2: Procedure frequency queries need internacoes, not procedimentos
     if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento']):

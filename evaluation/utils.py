@@ -1,21 +1,11 @@
-#!/usr/bin/env python3
-"""
-Utilities - Módulos utilitários compartilhados para o sistema de avaliação
-
-Este módulo contém classes e funções compartilhadas entre os scripts de avaliação,
-eliminando redundância e centralizando funcionalidades comuns.
-
-Autor: Claude Code Assistant
-Data: 2025-07-13
-"""
-
 import json
 import time
 import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import os
 from contextlib import contextmanager
 
 
@@ -23,7 +13,13 @@ from contextlib import contextmanager
 class EvaluationConfig:
     """Configuração centralizada para avaliação"""
     ground_truth_file: str = "ground_truth_postgresql.json"
-    database_path: str = "postgresql://postgres:1234@localhost:5432/sih_rs"
+    database_path: str = field(
+        default_factory=lambda: (
+            os.getenv("DATABASE_URL")
+            or os.getenv("DATABASE_PATH")
+            or "postgresql://postgres@localhost:5432/sih_rs"
+        )
+    )
     output_dir: str = "results"
     timestamp: str = None
     
@@ -109,9 +105,13 @@ class DatabaseManager:
         Args:
             database_path: String de conexão PostgreSQL
         """
+        # Normalize and validate connection string
+        if database_path.startswith('postgresql+psycopg2://'):
+            database_path = database_path.replace('postgresql+psycopg2://', 'postgresql://', 1)
+        
         self.database_path = database_path
-        if not database_path.startswith('postgresql://'):
-            raise ValueError(f"Apenas PostgreSQL é suportado. Use postgresql://... connection string")
+        if not (database_path.startswith('postgresql://')):
+            raise ValueError("Apenas PostgreSQL é suportado. Use postgresql://... connection string")
         
         self._connection = None
     

@@ -3,7 +3,7 @@
 ## Overview
 This document provides a comprehensive analysis of the PostgreSQL database structure for the SIH-RS (Sistema de Informações Hospitalares - Rio Grande do Sul) database. The database contains 15 tables with a total of over 11 million hospitalization records and related data.
 
-**Database Connection:** postgresql://postgres:1234@localhost:5432/sih_rs
+**Database Connection:** postgresql://postgres@localhost:5432/sih_rs (set password via .env DATABASE_URL)
 
 ---
 

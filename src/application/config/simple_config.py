@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
+import os
 
 class InterfaceType(Enum):
     """Interface type configuration"""
@@ -11,9 +12,15 @@ class InterfaceType(Enum):
 @dataclass
 class ApplicationConfig:
     """Simple configuration for the application"""
-    # Database configuration
+    # Database configuration (loaded from environment when available)
     database_type: str = "postgresql"
-    database_path: str = "postgresql+psycopg2://postgres:1234@localhost:5432/sih_rs"
+    database_path: Optional[str] = field(
+        default_factory=lambda: (
+            os.getenv("DATABASE_URL")
+            or os.getenv("DATABASE_PATH")
+            or None
+        )
+    )
     
     # LLM configuration (for SQL generation)
     # llm_provider: str = "huggingface"  # ollama, huggingface

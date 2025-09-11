@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 from langchain_community.utilities import SQLDatabase
-import sqlite3
 
 
 class IDatabaseConnectionService(ABC):

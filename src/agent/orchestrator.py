@@ -98,8 +98,8 @@ class LangGraphOrchestrator:
                 # Default to production
                 self._workflow = create_production_sql_agent()
             
-            # Initialize LLM manager
-            self._llm_manager = HybridLLMManager(self.app_config)
+            # Defer LLM manager initialization to first use (lazy init)
+            # This allows operations like workflow visualization without DB/LLM ready.
             
             # Track current model
             self._current_model = ModelConfig(
@@ -505,7 +505,7 @@ class LangGraphOrchestrator:
             Dictionary mapping providers to available models
         """
         return {
-            "ollama": ["llama3", "llama3.2", "mistral"],
+            "ollama": ["llama3.1:8b", "llama3.2", "mistral"],
             "huggingface": [
                 "microsoft/DialoGPT-medium",
                 "microsoft/DialoGPT-large", 
@@ -576,7 +576,22 @@ class LangGraphOrchestrator:
                 f.write(png_data)
             self.logger.info("Workflow diagram saved", extra={"filename": filename})
         except Exception as e:
-            self.logger.error("Failed to save workflow diagram", extra={"error": str(e)})
+            # Fallback: save Mermaid text when PNG render (mermaid.ink) is unavailable
+            try:
+                graph = self._workflow.get_graph(xray=xray)
+                mermaid_text = graph.draw_mermaid()
+                alt = filename.rsplit('.', 1)[0] + ".mmd"
+                with open(alt, "w", encoding="utf-8") as f:
+                    f.write(mermaid_text)
+                self.logger.warning(
+                    "PNG render unavailable; saved Mermaid source instead",
+                    extra={"filename": alt, "error": str(e)}
+                )
+            except Exception as e2:
+                self.logger.error(
+                    "Failed to save workflow diagram (PNG and Mermaid fallback)",
+                    extra={"error": f"{e}; fallback_error={e2}"}
+                )
 
     def print_workflow_structure(self):
         """Print text representation of workflow structure"""
@@ -808,9 +823,9 @@ class LangGraphOrchestrator:
 # Factory functions for easy instantiation
 def create_orchestrator(
     provider: str = "ollama",
-    model_name: str = "llama3",
+    model_name: str = "llama3.1:8b",
     environment: str = "production",
-    database_path: str = "sus_database.db"
+    database_url: Optional[str] = None
 ) -> LangGraphOrchestrator:
     """
     Factory function to create LangGraph Orchestrator
@@ -819,14 +834,22 @@ def create_orchestrator(
         provider: LLM provider ("ollama", "huggingface")
         model_name: Model name
         environment: Environment mode
-        database_path: Path to database
+        database_url: PostgreSQL connection URL
         
     Returns:
         Configured LangGraphOrchestrator instance
     """
     
+    # Resolve database URL from args or environment (no secrets in defaults)
+    resolved_db_url = database_url or os.getenv("DATABASE_URL") or os.getenv("DATABASE_PATH")
+    if not resolved_db_url:
+        raise ValueError(
+            "DATABASE_URL não definido. Defina no .env ou informe via --db-url."
+        )
+
     app_config = ApplicationConfig(
-        database_path=database_path,
+        database_type="postgresql",
+        database_path=resolved_db_url,
         llm_provider=provider,
         llm_model=model_name
     )
@@ -842,7 +865,7 @@ def create_orchestrator(
 
 def create_production_orchestrator(
     provider: str = "ollama",
-    model_name: str = "llama3"
+    model_name: str = "llama3.1:8b"
 ) -> LangGraphOrchestrator:
     """Create production-ready orchestrator"""
     return create_orchestrator(
@@ -854,7 +877,7 @@ def create_production_orchestrator(
 
 def create_development_orchestrator(
     provider: str = "ollama",
-    model_name: str = "llama3"
+    model_name: str = "llama3.1:8b"
 ) -> LangGraphOrchestrator:
     """Create development orchestrator with debugging"""
     return create_orchestrator(
