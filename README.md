@@ -82,8 +82,9 @@ LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGCHAIN_PROJECT=txt2sql
 
-# Database Configuration  
-DATABASE_PATH=postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs
+# Database Configuration (optional; can also be passed via --db-url)
+# Prefer using a full SQLAlchemy URL with psycopg2 driver
+DATABASE_URL=postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs
 ```
 
 ### 5. Web Interface Setup (Optional)
@@ -126,6 +127,9 @@ python src/interfaces/cli/agent.py --health-check
 
 # Generate workflow diagram
 python src/interfaces/cli/agent.py --visualize-workflow
+
+# Use a specific PostgreSQL connection (overrides defaults and env)
+python src/interfaces/cli/agent.py --db-url "postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs" --query "Quantas mortes ocorreram?"
 ```
 
 ### API Server
