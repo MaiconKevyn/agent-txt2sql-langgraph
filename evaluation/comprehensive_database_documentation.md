@@ -370,5 +370,3 @@ This document provides a comprehensive analysis of the PostgreSQL database struc
 - Primary keys are single-column except for `diagnosticos_secundarios` (composite key)
 - Foreign key constraints ensure referential integrity
 - Unique indexes exist on primary keys and some reference columns
-
-This database structure supports comprehensive analysis of hospitalization patterns, healthcare outcomes, geographic health disparities, and socioeconomic health correlations in Brazil.
