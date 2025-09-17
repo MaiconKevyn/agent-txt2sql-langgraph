@@ -26,6 +26,12 @@ from ..application.config.simple_config import ApplicationConfig
 from ..utils.sql_safety import is_select_only
 from ..application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
 from ..utils.logging_config import get_nodes_logger, TXT2SQLLogger
+from ..utils.classification import (
+    detect_sql_snippets,
+    heuristic_route,
+    try_extract_json_block,
+    combine_scores,
+)
 from typing import List
 
 # Initialize logger
@@ -95,56 +101,79 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         
         llm_manager = get_llm_manager()
         
-        # Create optimized classification prompt for faster response
-        classification_prompt = f"""Classify this query:
-        "{user_query}"
-        
-        Categories:
-        DATABASE: data queries (count, list, show, filter)
-        CONVERSATIONAL: explanations (what, how, meaning)
-        SCHEMA: structure (tables, columns)
-        
-        Response: DATABASE/CONVERSATIONAL/SCHEMA"""
-        
-        # Format messages for LLM
-        messages = format_for_llm_input(state, classification_prompt)
-        
-        # Get bound LLM (though classification doesn't need tools)
-        llm = llm_manager.get_bound_llm()
-        
-        # Invoke LLM for classification
-        response = llm.invoke(messages)
-        classification_result = response.content.strip().upper()
-        
-        # Parse classification result
-        route_mapping = {
-            "DATABASE": QueryRoute.DATABASE,
-            "CONVERSATIONAL": QueryRoute.CONVERSATIONAL,
-            "SCHEMA": QueryRoute.SCHEMA
-        }
-        
-        query_route = route_mapping.get(classification_result, QueryRoute.DATABASE)
-        
-        # Calculate confidence based on keyword matching
-        confidence_score = 0.8  # Default confidence
-        database_keywords = ["quantos", "count", "listar", "mostrar", "total", "média", "average"]
-        conversational_keywords = ["significa", "what", "como", "why", "explain", "definition"]
-        schema_keywords = ["tabelas", "tables", "colunas", "columns", "schema", "estrutura"]
-        
-        query_lower = user_query.lower()
-        
-        if any(keyword in query_lower for keyword in database_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.DATABASE else 0.6
-        elif any(keyword in query_lower for keyword in conversational_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.CONVERSATIONAL else 0.6
-        elif any(keyword in query_lower for keyword in schema_keywords):
-            confidence_score = 0.9 if query_route == QueryRoute.SCHEMA else 0.6
-        
-        # Create classification object
+        # Heuristic pre-pass
+        heur_route_str, heur_scores = heuristic_route(user_query)
+
+        # Strong early exit: explicit SQL pasted by user
+        if detect_sql_snippets(user_query):
+            query_route = QueryRoute.DATABASE
+            confidence_score = 0.95
+            reasoning = "Explicit SQL detected in input."
+        else:
+            # LLM JSON classification with few-shots
+            system_prompt = (
+                "Você é um classificador de consultas. Decida a ROTA em {DATABASE, CONVERSATIONAL, SCHEMA}.\n"
+                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>}\n"
+                "DATABASE: perguntas de dados (contagem, ranking, listar, filtros, por cidade/ano/sexo...)\n"
+                "CONVERSATIONAL: explicações/definições (\\\"o que é\\\", \\\"significa\\\", \\\"como funciona\\\", diferenças)\n"
+                "SCHEMA: estrutura do banco (tabelas, colunas, schema, dicionário de dados).\n"
+                "Exemplos:\n"
+                "Q: Quantos óbitos ocorreram em 2023?\n"
+                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"contagem temporal\\\"}\n"
+                "Q: O que significa o CID J189?\n"
+                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"pedido de definição\\\"}\n"
+                "Q: Quais colunas existem na tabela internacoes?\n"
+                "A: {\\\"route\\\":\\\"SCHEMA\\\",\\\"confidence\\\":0.95,\\\"reasons\\\":\\\"estrutura da tabela\\\"}"
+            )
+
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_query)
+            ]
+
+            llm = llm_manager.get_bound_llm()
+            response = llm.invoke(messages)
+            content = getattr(response, "content", str(response))
+            data = try_extract_json_block(content)
+
+            llm_route = None
+            llm_conf = None
+            llm_reasons = ""
+            if isinstance(data, dict):
+                r = str(data.get("route", "")).upper().strip()
+                if r in ["DATABASE", "CONVERSATIONAL", "SCHEMA"]:
+                    llm_route = r
+                try:
+                    llm_conf = float(data.get("confidence", None))
+                except Exception:
+                    llm_conf = None
+                llm_reasons = str(data.get("reasons", "")).strip()
+
+            threshold = 0.75
+            if llm_route and llm_conf is not None and llm_conf >= threshold:
+                final_route_str = llm_route
+                confidence_score = float(llm_conf)
+                reasoning = f"LLM(JSON) high confidence. Heuristic={heur_scores}"
+            else:
+                final_route_str = combine_scores(llm_route, llm_conf, heur_scores, w_llm=0.7)
+                confidence_score = float(llm_conf) if llm_conf is not None else (
+                    1.0 if heur_scores.get(final_route_str, 0) > 0 else 0.6
+                )
+                reasoning = (
+                    f"Hybrid decision. llm_route={llm_route} conf={llm_conf} heur={heur_scores}"
+                    + (f"; llm_reasons={llm_reasons}" if llm_reasons else "")
+                )
+
+            query_route = {
+                "DATABASE": QueryRoute.DATABASE,
+                "CONVERSATIONAL": QueryRoute.CONVERSATIONAL,
+                "SCHEMA": QueryRoute.SCHEMA,
+            }[final_route_str]
+
         classification = QueryClassification(
             route=query_route,
             confidence_score=confidence_score,
-            reasoning=f"Classified as {query_route.value} based on content analysis",
+            reasoning=reasoning,
             requires_tools=query_route in [QueryRoute.DATABASE, QueryRoute.SCHEMA],
             estimated_complexity=0.5 if query_route == QueryRoute.CONVERSATIONAL else 0.8,
             suggested_approach=f"Use {query_route.value} processing pipeline"
