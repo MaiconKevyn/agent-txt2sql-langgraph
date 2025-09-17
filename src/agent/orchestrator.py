@@ -768,8 +768,6 @@ class LangGraphOrchestrator:
         print("=" * 60)
         print("Digite 'sair', 'exit' ou 'quit' para encerrar")
         print("=" * 60)
-        # Keep a single session/thread id for the whole interactive session to preserve history
-        interactive_session_id = f"interactive_{int(time.time())}"
         
         while True:
             try:
@@ -781,11 +779,12 @@ class LangGraphOrchestrator:
                     print("\n Até logo!")
                     break
                 
+                session_id = f"interactive_{int(time.time() * 1000) % 100000}"
                 result = self.process_query(
                     user_query=user_input,
-                    session_id=interactive_session_id,
+                    session_id=session_id,
                     streaming=False,
-                    run_name=f"interactive_query_{interactive_session_id}",
+                    run_name=f"interactive_query_{session_id}",
                     tags=["interactive", "cli"],
                     metadata={"source": "cli_interactive", "environment": self.environment}
                 )

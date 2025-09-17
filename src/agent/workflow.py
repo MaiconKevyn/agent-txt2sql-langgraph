@@ -1,6 +1,5 @@
 from typing import Literal
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
 
 from .state import (
     MessagesStateTXT2SQL,
@@ -278,68 +277,25 @@ def route_after_sql_execution(
 # WORKFLOW FACTORY FUNCTIONS - Official LangGraph Patterns
 # =============================================================================
 
-def create_sql_agent_workflow(
-    enable_checkpointing: bool = True,
-    enable_debug: bool = False
-):
-    """
-    Create SQL Agent workflow following official LangGraph tutorial
-    
-    Args:
-        enable_checkpointing: Enable memory checkpointing (LangGraph feature)
-        enable_debug: Enable debug mode for detailed logging
-        
-    Returns:
-        Compiled LangGraph workflow ready for execution
-    """
-    
-    # Create the workflow
+def create_sql_agent_workflow():
+    """Create SQL Agent workflow following official LangGraph tutorial"""
     workflow = create_langgraph_sql_workflow()
-    
-    # Add checkpointing if enabled (official LangGraph pattern)
-    if enable_checkpointing:
-        memory = MemorySaver()
-        compiled_workflow = workflow.compile(checkpointer=memory)
-    else:
-        compiled_workflow = workflow.compile()
-    
-    return compiled_workflow
+    return workflow.compile()
 
 
 def create_production_sql_agent():
-    """
-    Create production-ready SQL agent workflow
-    
-    Following LangGraph production best practices
-    """
-    return create_sql_agent_workflow(
-        enable_checkpointing=True,
-        enable_debug=False
-    )
+    """Create production-ready SQL agent workflow"""
+    return create_sql_agent_workflow()
 
 
 def create_development_sql_agent():
-    """
-    Create development SQL agent workflow with debugging
-    
-    Following LangGraph development best practices
-    """
-    return create_sql_agent_workflow(
-        enable_checkpointing=True,
-        enable_debug=True
-    )
+    """Create development SQL agent workflow with debugging"""
+    return create_sql_agent_workflow()
 
 
 def create_testing_sql_agent():
-    """
-    Create testing SQL agent workflow
-    
-    Optimized for testing with minimal checkpointing
-    """
-    return create_sql_agent_workflow(
-        enable_checkpointing=False,
-        enable_debug=True
-    )
+    """Create testing SQL agent workflow"""
+    return create_sql_agent_workflow()
 
 
 # =============================================================================
@@ -378,13 +334,8 @@ def execute_sql_workflow(
             session_id=session_id
         )
         
-        # Prepare config for checkpointing
-        if config is None:
-            config = {}
-        
-        if session_id and "configurable" not in config:
-            config["configurable"] = {"thread_id": session_id}
-        
+        config = config or {}
+
         # Execute workflow
         final_state = workflow.invoke(initial_state, config=config)
         
@@ -445,13 +396,8 @@ def stream_sql_workflow(
             session_id=session_id
         )
         
-        # Prepare config
-        if config is None:
-            config = {}
-        
-        if session_id and "configurable" not in config:
-            config["configurable"] = {"thread_id": session_id}
-        
+        config = config or {}
+
         # Stream workflow execution
         for state_update in workflow.stream(initial_state, config=config):
             yield state_update
