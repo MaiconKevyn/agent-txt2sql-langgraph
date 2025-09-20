@@ -1,0 +1,848 @@
+[
+  {
+    "id": "GT001",
+    "question": "Quantas internações foram registradas no total?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios",
+      "hospital"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:36.376913+00:00"
+  },
+  {
+    "id": "GT002",
+    "question": "Quantas mortes foram registradas?",
+    "ground_truth_tables": [
+      "mortes"
+    ],
+    "selected_tables": [
+      "mortes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:38.793633+00:00"
+  },
+  {
+    "id": "GT003",
+    "question": "Quantos procedimentos diferentes existem cadastrados?",
+    "ground_truth_tables": [
+      "procedimentos"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:41.370426+00:00"
+  },
+  {
+    "id": "GT004",
+    "question": "Quantos códigos CID-10 estão disponíveis?",
+    "ground_truth_tables": [
+      "cid10"
+    ],
+    "selected_tables": [
+      "cid10",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:43.921536+00:00"
+  },
+  {
+    "id": "GT005",
+    "question": "Quantos hospitais estão cadastrados?",
+    "ground_truth_tables": [
+      "hospital"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:46.540693+00:00"
+  },
+  {
+    "id": "GT006",
+    "question": "Quantos municípios têm dados demográficos do IBGE?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:49.134297+00:00"
+  },
+  {
+    "id": "GT007",
+    "question": "Quantos registros de UTI existem?",
+    "ground_truth_tables": [
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "uti_detalhes",
+      "cid10",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:51.857262+00:00"
+  },
+  {
+    "id": "GT008",
+    "question": "Quantos casos de condições especiais foram registrados?",
+    "ground_truth_tables": [
+      "condicoes_especificas"
+    ],
+    "selected_tables": [
+      "condicoes_especificas",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:54.508166+00:00"
+  },
+  {
+    "id": "GT009",
+    "question": "Quantos registros CBOR existem?",
+    "ground_truth_tables": [
+      "cbor"
+    ],
+    "selected_tables": [
+      "cbor"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:43:57.582445+00:00"
+  },
+  {
+    "id": "GT010",
+    "question": "Quantos casos obstétricos foram registrados?",
+    "ground_truth_tables": [
+      "obstetricos"
+    ],
+    "selected_tables": [
+      "obstetricos",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:00.246862+00:00"
+  },
+  {
+    "id": "GT011",
+    "question": "Quantos registros de vínculo previdenciário temos?",
+    "ground_truth_tables": [
+      "vincprev"
+    ],
+    "selected_tables": [
+      "vincprev"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:02.709798+00:00"
+  },
+  {
+    "id": "GT012",
+    "question": "Quantos registros de instrução educacional existem?",
+    "ground_truth_tables": [
+      "instrucao"
+    ],
+    "selected_tables": [
+      "instrucao"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:05.840499+00:00"
+  },
+  {
+    "id": "GT013",
+    "question": "Quantos pacientes do sexo masculino foram internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:09.258857+00:00"
+  },
+  {
+    "id": "GT014",
+    "question": "Qual o valor total gasto em todas as internações?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:11.753113+00:00"
+  },
+  {
+    "id": "GT015",
+    "question": "Quantas mortes foram causadas por doenças cardiovasculares (CID I)?",
+    "ground_truth_tables": [
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:14.453388+00:00"
+  },
+  {
+    "id": "GT016",
+    "question": "Qual a descrição do código CID A15?",
+    "ground_truth_tables": [
+      "cid10"
+    ],
+    "selected_tables": [],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:15.868316+00:00"
+  },
+  {
+    "id": "GT017",
+    "question": "Quantos casos de VDRL positivo foram registrados?",
+    "ground_truth_tables": [
+      "condicoes_especificas"
+    ],
+    "selected_tables": [
+      "condicoes_especificas",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:18.065424+00:00"
+  },
+  {
+    "id": "GT018",
+    "question": "Qual o tempo médio de permanência em UTI?",
+    "ground_truth_tables": [
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:20.755451+00:00"
+  },
+  {
+    "id": "GT019",
+    "question": "Qual município tem a maior população segundo dados do IBGE?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:23.417010+00:00"
+  },
+  {
+    "id": "GT020",
+    "question": "Quantos casos obstétricos tiveram acompanhamento pré-natal?",
+    "ground_truth_tables": [
+      "obstetricos"
+    ],
+    "selected_tables": [
+      "obstetricos",
+      "internacoes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:26.239590+00:00"
+  },
+  {
+    "id": "GT021",
+    "question": "Quantas internações resultaram em óbito?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:28.862481+00:00"
+  },
+  {
+    "id": "GT022",
+    "question": "Quais são os 5 procedimentos mais comuns (baseado em códigos únicos)?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:31.661607+00:00"
+  },
+  {
+    "id": "GT023",
+    "question": "Quantos hospitais registraram pelo menos uma morte?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:34.528926+00:00"
+  },
+  {
+    "id": "GT024",
+    "question": "Quantas internações de UTI resultaram em óbito?",
+    "ground_truth_tables": [
+      "uti_detalhes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:37.397325+00:00"
+  },
+  {
+    "id": "GT025",
+    "question": "Quais hospitais têm mais de 1000 internações registradas?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:40.008775+00:00"
+  },
+  {
+    "id": "GT026",
+    "question": "Quantas internações com condições especiais resultaram em morte?",
+    "ground_truth_tables": [
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:42.933627+00:00"
+  },
+  {
+    "id": "GT027",
+    "question": "Qual o valor médio das internações que resultaram em óbito?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:45.645090+00:00"
+  },
+  {
+    "id": "GT028",
+    "question": "Quantos casos CBOR tiveram acompanhamento em UTI?",
+    "ground_truth_tables": [
+      "cbor",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes",
+      "cbor"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:48.447897+00:00"
+  },
+  {
+    "id": "GT029",
+    "question": "Qual a taxa de mortalidade por município (top 10)?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios",
+      "dado_ibge",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:51.421378+00:00"
+  },
+  {
+    "id": "GT030",
+    "question": "Quais códigos de procedimento têm maior taxa de mortalidade (top 5)?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10",
+      "procedimentos",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:54.374422+00:00"
+  },
+  {
+    "id": "GT031",
+    "question": "Qual é o valor médio de UTI para homens?",
+    "ground_truth_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:57.100189+00:00"
+  },
+  {
+    "id": "GT032",
+    "question": "Quantas mulheres foram internadas?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:44:59.673349+00:00"
+  },
+  {
+    "id": "GT033",
+    "question": "Qual o valor total das diárias hospitalares?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:02.248305+00:00"
+  },
+  {
+    "id": "GT034",
+    "question": "Quantos hospitais são de natureza pública?",
+    "ground_truth_tables": [
+      "hospital"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:04.892301+00:00"
+  },
+  {
+    "id": "GT035",
+    "question": "Qual a latitude e longitude de Porto Alegre?",
+    "ground_truth_tables": [
+      "municipios"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:07.632526+00:00"
+  },
+  {
+    "id": "GT036",
+    "question": "Quantos municípios estão no estado do RS?",
+    "ground_truth_tables": [
+      "municipios"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:10.257727+00:00"
+  },
+  {
+    "id": "GT037",
+    "question": "Qual a idade média dos pacientes internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:12.833087+00:00"
+  },
+  {
+    "id": "GT038",
+    "question": "Quantas internações duraram mais de 30 dias?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:15.818440+00:00"
+  },
+  {
+    "id": "GT039",
+    "question": "Qual o número total de filhos dos pacientes internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:18.591298+00:00"
+  },
+  {
+    "id": "GT040",
+    "question": "Quantos procedimentos têm 'CIRURGIA' no nome?",
+    "ground_truth_tables": [
+      "procedimentos"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:21.295816+00:00"
+  },
+  {
+    "id": "GT041",
+    "question": "Qual o diagnóstico mais comum nas internações?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:24.003058+00:00"
+  },
+  {
+    "id": "GT042",
+    "question": "Quantas internações ocorreram em 2015?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:26.634263+00:00"
+  },
+  {
+    "id": "GT043",
+    "question": "Qual o valor médio das internações por complexidade?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:29.312470+00:00"
+  },
+  {
+    "id": "GT044",
+    "question": "Quantos pacientes nasceram antes de 1950?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:32.189907+00:00"
+  },
+  {
+    "id": "GT045",
+    "question": "Qual município tem o maior salário médio?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:35.075807+00:00"
+  },
+  {
+    "id": "GT046",
+    "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:37.715137+00:00"
+  },
+  {
+    "id": "GT047",
+    "question": "Qual a taxa de mortalidade infantil média no Brasil?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge",
+      "municipios",
+      "cid10",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:41.021366+00:00"
+  },
+  {
+    "id": "GT048",
+    "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes",
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios",
+      "hospital"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:44.397701+00:00"
+  },
+  {
+    "id": "GT049",
+    "question": "Qual o procedimento com maior valor médio?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:47.232187+00:00"
+  },
+  {
+    "id": "GT050",
+    "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "diagnosticos_secundarios"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:50.155062+00:00"
+  },
+  {
+    "id": "GT051",
+    "question": "Qual a diferença entre valor hospitalar e profissional médio?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:51.413222+00:00"
+  },
+  {
+    "id": "GT052",
+    "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
+    "ground_truth_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:54.127004+00:00"
+  },
+  {
+    "id": "GT054",
+    "question": "Qual a correlação entre nível educacional e valor das internações?",
+    "ground_truth_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:45:57.918088+00:00"
+  },
+  {
+    "id": "GT055",
+    "question": "Quais municípios têm taxa de mortalidade acima da densidade demográfica?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes",
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios",
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:46:00.788840+00:00"
+  },
+  {
+    "id": "GT056",
+    "question": "Quantos profissionais CBOR trabalharam em casos que foram à óbito?",
+    "ground_truth_tables": [
+      "cbor",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes",
+      "cbor"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:46:03.597430+00:00"
+  },
+  {
+    "id": "GT057",
+    "question": "Qual a eficiência financeira por tipo de hospital (custo/dia)?",
+    "ground_truth_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": true,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:46:06.725892+00:00"
+  },
+  {
+    "id": "GT059",
+    "question": "Qual o perfil socioeconômico dos municípios com mais mortes cardiovasculares?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes",
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10",
+      "municipios",
+      "dado_ibge",
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:46:10.187166+00:00"
+  },
+  {
+    "id": "GT060",
+    "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
+    "ground_truth_tables": [
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "tables_match": false,
+    "generated_sql": null,
+    "timestamp": "2025-09-17T11:46:13.188410+00:00"
+  }
+]
