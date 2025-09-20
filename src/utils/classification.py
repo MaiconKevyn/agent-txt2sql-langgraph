@@ -47,7 +47,7 @@ KEYWORDS_PT: Dict[str, Tuple[str, ...]] = {
     # Explanations/definitions
     "CONVERSATIONAL": (
         "o que e", "o que eh", "o que significa", "definicao", "definição",
-        "explica", "explicar", "por que", "porque", "como funciona", "descricao", "descrição",
+        "explica", "explicar", "por que", "porque", "como funciona",
         "diferenca", "diferença", "explique"
     ),
     # Schema/structure

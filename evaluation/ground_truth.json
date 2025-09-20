@@ -362,8 +362,8 @@
     "id": "GT048",
     "difficulty": "medium",
     "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
-    "query": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE d.populacao > 100;",
-    "tables": ["hospital", "internacoes", "dado_ibge"]
+    "query": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d JOIN dado_ibge d ON m.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100;",
+    "tables": ["hospital", "internacoes", "municipios", "dado_ibge"]
   },
   {
     "id": "GT049",
@@ -377,13 +377,6 @@
     "difficulty": "medium",
     "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
     "query": "SELECT COUNT(*) AS com_ambos_diagnosticos FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL AND \"DIAG_SECUN\" IS NOT NULL;",
-    "tables": ["internacoes"]
-  },
-  {
-    "id": "GT051",
-    "difficulty": "medium",
-    "question": "Qual a diferença entre valor hospitalar e profissional médio?",
-    "query": "SELECT AVG(\"VAL_SH\" - \"VAL_SP\") AS diferenca_media FROM internacoes WHERE \"VAL_SH\" IS NOT NULL AND \"VAL_SP\" IS NOT NULL;",
     "tables": ["internacoes"]
   },
   {

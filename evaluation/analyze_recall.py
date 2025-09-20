@@ -61,4 +61,4 @@ def analyze_with_recall(results_file):
     print('   independente de tabelas extras selecionadas.')
 
 if __name__ == "__main__":
-    analyze_with_recall('evaluation/results/tables_result_11.json')
+    analyze_with_recall('evaluation/results/tables_result_13.json')
