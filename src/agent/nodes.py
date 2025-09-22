@@ -1,7 +1,9 @@
 import time
+from datetime import datetime
 from typing import Dict, Any, List, Literal
+import re
 
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -36,6 +38,134 @@ from typing import List
 
 # Initialize logger
 logger = get_nodes_logger()
+
+
+def _should_refresh_schema(error_message: str) -> bool:
+    """Detect whether the error suggests missing columns/tables."""
+    if not error_message:
+        return False
+
+    lower_error = error_message.lower()
+
+    # Direct undefined column identifiers
+    if "undefined column" in lower_error or "psycopg2.errors.undefinedcolumn" in lower_error:
+        return True
+
+    # Missing relation/table markers
+    missing_markers = ["does not exist", "não existe"]
+    schema_terms = ["column", "coluna", "relation", "tabela", "table"]
+
+    if any(marker in lower_error for marker in missing_markers):
+        if any(term in lower_error for term in schema_terms):
+            return True
+
+    return False
+
+
+def _refresh_schema_context(
+    state: MessagesStateTXT2SQL,
+    error_message: str,
+    llm_manager: HybridLLMManager
+) -> bool:
+    """Re-run table discovery and schema retrieval with error context."""
+    try:
+        logger.info("Refreshing schema context after execution error")
+
+        refresh_start = time.time()
+
+        tools = llm_manager.get_sql_tools()
+        list_tables_tool = next((tool for tool in tools if tool.name == "sql_db_list_tables"), None)
+        schema_tool = next((tool for tool in tools if tool.name == "sql_db_schema"), None)
+
+        if not list_tables_tool or not schema_tool:
+            raise ValueError("Required SQL tools not available for schema refresh")
+
+        # Discover tables again
+        list_tables_start = time.time()
+        table_output = list_tables_tool.invoke("")
+        list_tables_duration = time.time() - list_tables_start
+        table_names: List[str] = []
+        if isinstance(table_output, str):
+            table_pattern = r'^(\w+):'
+            for line in table_output.split('\n'):
+                match = re.match(table_pattern, line.strip())
+                if match:
+                    table_names.append(match.group(1))
+
+        if not table_names:
+            db = llm_manager.get_database()
+            table_names = db.get_usable_table_names()
+
+        state["available_tables"] = table_names
+
+        # Add error context to help table selection
+        contextual_query = f"{state.get('user_query', '')}\nContexto do erro detectado: {error_message}"
+        selected_tables, raw_selected_tables = _select_relevant_tables(
+            user_query=contextual_query,
+            tool_result=table_output,
+            available_tables=table_names,
+            llm_manager=llm_manager
+        )
+
+        # Fallback to initial tables if LLM returns nothing
+        if not selected_tables:
+            selected_tables = table_names[:3]
+
+        state["selected_tables"] = selected_tables
+
+        # Track refresh metadata
+        metadata = state.get("response_metadata", {}) or {}
+        metadata.setdefault("repair_schema_refreshes", []).append({
+            "error": error_message,
+            "selected_tables": selected_tables,
+            "timestamp": datetime.now().isoformat()
+        })
+        metadata["raw_selected_tables_after_error"] = raw_selected_tables
+        state["response_metadata"] = metadata
+
+        # Record tool call
+        list_tables_call = ToolCallResult(
+            tool_name="sql_db_list_tables",
+            tool_input={},
+            tool_output=table_output,
+            success=True,
+            execution_time=list_tables_duration
+        )
+        state = add_tool_call_result(state, list_tables_call)
+
+        # Fetch fresh schema for the new table set
+        tables_input = ", ".join(selected_tables)
+        schema_start = time.time()
+        schema_output = schema_tool.invoke(tables_input)
+        schema_duration = time.time() - schema_start
+        enhanced_schema = _enhance_sus_schema_context(str(schema_output))
+        state["schema_context"] = enhanced_schema
+
+        schema_call = ToolCallResult(
+            tool_name="sql_db_schema",
+            tool_input={"tables": tables_input},
+            tool_output=schema_output,
+            success=True,
+            execution_time=schema_duration
+        )
+        state = add_tool_call_result(state, schema_call)
+
+        logger.info(
+            "Schema context refreshed for repair",
+            extra={
+                "selected_tables": selected_tables,
+                "raw_selected_tables": raw_selected_tables,
+                "available_tables": table_names,
+                "schema_preview": str(schema_output)[:200]
+            }
+        )
+        return True
+
+    except Exception as refresh_error:
+        logger.warning("Failed to refresh schema context", extra={
+            "error": str(refresh_error)
+        })
+        return False
 
 
 # Global LLM manager instance (singleton pattern)
@@ -642,34 +772,99 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         if not query_tool:
             raise ValueError("sql_db_query tool not found")
-        
+
+        logger.info("SQL execution started", extra={
+            "sql": validated_sql
+        })
         # Execute SQL query using tool
         tool_result = query_tool.invoke(validated_sql)
         
         # Parse results (SQLDatabaseToolkit returns string format)
         results = []
         row_count = 0
-        
+        execution_success = True
+        error_message = None
+
         if isinstance(tool_result, str) and tool_result.strip():
-            # Parse string results
-            lines = tool_result.strip().split('\n')
-            for line in lines:
-                if line.strip():
-                    results.append({"result": line.strip()})
-                    row_count += 1
-        
+            tool_result_str = tool_result.strip()
+
+            # Check for common SQL error patterns in tool response
+            error_indicators = [
+                "does not exist",
+                "não existe",
+                "ERRO:",
+                "ERROR:",
+                "psycopg2.errors",
+                "column.*not found",
+                "coluna.*não existe",
+                "relation.*does not exist",
+                "tabela.*não existe",
+                "invalid sql",
+                "syntax error"
+            ]
+
+            # Check if tool result contains error message
+            lower_result = tool_result_str.lower()
+            if any(indicator.lower() in lower_result for indicator in error_indicators):
+                execution_success = False
+                error_message = tool_result_str
+                logger.error("SQL tool returned error", extra={
+                    "error_in_result": tool_result_str
+                })
+            else:
+                # Parse normal results
+                lines = tool_result_str.split('\n')
+                for line in lines:
+                    if line.strip():
+                        results.append({"result": line.strip()})
+                        row_count += 1
+
         # Create execution result
         sql_execution_result = SQLExecutionResult(
-            success=True,
+            success=execution_success,
             sql_query=validated_sql,
             results=results,
             row_count=row_count,
             execution_time=time.time() - start_time,
-            validation_passed=True
+            validation_passed=True,
+            error_message=error_message
         )
         
         state["sql_execution_result"] = sql_execution_result
-        
+
+        # If execution failed, propagate error and let workflow handle retry
+        if not execution_success:
+            # Set error in state to trigger retry routing
+            state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
+
+            # Create failed tool call result
+            tool_call_result = ToolCallResult(
+                tool_name="sql_db_query",
+                tool_input={"query": validated_sql},
+                tool_output=tool_result,
+                success=False,
+                execution_time=time.time() - start_time
+            )
+
+            # Add tool call to state
+            state = add_tool_call_result(state, tool_call_result)
+
+            # Add AI message about the error
+            ai_response = f"SQL execution failed: {error_message}"
+            state = add_ai_message(state, ai_response)
+
+            # Log the failure for debugging
+            logger.error("SQL execution failed with tool error", extra={
+                "sql": validated_sql[:200],
+                "error": error_message
+            })
+
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
+
+            return state
+
+        # Success path
         # Create tool call result
         tool_call_result = ToolCallResult(
             tool_name="sql_db_query",
@@ -678,31 +873,44 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             success=True,
             execution_time=time.time() - start_time
         )
-        
+
         # Add tool call to state
         state = add_tool_call_result(state, tool_call_result)
-        
+
         # Add AI message with results
         ai_response = f"Query executed successfully. Found {row_count} results."
         if row_count > 0 and results:
             # Show first few results
             sample_results = results[:3]
             ai_response += f" Sample: {sample_results}"
-        
+
         state = add_ai_message(state, ai_response)
+
+        # Successful execution clears previous error context and retry counters
+        state["current_error"] = None
+        state["retry_count"] = 0
         
         # Update phase
         execution_time = time.time() - start_time
+        logger.info("Query executed successfully", extra={
+            "sql": validated_sql[:200],
+            "row_count": row_count,
+            "execution_time": execution_time
+        })
         state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
-        
+
         return state
         
     except Exception as e:
-        # Handle execution errors
+        # Handle execution errors and surface them as tool output
         error_message = f"SQL execution failed: {str(e)}"
+        logger.error("SQL execution failed", extra={
+            "sql": validated_sql if validated_sql else "",
+            "error": str(e)
+        })
         state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
-        
-        # Create failed execution result
+
+        # Record failed execution result for downstream logic
         sql_execution_result = SQLExecutionResult(
             success=False,
             sql_query=validated_sql or "",
@@ -712,12 +920,152 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             validation_passed=False,
             error_message=error_message
         )
-        
         state["sql_execution_result"] = sql_execution_result
-        
+
+        # Surface the error to the LLM as a tool response (LangGraph ToolNode pattern)
+        try:
+            state = add_tool_message(
+                state,
+                tool_call_id=f"call_{len(state['tool_calls']) + 1}",
+                content=error_message,
+                tool_name="sql_db_query"
+            )
+            logger.debug("Execution error propagated as ToolMessage", extra={
+                "tool_call_id": len(state["tool_calls"]),
+                "message": error_message
+            })
+        except Exception:
+            # If tool message injection fails, continue without blocking error propagation
+            pass
+
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
-        
+
+        return state
+
+
+def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+    """Repair SQL Node - regenerate SQL after execution failure."""
+
+    start_time = time.time()
+
+    try:
+        llm_manager = get_llm_manager()
+        previous_sql = state.get("generated_sql")
+
+        if not previous_sql:
+            raise ValueError("No SQL available for repair")
+
+        # Retrieve latest SQL execution error message from tool feedback
+        error_message = state.get("current_error") or ""
+        logger.info("Repair node triggered", extra={
+            "previous_sql": previous_sql[:200],
+            "current_error": error_message
+        })
+        for msg in reversed(state.get("messages", [])):
+            if isinstance(msg, ToolMessage) and getattr(msg, "name", "") == "sql_db_query":
+                error_message = msg.content
+                break
+
+        if not error_message:
+            error_message = "Erro desconhecido ao executar a consulta."  # fallback context
+
+        user_query = state.get("user_query", "")
+
+        # Refresh table/schema context when missing columns/relations are detected
+        if _should_refresh_schema(error_message):
+            refreshed = _refresh_schema_context(state, error_message, llm_manager)
+            logger.info(
+                "Schema refresh attempted during repair",
+                extra={
+                    "refreshed": refreshed,
+                    "selected_tables": state.get("selected_tables", []),
+                    "available_tables": state.get("available_tables", [])
+                }
+            )
+
+        selected_tables = state.get("selected_tables", [])
+        schema_context = state.get("schema_context", "") or ""
+
+        # Limit schema context to avoid excessively large prompts
+        MAX_SCHEMA_CHARS = 4000
+        if len(schema_context) > MAX_SCHEMA_CHARS:
+            schema_context = schema_context[:MAX_SCHEMA_CHARS] + "\n... (schema truncado)"
+
+        system_prompt = (
+            "Você é um especialista em PostgreSQL responsável por corrigir consultas SQL para o banco SUS. "
+            "Receba a consulta original que falhou, analise o erro retornado e gere UMA NOVA consulta corrigida. "
+            "Responda apenas com a SQL válida, sem comentários, markdown ou texto adicional."
+        )
+
+        human_prompt = (
+            f"Consulta do usuário (contexto):\n{user_query}\n\n"
+            f"SQL anterior gerada:\n{previous_sql}\n\n"
+            f"Erro retornado pelo banco de dados:\n{error_message}\n\n"
+            f"Tabelas selecionadas: {', '.join(selected_tables) if selected_tables else 'N/D'}\n\n"
+            f"Schema disponível:\n{schema_context}\n\n"
+            "Reescreva a consulta corrigindo o problema identificado no erro."
+        )
+
+        llm = llm_manager._llm
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt)
+        ])
+
+        repaired_sql = response.content.strip() if hasattr(response, "content") else str(response)
+        repaired_sql = llm_manager._clean_sql_query(repaired_sql)
+
+        if not repaired_sql:
+            raise ValueError("LLM returned empty SQL during repair")
+
+        # Store previous SQL attempt for traceability
+        metadata = state.get("response_metadata", {}) or {}
+        repair_history = metadata.get("repair_attempts", [])
+        repair_history.append({
+            "previous_sql": previous_sql,
+            "error_message": error_message,
+            "timestamp": datetime.now().isoformat()
+        })
+        metadata["repair_attempts"] = repair_history
+        state["response_metadata"] = metadata
+
+        state["generated_sql"] = repaired_sql
+
+        # Reset error context so downstream routing treats this as a fresh attempt
+        state["current_error"] = None
+        state["retry_count"] = 0
+        logger.info("Repaired SQL generated", extra={
+            "new_sql": repaired_sql[:200]
+        })
+
+        ai_message = (
+            "Gerada nova versão da consulta após erro de execução."
+        )
+        state = add_ai_message(state, ai_message)
+
+        execution_time = time.time() - start_time
+        # Track repair phase completion
+        state = update_phase(state, ExecutionPhase.SQL_REPAIR, execution_time)
+
+        logger.info("SQL repair completed successfully", extra={
+            "sql": repaired_sql[:200],
+            "selected_tables": selected_tables
+        })
+
+        return state
+
+    except Exception as e:
+        error_message = f"SQL repair failed: {str(e)}"
+        state = add_error(state, error_message, "sql_repair_error", ExecutionPhase.SQL_GENERATION)
+
+        execution_time = time.time() - start_time
+        state = update_phase(state, ExecutionPhase.SQL_REPAIR, execution_time)
+
+        logger.warning("SQL repair failed", extra={
+            "error": str(e)
+        })
+
         return state
 
 
@@ -1365,6 +1713,7 @@ __all__ = [
     "list_tables_node", 
     "get_schema_node",
     "generate_sql_node",
+    "repair_sql_node",
     "validate_sql_node",
     "execute_sql_node",
     "generate_response_node"

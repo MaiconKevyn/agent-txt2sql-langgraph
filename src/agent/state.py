@@ -24,6 +24,7 @@ class ExecutionPhase(Enum):
     SQL_GENERATION = "sql_generation"
     SQL_VALIDATION = "sql_validation"
     SQL_EXECUTION = "sql_execution"
+    SQL_REPAIR = "sql_repair"
     TOOL_EXECUTION = "tool_execution"
     RESULT_INTERPRETATION = "result_interpretation"
     RESPONSE_FORMATTING = "response_formatting"

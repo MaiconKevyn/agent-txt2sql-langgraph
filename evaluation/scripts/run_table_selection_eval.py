@@ -136,29 +136,45 @@ def evaluate_table_selection() -> List[Dict[str, Any]]:
         session_id = f"eval_{identifier or hash(question)}"
         initial_state = create_initial_messages_state(user_query=question, session_id=session_id)
 
+        generated_sql = None
         try:
-            # For evaluation, we only need to run until table selection
-            # Run: classify -> list_tables -> get_schema (tables should be selected by then)
+            # For evaluation, run nodes up to SQL generation when applicable
+            # Pipeline: classify → list_tables → get_schema → generate_sql (database route only)
             st = initial_state
             st = agent_nodes.query_classification_node(st)
-            
-            # Only run table selection if we need DATABASE or SCHEMA route
-            if st.get("query_route") and st["query_route"].value in ["database", "schema"]:
+
+            route = st.get("query_route")
+            route_value = route.value if route else None
+
+            # Only run table discovery for routes that require it
+            if route_value in ["database", "schema"]:
                 st = agent_nodes.list_tables_node(st)
-                # Optional: get schema to see full behavior
+
+                # Optional schema retrieval (best effort)
                 try:
                     st = agent_nodes.get_schema_node(st)
                 except Exception as e:
                     print(f"[evaluation] Schema node failed for {identifier}: {e}")
-            
+
+                # Attempt SQL generation only for database route with table context
+                if route_value == "database" and st.get("selected_tables"):
+                    try:
+                        st = agent_nodes.generate_sql_node(st)
+                        generated_sql = st.get("generated_sql")
+                    except Exception as e:
+                        print(f"[evaluation] SQL generation failed for {identifier}: {e}")
+
             final_state = st
             selected_tables = list(final_state.get("selected_tables", []))
             print(f"[evaluation] Selected tables for {identifier}: {selected_tables}")
+            if generated_sql:
+                print(f"[evaluation] Generated SQL for {identifier}: {generated_sql}")
             
         except Exception as e:
             print(f"[evaluation] Error processing {identifier}: {e}")
             final_state = initial_state
             selected_tables = []
+            generated_sql = None
 
         ground_truth_tables = list(entry.get("tables", []))
         
@@ -171,7 +187,7 @@ def evaluate_table_selection() -> List[Dict[str, Any]]:
         # Calculate recall and precision for detailed analysis
         recall = len(ground_truth_set.intersection(selected_set)) / len(ground_truth_set) if ground_truth_set else 1.0
         precision = len(ground_truth_set.intersection(selected_set)) / len(selected_set) if selected_set else 0.0
-
+        
         results.append(
             {
                 "id": identifier,
@@ -181,7 +197,7 @@ def evaluate_table_selection() -> List[Dict[str, Any]]:
                 "tables_match": tables_match,
                 "recall": recall,
                 "precision": precision,
-                "generated_sql": None,  # Not needed for table selection evaluation
+                "generated_sql": generated_sql,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
