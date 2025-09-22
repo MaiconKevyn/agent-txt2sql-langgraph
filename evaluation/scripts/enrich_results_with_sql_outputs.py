@@ -153,18 +153,21 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         required=True,
         help="Path to the tables_result JSON produced by the evaluation script.",
+        # Example: --results-file evaluation/results/tables_result_15.json
     )
     parser.add_argument(
         "--output-file",
         type=Path,
         default=None,
         help="Destination path for the enriched JSON. Defaults to <results-file stem>_outputs.json.",
+        # Example: --output-file evaluation/results/tables_result_15_enriched.json
     )
     parser.add_argument(
         "--limit-rows",
         type=int,
         default=500,
         help="Maximum rows to fetch per query (default: 500). Use 0 to fetch all rows.",
+        # Example: --limit-rows 100 (or --limit-rows 0 for unlimited)
     )
     return parser.parse_args()
 

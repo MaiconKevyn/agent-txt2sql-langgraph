@@ -12,6 +12,7 @@ from .nodes import (
     list_tables_node,
     get_schema_node,
     generate_sql_node,
+    repair_sql_node,
     validate_sql_node,
     execute_sql_node,
     generate_response_node
@@ -47,6 +48,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
     workflow.add_node("generate_sql", generate_sql_node)
+    workflow.add_node("repair_sql", repair_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("generate_response", generate_response_node)
@@ -69,7 +71,8 @@ def create_langgraph_sql_workflow():
     # Database workflow path
     workflow.add_edge("list_tables", "get_schema")
     workflow.add_edge("get_schema", "generate_sql")
-    
+    workflow.add_edge("repair_sql", "validate_sql")
+
     # SQL generation with retry (LangGraph pattern)
     workflow.add_conditional_edges(
         "generate_sql",
@@ -99,7 +102,7 @@ def create_langgraph_sql_workflow():
         route_after_sql_execution,
         {
             "response": "generate_response",
-            "retry_generation": "generate_sql",
+            "retry_generation": "repair_sql",
             "retry_validation": "validate_sql", 
             "retry_execution": "execute_sql",
             "error": "generate_response"
@@ -256,7 +259,17 @@ def route_after_sql_execution(
             if any(keyword in error_message for keyword in ["syntax", "parse", "invalid sql"]):
                 # SQL syntax errors need regeneration
                 return "retry_generation"
-            elif any(keyword in error_message for keyword in ["table", "column", "not found", "no such"]):
+            elif any(keyword in error_message for keyword in [
+                "table",
+                "column",
+                "not found",
+                "no such",
+                "undefined function",
+                "função",
+                "operator does not exist",
+                "cannot cast",
+                "type mismatch"
+            ]):
                 # Schema errors need regeneration with fresh schema
                 return "retry_generation"
             elif any(keyword in error_message for keyword in ["timeout", "connection", "database"]):

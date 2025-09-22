@@ -1,0 +1,2893 @@
+[
+  {
+    "id": "GT001",
+    "question": "Quantas internações foram registradas no total?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios",
+      "hospital"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.3333333333333333,
+    "generated_sql": "SELECT COUNT(\"N_AIH\") FROM internacoes;",
+    "timestamp": "2025-09-21T05:42:40.153729+00:00",
+    "ground_truth_result": [
+      [
+        11022199
+      ]
+    ],
+    "generated_result": [
+      [
+        11022199
+      ]
+    ]
+  },
+  {
+    "id": "GT002",
+    "question": "Quantas mortes foram registradas?",
+    "ground_truth_tables": [
+      "mortes"
+    ],
+    "selected_tables": [
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM mortes;",
+    "timestamp": "2025-09-21T05:42:44.771736+00:00",
+    "ground_truth_result": [
+      [
+        569405
+      ]
+    ],
+    "generated_result": [
+      [
+        569405
+      ]
+    ]
+  },
+  {
+    "id": "GT003",
+    "question": "Quantos procedimentos diferentes existem cadastrados?",
+    "ground_truth_tables": [
+      "procedimentos"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(DISTINCT \"PROC_REA\") FROM procedimentos;",
+    "timestamp": "2025-09-21T05:42:52.149575+00:00",
+    "ground_truth_result": [
+      [
+        5394
+      ]
+    ],
+    "generated_result": [
+      [
+        5394
+      ]
+    ]
+  },
+  {
+    "id": "GT004",
+    "question": "Quantos códigos CID-10 estão disponíveis?",
+    "ground_truth_tables": [
+      "cid10"
+    ],
+    "selected_tables": [
+      "cid10",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM cid10;",
+    "timestamp": "2025-09-21T05:42:59.395943+00:00",
+    "ground_truth_result": [
+      [
+        14254
+      ]
+    ],
+    "generated_result": [
+      [
+        14254
+      ]
+    ]
+  },
+  {
+    "id": "GT005",
+    "question": "Quantos hospitais estão cadastrados?",
+    "ground_truth_tables": [
+      "hospital"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM hospital;",
+    "timestamp": "2025-09-21T05:43:06.337108+00:00",
+    "ground_truth_result": [
+      [
+        366
+      ]
+    ],
+    "generated_result": [
+      [
+        366
+      ]
+    ]
+  },
+  {
+    "id": "GT006",
+    "question": "Quantos municípios têm dados demográficos do IBGE?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM dado_ibge WHERE \"populacao\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:43:13.611519+00:00",
+    "ground_truth_result": [
+      [
+        5570
+      ]
+    ],
+    "generated_result": [
+      [
+        5570
+      ]
+    ]
+  },
+  {
+    "id": "GT007",
+    "question": "Quantos registros de UTI existem?",
+    "ground_truth_tables": [
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "uti_detalhes",
+      "cid10",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.3333333333333333,
+    "generated_sql": "SELECT COUNT(*) FROM uti_detalhes;",
+    "timestamp": "2025-09-21T05:43:19.148146+00:00",
+    "ground_truth_result": [
+      [
+        81287
+      ]
+    ],
+    "generated_result": [
+      [
+        81287
+      ]
+    ]
+  },
+  {
+    "id": "GT008",
+    "question": "Quantos casos de condições especiais foram registrados?",
+    "ground_truth_tables": [
+      "condicoes_especificas"
+    ],
+    "selected_tables": [
+      "condicoes_especificas",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM condicoes_especificas;",
+    "timestamp": "2025-09-21T05:43:26.377759+00:00",
+    "ground_truth_result": [
+      [
+        1118626
+      ]
+    ],
+    "generated_result": [
+      [
+        1118626
+      ]
+    ]
+  },
+  {
+    "id": "GT009",
+    "question": "Quantos registros CBOR existem?",
+    "ground_truth_tables": [
+      "cbor"
+    ],
+    "selected_tables": [
+      "cbor"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM cbor;",
+    "timestamp": "2025-09-21T05:43:30.825621+00:00",
+    "ground_truth_result": [
+      [
+        6461
+      ]
+    ],
+    "generated_result": [
+      [
+        6461
+      ]
+    ]
+  },
+  {
+    "id": "GT010",
+    "question": "Quantos casos obstétricos foram registrados?",
+    "ground_truth_tables": [
+      "obstetricos"
+    ],
+    "selected_tables": [
+      "obstetricos",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM obstetricos;",
+    "timestamp": "2025-09-21T05:43:37.957999+00:00",
+    "ground_truth_result": [
+      [
+        376202
+      ]
+    ],
+    "generated_result": [
+      [
+        376202
+      ]
+    ]
+  },
+  {
+    "id": "GT011",
+    "question": "Quantos registros de vínculo previdenciário temos?",
+    "ground_truth_tables": [
+      "vincprev"
+    ],
+    "selected_tables": [
+      "vincprev"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM vincprev;",
+    "timestamp": "2025-09-21T05:43:42.509260+00:00",
+    "ground_truth_result": [
+      [
+        6461
+      ]
+    ],
+    "generated_result": [
+      [
+        6461
+      ]
+    ]
+  },
+  {
+    "id": "GT012",
+    "question": "Quantos registros de instrução educacional existem?",
+    "ground_truth_tables": [
+      "instrucao"
+    ],
+    "selected_tables": [
+      "instrucao"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM instrucao;",
+    "timestamp": "2025-09-21T05:43:47.174598+00:00",
+    "ground_truth_result": [
+      [
+        68389
+      ]
+    ],
+    "generated_result": [
+      [
+        68389
+      ]
+    ]
+  },
+  {
+    "id": "GT013",
+    "question": "Quantos pacientes do sexo masculino foram internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes WHERE \"SEXO\" = 1;",
+    "timestamp": "2025-09-21T05:43:55.233095+00:00",
+    "ground_truth_result": [
+      [
+        4854879
+      ]
+    ],
+    "generated_result": [
+      [
+        4854879
+      ]
+    ]
+  },
+  {
+    "id": "GT014",
+    "question": "Qual o valor total gasto em todas as internações?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT SUM(i.\"VAL_TOT\") FROM internacoes i;",
+    "timestamp": "2025-09-21T05:44:01.065894+00:00",
+    "ground_truth_result": [
+      [
+        0.0
+      ]
+    ],
+    "generated_result": [
+      [
+        0.0
+      ]
+    ]
+  },
+  {
+    "id": "GT015",
+    "question": "Quantas mortes foram causadas por doenças cardiovasculares (CID I)?",
+    "ground_truth_tables": [
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.3333333333333333,
+    "generated_sql": "SELECT COUNT(mo.\"N_AIH\") FROM cid10 c JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN mortes mo ON i.\"N_AIH\" = mo.\"N_AIH\" WHERE c.\"CID\" = 'I' AND mo.\"CID_MORTE\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:44:07.939279+00:00",
+    "ground_truth_result": [
+      [
+        49962
+      ]
+    ],
+    "generated_result": {
+      "error": "(psycopg2.errors.UndefinedTable) ERRO:  faltando entrada para tabela \"mo\" na cláusula FROM\nLINE 1: ...NT(mo.\"N_AIH\") FROM cid10 c JOIN internacoes i ON mo.\"N_AIH\"...\n                                                             ^\n\n[SQL: SELECT COUNT(mo.\"N_AIH\") FROM cid10 c JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN mortes mo ON i.\"N_AIH\" = mo.\"N_AIH\" WHERE c.\"CID\" = 'I' AND mo.\"CID_MORTE\" IS NOT NULL;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    }
+  },
+  {
+    "id": "GT016",
+    "question": "Qual a descrição do código CID A15?",
+    "ground_truth_tables": [
+      "cid10"
+    ],
+    "selected_tables": [
+      "cid10",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT \"CD_DESCRICAO\" FROM cid10 WHERE \"CID\" = 'A15';",
+    "timestamp": "2025-09-21T05:44:15.280598+00:00",
+    "ground_truth_result": [
+      [
+        "Tuberc respirat c/conf bacteriol e histolog"
+      ]
+    ],
+    "generated_result": [
+      [
+        "Tuberc respirat c/conf bacteriol e histolog"
+      ]
+    ]
+  },
+  {
+    "id": "GT017",
+    "question": "Quantos casos de VDRL positivo foram registrados?",
+    "ground_truth_tables": [
+      "condicoes_especificas"
+    ],
+    "selected_tables": [
+      "condicoes_especificas",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM condicoes_especificas WHERE \"IND_VDRL\" = '1';",
+    "timestamp": "2025-09-21T05:44:22.998540+00:00",
+    "ground_truth_result": [
+      [
+        1118626
+      ]
+    ],
+    "generated_result": [
+      [
+        1118626
+      ]
+    ]
+  },
+  {
+    "id": "GT018",
+    "question": "Qual o tempo médio de permanência em UTI?",
+    "ground_truth_tables": [
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT AVG(\"UTI_MES_TO\") FROM uti_detalhes WHERE \"UTI_MES_TO\" > 0;",
+    "timestamp": "2025-09-21T05:44:31.106958+00:00",
+    "ground_truth_result": [
+      [
+        "121.7837837837837838"
+      ]
+    ],
+    "generated_result": [
+      [
+        "121.7837837837837838"
+      ]
+    ]
+  },
+  {
+    "id": "GT019",
+    "question": "Qual município tem a maior população segundo dados do IBGE?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT \"nome_municipio\" FROM dado_ibge WHERE \"populacao\" IS NOT NULL ORDER BY \"populacao\" DESC LIMIT 1;",
+    "timestamp": "2025-09-21T05:44:38.904764+00:00",
+    "ground_truth_result": [
+      [
+        "MaceiÃ³",
+        957.92
+      ]
+    ],
+    "generated_result": [
+      [
+        "MaceiÃ³"
+      ]
+    ]
+  },
+  {
+    "id": "GT020",
+    "question": "Quantos casos obstétricos tiveram acompanhamento pré-natal?",
+    "ground_truth_tables": [
+      "obstetricos"
+    ],
+    "selected_tables": [
+      "obstetricos",
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM obstetricos WHERE \"INSC_PN\" IS NOT NULL AND \"INSC_PN\" != '';",
+    "timestamp": "2025-09-21T05:44:46.834703+00:00",
+    "ground_truth_result": [
+      [
+        376202
+      ]
+    ],
+    "generated_result": [
+      [
+        376202
+      ]
+    ]
+  },
+  {
+    "id": "GT021",
+    "question": "Quantas internações resultaram em óbito?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM mortes WHERE \"N_AIH\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:44:54.278209+00:00",
+    "ground_truth_result": [
+      [
+        569405
+      ]
+    ],
+    "generated_result": [
+      [
+        569405
+      ]
+    ]
+  },
+  {
+    "id": "GT022",
+    "question": "Quais são os 5 procedimentos mais comuns (baseado em códigos únicos)?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT i.\"PROC_REA\" AS procedimento, COUNT(*) AS total FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY total DESC LIMIT 5;",
+    "timestamp": "2025-09-21T05:45:01.485356+00:00",
+    "ground_truth_result": [
+      [
+        "0303140151",
+        711504
+      ],
+      [
+        "0310010039",
+        694875
+      ],
+      [
+        "0411010034",
+        532429
+      ],
+      [
+        "0303140046",
+        347873
+      ],
+      [
+        "0303010037",
+        284046
+      ]
+    ],
+    "generated_result": [
+      [
+        "0303140151",
+        711504
+      ],
+      [
+        "0310010039",
+        694875
+      ],
+      [
+        "0411010034",
+        532429
+      ],
+      [
+        "0303140046",
+        347873
+      ],
+      [
+        "0303010037",
+        284046
+      ]
+    ]
+  },
+  {
+    "id": "GT023",
+    "question": "Quantos hospitais registraram pelo menos uma morte?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes",
+      "municipios"
+    ],
+    "tables_match": false,
+    "recall": 0.6666666666666666,
+    "precision": 0.6666666666666666,
+    "generated_sql": "SELECT COUNT(DISTINCT i.\"CNES\") FROM internacoes i JOIN mortes mo ON i.\"N_AIH\" = mo.\"N_AIH\" WHERE mo.\"CID_MORTE\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:45:08.170071+00:00",
+    "ground_truth_result": [
+      [
+        348
+      ]
+    ],
+    "generated_result": [
+      [
+        348
+      ]
+    ]
+  },
+  {
+    "id": "GT024",
+    "question": "Quantas internações de UTI resultaram em óbito?",
+    "ground_truth_tables": [
+      "uti_detalhes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.6666666666666666,
+    "generated_sql": "SELECT COUNT(i.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"UTI_MES_TO\" > 0 AND mo.\"CID_MORTE\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:45:15.123833+00:00",
+    "ground_truth_result": [
+      [
+        23768
+      ]
+    ],
+    "generated_result": {
+      "error": "(psycopg2.errors.UndefinedColumn) ERRO:  coluna i.UTI_MES_TO não existe\nLINE 1: ...OIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"UTI_MES...\n                                                             ^\n\n[SQL: SELECT COUNT(i.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"UTI_MES_TO\" > 0 AND mo.\"CID_MORTE\" IS NOT NULL;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    }
+  },
+  {
+    "id": "GT025",
+    "question": "Quais hospitais têm mais de 1000 internações registradas?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") as admissions FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000;",
+    "timestamp": "2025-09-21T05:45:23.757571+00:00",
+    "ground_truth_result": [
+      [
+        "2237571",
+        550060
+      ],
+      [
+        "2237601",
+        490218
+      ],
+      [
+        "2237253",
+        347231
+      ],
+      [
+        "2246988",
+        344440
+      ],
+      [
+        "2262568",
+        223663
+      ],
+      [
+        "2693801",
+        210565
+      ],
+      [
+        "3508528",
+        186924
+      ],
+      [
+        "2223538",
+        183465
+      ],
+      [
+        "2707918",
+        181544
+      ],
+      [
+        "2244306",
+        180900
+      ],
+      [
+        "2265052",
+        161394
+      ],
+      [
+        "2232146",
+        159692
+      ],
+      [
+        "2246929",
+        155510
+      ],
+      [
+        "2232022",
+        151264
+      ],
+      [
+        "2232014",
+        146392
+      ],
+      [
+        "2223546",
+        140563
+      ],
+      [
+        "2232995",
+        136558
+      ],
+      [
+        "2261057",
+        132306
+      ],
+      [
+        "2241021",
+        114683
+      ],
+      [
+        "2232162",
+        114266
+      ],
+      [
+        "2265060",
+        111462
+      ],
+      [
+        "2232049",
+        110101
+      ],
+      [
+        "2253046",
+        108891
+      ],
+      [
+        "2254964",
+        108216
+      ],
+      [
+        "2248190",
+        104129
+      ],
+      [
+        "2259907",
+        103770
+      ],
+      [
+        "2252287",
+        102446
+      ],
+      [
+        "2266474",
+        98949
+      ],
+      [
+        "2261987",
+        96565
+      ],
+      [
+        "3626245",
+        96558
+      ],
+      [
+        "2253054",
+        93183
+      ],
+      [
+        "2778718",
+        93021
+      ],
+      [
+        "2237849",
+        91407
+      ],
+      [
+        "2707675",
+        90653
+      ],
+      [
+        "2237822",
+        89048
+      ],
+      [
+        "2232081",
+        88982
+      ],
+      [
+        "2254611",
+        87350
+      ],
+      [
+        "2232154",
+        81967
+      ],
+      [
+        "2248328",
+        81911
+      ],
+      [
+        "2232030",
+        81207
+      ],
+      [
+        "2241048",
+        79161
+      ],
+      [
+        "5223962",
+        79156
+      ],
+      [
+        "2248298",
+        79023
+      ],
+      [
+        "2707969",
+        75548
+      ],
+      [
+        "2248204",
+        74639
+      ],
+      [
+        "2263858",
+        73812
+      ],
+      [
+        "2257548",
+        73244
+      ],
+      [
+        "2252694",
+        71918
+      ],
+      [
+        "2257556",
+        71810
+      ],
+      [
+        "2248220",
+        71259
+      ],
+      [
+        "2262274",
+        70319
+      ],
+      [
+        "2793008",
+        70268
+      ],
+      [
+        "2232103",
+        69978
+      ],
+      [
+        "2236370",
+        65173
+      ],
+      [
+        "2227762",
+        62279
+      ],
+      [
+        "2240335",
+        60273
+      ],
+      [
+        "2232073",
+        59797
+      ],
+      [
+        "5384117",
+        59698
+      ],
+      [
+        "2244357",
+        57222
+      ],
+      [
+        "2259893",
+        56092
+      ],
+      [
+        "5922216",
+        52370
+      ],
+      [
+        "2252295",
+        51946
+      ],
+      [
+        "2707950",
+        51061
+      ],
+      [
+        "2252260",
+        47039
+      ],
+      [
+        "6424236",
+        46952
+      ],
+      [
+        "2255936",
+        45682
+      ],
+      [
+        "2232928",
+        44412
+      ],
+      [
+        "2227665",
+        43666
+      ],
+      [
+        "2228726",
+        42937
+      ],
+      [
+        "2792974",
+        42320
+      ],
+      [
+        "2257815",
+        41985
+      ],
+      [
+        "2227932",
+        41743
+      ],
+      [
+        "7092571",
+        40794
+      ],
+      [
+        "2235323",
+        40257
+      ],
+      [
+        "2228602",
+        40185
+      ],
+      [
+        "2252244",
+        39041
+      ],
+      [
+        "7513151",
+        38356
+      ],
+      [
+        "2248239",
+        38126
+      ],
+      [
+        "2241153",
+        37833
+      ],
+      [
+        "2246961",
+        37329
+      ],
+      [
+        "2233312",
+        35384
+      ],
+      [
+        "2248271",
+        35212
+      ],
+      [
+        "2236362",
+        35122
+      ],
+      [
+        "2235609",
+        35088
+      ],
+      [
+        "2232057",
+        34922
+      ],
+      [
+        "2261065",
+        33427
+      ],
+      [
+        "2262002",
+        32830
+      ],
+      [
+        "2254956",
+        32781
+      ],
+      [
+        "2237180",
+        32029
+      ],
+      [
+        "2234416",
+        31753
+      ],
+      [
+        "2250837",
+        30852
+      ],
+      [
+        "2252198",
+        30559
+      ],
+      [
+        "2237660",
+        29215
+      ],
+      [
+        "2237261",
+        28518
+      ],
+      [
+        "2234432",
+        28085
+      ],
+      [
+        "2228688",
+        27640
+      ],
+      [
+        "2707632",
+        27632
+      ],
+      [
+        "2257645",
+        27438
+      ],
+      [
+        "2246953",
+        27356
+      ],
+      [
+        "2228734",
+        27190
+      ]
+    ],
+    "generated_result": [
+      [
+        "0104523",
+        1227
+      ],
+      [
+        "0181927",
+        1767
+      ],
+      [
+        "2223538",
+        183465
+      ],
+      [
+        "2223546",
+        140563
+      ],
+      [
+        "2223562",
+        25715
+      ],
+      [
+        "2223570",
+        1243
+      ],
+      [
+        "2223589",
+        21646
+      ],
+      [
+        "2224607",
+        5550
+      ],
+      [
+        "2224615",
+        4073
+      ],
+      [
+        "2227665",
+        43666
+      ],
+      [
+        "2227673",
+        16463
+      ],
+      [
+        "2227681",
+        4184
+      ],
+      [
+        "2227703",
+        2518
+      ],
+      [
+        "2227711",
+        2050
+      ],
+      [
+        "2227738",
+        2327
+      ],
+      [
+        "2227746",
+        2998
+      ],
+      [
+        "2227762",
+        62279
+      ],
+      [
+        "2227770",
+        18647
+      ],
+      [
+        "2227886",
+        5537
+      ],
+      [
+        "2227894",
+        12281
+      ],
+      [
+        "2227908",
+        16783
+      ],
+      [
+        "2227932",
+        41743
+      ],
+      [
+        "2228548",
+        4465
+      ],
+      [
+        "2228556",
+        10749
+      ],
+      [
+        "2228564",
+        6832
+      ],
+      [
+        "2228580",
+        16584
+      ],
+      [
+        "2228602",
+        40185
+      ],
+      [
+        "2228610",
+        15408
+      ],
+      [
+        "2228629",
+        5853
+      ],
+      [
+        "2228637",
+        1099
+      ],
+      [
+        "2228653",
+        11902
+      ],
+      [
+        "2228688",
+        27640
+      ],
+      [
+        "2228718",
+        1481
+      ],
+      [
+        "2228726",
+        42937
+      ],
+      [
+        "2228734",
+        27190
+      ],
+      [
+        "2232014",
+        146392
+      ],
+      [
+        "2232022",
+        151264
+      ],
+      [
+        "2232030",
+        81207
+      ],
+      [
+        "2232049",
+        110101
+      ],
+      [
+        "2232057",
+        34922
+      ],
+      [
+        "2232073",
+        59797
+      ],
+      [
+        "2232081",
+        88982
+      ],
+      [
+        "2232103",
+        69978
+      ],
+      [
+        "2232146",
+        159692
+      ],
+      [
+        "2232154",
+        81967
+      ],
+      [
+        "2232162",
+        114266
+      ],
+      [
+        "2232170",
+        25688
+      ],
+      [
+        "2232189",
+        21115
+      ],
+      [
+        "2232928",
+        44412
+      ],
+      [
+        "2232995",
+        136558
+      ],
+      [
+        "2233312",
+        35384
+      ],
+      [
+        "2233320",
+        5160
+      ],
+      [
+        "2233339",
+        6660
+      ],
+      [
+        "2233347",
+        20369
+      ],
+      [
+        "2233355",
+        12191
+      ],
+      [
+        "2233371",
+        8728
+      ],
+      [
+        "2233398",
+        24378
+      ],
+      [
+        "2233401",
+        19664
+      ],
+      [
+        "2233428",
+        11148
+      ],
+      [
+        "2233436",
+        1461
+      ],
+      [
+        "2233444",
+        1507
+      ],
+      [
+        "2234386",
+        18595
+      ],
+      [
+        "2234394",
+        10676
+      ],
+      [
+        "2234408",
+        10208
+      ],
+      [
+        "2234416",
+        31753
+      ],
+      [
+        "2234424",
+        20375
+      ],
+      [
+        "2234432",
+        28085
+      ],
+      [
+        "2234440",
+        1276
+      ],
+      [
+        "2234459",
+        1942
+      ],
+      [
+        "2234467",
+        5789
+      ],
+      [
+        "2234475",
+        6874
+      ],
+      [
+        "2235307",
+        4340
+      ],
+      [
+        "2235315",
+        6750
+      ],
+      [
+        "2235323",
+        40257
+      ],
+      [
+        "2235366",
+        6261
+      ],
+      [
+        "2235382",
+        4814
+      ],
+      [
+        "2235404",
+        22943
+      ],
+      [
+        "2235412",
+        16861
+      ],
+      [
+        "2235420",
+        8603
+      ],
+      [
+        "2235447",
+        3647
+      ],
+      [
+        "2235455",
+        1991
+      ],
+      [
+        "2235609",
+        35088
+      ],
+      [
+        "2236338",
+        10420
+      ],
+      [
+        "2236346",
+        8918
+      ],
+      [
+        "2236354",
+        15213
+      ],
+      [
+        "2236362",
+        35122
+      ],
+      [
+        "2236370",
+        65173
+      ],
+      [
+        "2237121",
+        2965
+      ],
+      [
+        "2237180",
+        32029
+      ],
+      [
+        "2237199",
+        2466
+      ],
+      [
+        "2237253",
+        347231
+      ],
+      [
+        "2237261",
+        28518
+      ],
+      [
+        "2237571",
+        550060
+      ],
+      [
+        "2237601",
+        490218
+      ],
+      [
+        "2237660",
+        29215
+      ],
+      [
+        "2237806",
+        11275
+      ],
+      [
+        "2237822",
+        89048
+      ],
+      [
+        "2237849",
+        91407
+      ],
+      [
+        "2237873",
+        3186
+      ],
+      [
+        "2237881",
+        10937
+      ]
+    ]
+  },
+  {
+    "id": "GT026",
+    "question": "Quantas internações com condições especiais resultaram em morte?",
+    "ground_truth_tables": [
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.6666666666666666,
+    "generated_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas c JOIN internacoes i ON c.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
+    "timestamp": "2025-09-21T05:45:30.623943+00:00",
+    "ground_truth_result": [
+      [
+        430
+      ]
+    ],
+    "generated_result": [
+      [
+        430
+      ]
+    ]
+  },
+  {
+    "id": "GT027",
+    "question": "Qual o valor médio das internações que resultaram em óbito?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT AVG(\"VAL_TOT\") FROM mortes m JOIN internacoes i ON m.\"N_AIH\" = i.\"N_AIH\";",
+    "timestamp": "2025-09-21T05:45:38.474313+00:00",
+    "ground_truth_result": [
+      [
+        0.0
+      ]
+    ],
+    "generated_result": [
+      [
+        0.0
+      ]
+    ]
+  },
+  {
+    "id": "GT028",
+    "question": "Quantos casos CBOR tiveram acompanhamento em UTI?",
+    "ground_truth_tables": [
+      "cbor",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes",
+      "cbor"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.6666666666666666,
+    "generated_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM internacoes i JOIN cbor cb ON i.\"N_AIH\" = cb.\"N_AIH\" WHERE cb.\"CBOR\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:45:44.995671+00:00",
+    "ground_truth_result": [
+      [
+        144
+      ]
+    ],
+    "generated_result": [
+      [
+        6461
+      ]
+    ]
+  },
+  {
+    "id": "GT029",
+    "question": "Qual a taxa de mortalidade por município (top 10)?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios",
+      "dado_ibge",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT mu.nome, COUNT(mo.\"N_AIH\") AS total_mortes, ROUND(COUNT(mo.\"N_AIH\")::numeric / ( SELECT SUM(populacao) FROM dado_ibge WHERE municipio = i.municipio), 2) AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome, i.municipio ORDER BY taxa_mortalidade DESC LIMIT 10;",
+    "timestamp": "2025-09-21T05:45:54.632672+00:00",
+    "ground_truth_result": [
+      [
+        "431770",
+        8532,
+        644,
+        "7.55"
+      ],
+      [
+        "412625",
+        160,
+        12,
+        "7.50"
+      ],
+      [
+        "431640",
+        43133,
+        3214,
+        "7.45"
+      ],
+      [
+        "431245",
+        5096,
+        374,
+        "7.34"
+      ],
+      [
+        "431455",
+        2381,
+        174,
+        "7.31"
+      ],
+      [
+        "431450",
+        10677,
+        778,
+        "7.29"
+      ],
+      [
+        "432240",
+        100322,
+        7226,
+        "7.20"
+      ],
+      [
+        "430160",
+        112242,
+        8036,
+        "7.16"
+      ],
+      [
+        "430635",
+        2933,
+        207,
+        "7.06"
+      ],
+      [
+        "432160",
+        47977,
+        3370,
+        "7.02"
+      ]
+    ],
+    "generated_result": {
+      "error": "(psycopg2.errors.UndefinedColumn) ERRO:  coluna i.municipio não existe\nLINE 1: ...T SUM(populacao) FROM dado_ibge WHERE municipio = i.municipi...\n                                                             ^\n\n[SQL: SELECT mu.nome, COUNT(mo.\"N_AIH\") AS total_mortes, ROUND(COUNT(mo.\"N_AIH\")::numeric / ( SELECT SUM(populacao) FROM dado_ibge WHERE municipio = i.municipio), 2) AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome, i.municipio ORDER BY taxa_mortalidade DESC LIMIT 10;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    }
+  },
+  {
+    "id": "GT030",
+    "question": "Quais códigos de procedimento têm maior taxa de mortalidade (top 5)?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10",
+      "procedimentos",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT p.\"PROC_REA\", COUNT(mo.\"N_AIH\") AS total_mortes, COUNT(i.\"N_AIH\") AS total_internacoes, ROUND(COUNT(mo.\"N_AIH\") * 100.0 / COUNT(i.\"N_AIH\"), 2) AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN procedimentos p ON i.\"PROC_REA\" = p.\"PROC_REA\" GROUP BY p.\"PROC_REA\" ORDER BY taxa_mortalidade DESC LIMIT 5;",
+    "timestamp": "2025-09-21T05:46:03.466010+00:00",
+    "ground_truth_result": [
+      [
+        "0303060255",
+        4355,
+        3152,
+        "72.38"
+      ],
+      [
+        "0303060069",
+        3503,
+        2281,
+        "65.12"
+      ],
+      [
+        "0303060077",
+        3460,
+        1782,
+        "51.50"
+      ],
+      [
+        "0406020051",
+        115,
+        48,
+        "41.74"
+      ],
+      [
+        "0412020076",
+        384,
+        158,
+        "41.15"
+      ]
+    ],
+    "generated_result": []
+  },
+  {
+    "id": "GT031",
+    "question": "Qual é o valor médio de UTI para homens?",
+    "ground_truth_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT AVG(\"VAL_UTI\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"SEXO\" = 1 AND \"VAL_UTI\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:46:12.087653+00:00",
+    "ground_truth_result": [
+      [
+        35773.86666130425
+      ]
+    ],
+    "generated_result": [
+      [
+        35773.86666130426
+      ]
+    ]
+  },
+  {
+    "id": "GT032",
+    "question": "Quantas mulheres foram internadas?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes WHERE \"SEXO\" = 3;",
+    "timestamp": "2025-09-21T05:46:19.640702+00:00",
+    "ground_truth_result": [
+      [
+        6167320
+      ]
+    ],
+    "generated_result": [
+      [
+        6167320
+      ]
+    ]
+  },
+  {
+    "id": "GT033",
+    "question": "Qual o valor total das diárias hospitalares?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das Diarias Hospitalares\" FROM internacoes i;",
+    "timestamp": "2025-09-21T05:46:25.995406+00:00",
+    "ground_truth_result": [
+      [
+        298658
+      ]
+    ],
+    "generated_result": {
+      "error": "(psycopg2.errors.GroupingError) ERRO:  coluna \"i.VAL_TOT\" deve aparecer na cláusula GROUP BY ou ser usada em uma função de agregação\nLINE 1: SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das...\n                                     ^\n\n[SQL: SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das Diarias Hospitalares\" FROM internacoes i;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    }
+  },
+  {
+    "id": "GT034",
+    "question": "Quantos hospitais são de natureza pública?",
+    "ground_truth_tables": [
+      "hospital"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "hospital"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM hospital WHERE \"NATUREZA\" ILIKE '%public%' OR \"NATUREZA\" ILIKE '%publica%';",
+    "timestamp": "2025-09-21T05:46:33.758473+00:00",
+    "ground_truth_result": [
+      [
+        0
+      ]
+    ],
+    "generated_result": [
+      [
+        0
+      ]
+    ]
+  },
+  {
+    "id": "GT035",
+    "question": "Qual a latitude e longitude de Porto Alegre?",
+    "ground_truth_tables": [
+      "municipios"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT \"latitude\", \"longitude\" FROM municipios WHERE \"nome\" = 'Porto Alegre';",
+    "timestamp": "2025-09-21T05:46:41.128080+00:00",
+    "ground_truth_result": [
+      [
+        -30.0318,
+        -51.2065
+      ]
+    ],
+    "generated_result": [
+      [
+        -30.0318,
+        -51.2065
+      ]
+    ]
+  },
+  {
+    "id": "GT036",
+    "question": "Quantos municípios estão no estado do RS?",
+    "ground_truth_tables": [
+      "municipios"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM municipios WHERE \"estado\" = 'RS';",
+    "timestamp": "2025-09-21T05:46:48.179187+00:00",
+    "ground_truth_result": [
+      [
+        497
+      ]
+    ],
+    "generated_result": [
+      [
+        497
+      ]
+    ]
+  },
+  {
+    "id": "GT037",
+    "question": "Qual a idade média dos pacientes internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT AVG(i.\"IDADE\") AS idade_media FROM internacoes i;",
+    "timestamp": "2025-09-21T05:46:54.109649+00:00",
+    "ground_truth_result": [
+      [
+        43.85401567327988
+      ]
+    ],
+    "generated_result": [
+      [
+        43.85401567327989
+      ]
+    ]
+  },
+  {
+    "id": "GT038",
+    "question": "Quantas internações duraram mais de 30 dias?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes WHERE \"DIAS_PERM\" > 30;",
+    "timestamp": "2025-09-21T05:47:00.391001+00:00",
+    "ground_truth_result": [
+      [
+        0
+      ]
+    ],
+    "generated_result": [
+      [
+        0
+      ]
+    ]
+  },
+  {
+    "id": "GT039",
+    "question": "Qual o número total de filhos dos pacientes internados?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes WHERE \"NUM_FILHOS\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:47:07.935894+00:00",
+    "ground_truth_result": [
+      [
+        2742
+      ]
+    ],
+    "generated_result": [
+      [
+        11022199
+      ]
+    ]
+  },
+  {
+    "id": "GT040",
+    "question": "Quantos procedimentos têm 'CIRURGIA' no nome?",
+    "ground_truth_tables": [
+      "procedimentos"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%cirurgia%';",
+    "timestamp": "2025-09-21T05:47:15.639495+00:00",
+    "ground_truth_result": [
+      [
+        80
+      ]
+    ],
+    "generated_result": [
+      [
+        80
+      ]
+    ]
+  },
+  {
+    "id": "GT041",
+    "question": "Qual o diagnóstico mais comum nas internações?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT c.\"CID\", c.\"CD_DESCRICAO\", COUNT(*) AS total FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" GROUP BY c.\"CID\", c.\"CD_DESCRICAO\" ORDER BY total DESC LIMIT 1;",
+    "timestamp": "2025-09-21T05:47:24.423395+00:00",
+    "ground_truth_result": [
+      [
+        "O800",
+        430720
+      ]
+    ],
+    "generated_result": [
+      [
+        "O800",
+        "Parto espontaneo cefalico",
+        430720
+      ]
+    ]
+  },
+  {
+    "id": "GT042",
+    "question": "Quantas internações ocorreram em 2015?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "municipios",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.3333333333333333,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015 LIMIT 100;",
+    "timestamp": "2025-09-21T05:47:30.962610+00:00",
+    "ground_truth_result": [
+      [
+        758854
+      ]
+    ],
+    "generated_result": [
+      [
+        758854
+      ]
+    ]
+  },
+  {
+    "id": "GT043",
+    "question": "Qual o valor médio das internações por complexidade?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT AVG(i.\"VAL_TOT\") AS media_internacoes FROM internacoes i;",
+    "timestamp": "2025-09-21T05:47:37.008807+00:00",
+    "ground_truth_result": [
+      [
+        "00",
+        0.0
+      ],
+      [
+        "02",
+        0.0
+      ],
+      [
+        "03",
+        0.0
+      ]
+    ],
+    "generated_result": [
+      [
+        0.0
+      ]
+    ]
+  },
+  {
+    "id": "GT044",
+    "question": "Quantos pacientes nasceram antes de 1950?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes i WHERE EXTRACT(YEAR FROM i.\"NASC\") < 1950;",
+    "timestamp": "2025-09-21T05:47:43.414870+00:00",
+    "ground_truth_result": [
+      [
+        2631526
+      ]
+    ],
+    "generated_result": [
+      [
+        2631526
+      ]
+    ]
+  },
+  {
+    "id": "GT045",
+    "question": "Qual município tem o maior salário médio?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT \"nome_municipio\" FROM dado_ibge ORDER BY \"salario_medio\" DESC LIMIT 1;",
+    "timestamp": "2025-09-21T05:47:50.890194+00:00",
+    "ground_truth_result": [
+      [
+        "Santo AntÃ´nio dos Lopes",
+        6.9
+      ]
+    ],
+    "generated_result": [
+      [
+        "Santo AntÃ´nio dos Lopes"
+      ]
+    ]
+  },
+  {
+    "id": "GT046",
+    "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "cid10"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE c.\"CID\" >= 'E10' AND c.\"CID\" <= 'E14';",
+    "timestamp": "2025-09-21T05:47:59.402847+00:00",
+    "ground_truth_result": [
+      [
+        140630
+      ]
+    ],
+    "generated_result": [
+      [
+        70498
+      ]
+    ]
+  },
+  {
+    "id": "GT047",
+    "question": "Qual a taxa de mortalidade infantil média no Brasil?",
+    "ground_truth_tables": [
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "dado_ibge",
+      "municipios",
+      "cid10",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.2,
+    "generated_sql": "SELECT AVG(dado_ibge.mortalidade_infantil) AS taxa_mortalidade_infantil_media FROM dado_ibge;",
+    "timestamp": "2025-09-21T05:48:07.059532+00:00",
+    "ground_truth_result": [
+      [
+        10.421992818671463
+      ]
+    ],
+    "generated_result": [
+      [
+        10.421992818671463
+      ]
+    ]
+  },
+  {
+    "id": "GT048",
+    "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
+    "ground_truth_tables": [
+      "hospital",
+      "internacoes",
+      "municipios",
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios",
+      "hospital"
+    ],
+    "tables_match": false,
+    "recall": 0.75,
+    "precision": 1.0,
+    "generated_sql": "SELECT COUNT(DISTINCT h.\"CNES\") FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d JOIN dado_ibge d ON mu.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100;",
+    "timestamp": "2025-09-21T05:48:16.639412+00:00",
+    "ground_truth_result": [
+      [
+        159
+      ]
+    ],
+    "generated_result": [
+      [
+        159
+      ]
+    ]
+  },
+  {
+    "id": "GT049",
+    "question": "Qual o procedimento com maior valor médio?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "procedimentos"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT p.\"NOME_PROC\", AVG(i.\"VAL_TOT\") as avg_cost FROM internacoes i JOIN procedimentos p ON i.\"PROC_REA\" = p.\"PROC_REA\" WHERE i.\"VAL_TOT\" IS NOT NULL GROUP BY p.\"NOME_PROC\" ORDER BY avg_cost DESC LIMIT 1;",
+    "timestamp": "2025-09-21T05:48:25.005981+00:00",
+    "ground_truth_result": [
+      [
+        "0201010038",
+        0.0
+      ]
+    ],
+    "generated_result": []
+  },
+  {
+    "id": "GT050",
+    "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
+    "ground_truth_tables": [
+      "internacoes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "diagnosticos_secundarios"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.5,
+    "generated_sql": "SELECT COUNT(*) FROM internacoes i WHERE \"DIAG_PRINC\" IS NOT NULL AND \"DIAG_SECUN\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:48:33.038435+00:00",
+    "ground_truth_result": [
+      [
+        11022199
+      ]
+    ],
+    "generated_result": [
+      [
+        11022199
+      ]
+    ]
+  },
+  {
+    "id": "GT052",
+    "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
+    "ground_truth_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "uti_detalhes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, AVG(u.\"VAL_UTI\") AS custo_medio_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL AND u.\"VAL_UTI\" IS NOT NULL GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\") ORDER BY ano, mes;",
+    "timestamp": "2025-09-21T05:48:44.144217+00:00",
+    "ground_truth_result": [
+      [
+        "Adulto",
+        39410.961206112384
+      ],
+      [
+        "Idoso",
+        36491.48874380081
+      ],
+      [
+        "Menor",
+        32791.09114230797
+      ]
+    ],
+    "generated_result": [
+      [
+        "2007",
+        "7",
+        40790.880000000005
+      ],
+      [
+        "2007",
+        "8",
+        33968.80933333333
+      ],
+      [
+        "2007",
+        "9",
+        31603.088275862072
+      ],
+      [
+        "2007",
+        "10",
+        35091.70114285714
+      ],
+      [
+        "2007",
+        "11",
+        31914.253417721524
+      ],
+      [
+        "2007",
+        "12",
+        30304.250769230774
+      ],
+      [
+        "2008",
+        "1",
+        30606.582393162393
+      ],
+      [
+        "2008",
+        "2",
+        28602.681224489792
+      ],
+      [
+        "2008",
+        "3",
+        28190.14032258064
+      ],
+      [
+        "2008",
+        "4",
+        30104.819837398372
+      ],
+      [
+        "2008",
+        "5",
+        28481.093023255813
+      ],
+      [
+        "2008",
+        "6",
+        29756.988907563024
+      ],
+      [
+        "2008",
+        "7",
+        30879.285882352942
+      ],
+      [
+        "2008",
+        "8",
+        35412.646349206356
+      ],
+      [
+        "2008",
+        "9",
+        35299.46719512195
+      ],
+      [
+        "2008",
+        "10",
+        34082.46021621621
+      ],
+      [
+        "2008",
+        "11",
+        33868.431981132075
+      ],
+      [
+        "2008",
+        "12",
+        32187.010495867773
+      ],
+      [
+        "2009",
+        "1",
+        32288.53606666668
+      ],
+      [
+        "2009",
+        "2",
+        30320.205569620255
+      ],
+      [
+        "2009",
+        "3",
+        32071.028306451622
+      ],
+      [
+        "2009",
+        "4",
+        32477.369189189194
+      ],
+      [
+        "2009",
+        "5",
+        32444.139000000014
+      ],
+      [
+        "2009",
+        "6",
+        32257.20245762712
+      ],
+      [
+        "2009",
+        "7",
+        32923.91544554457
+      ],
+      [
+        "2009",
+        "8",
+        32368.2926688103
+      ],
+      [
+        "2009",
+        "9",
+        33745.2190513834
+      ],
+      [
+        "2009",
+        "10",
+        33764.74322807018
+      ],
+      [
+        "2009",
+        "11",
+        33419.18295302014
+      ],
+      [
+        "2009",
+        "12",
+        31679.878446601953
+      ],
+      [
+        "2010",
+        "1",
+        34362.83747508308
+      ],
+      [
+        "2010",
+        "2",
+        32780.03791855204
+      ],
+      [
+        "2010",
+        "3",
+        33748.28090225563
+      ],
+      [
+        "2010",
+        "4",
+        31006.348308823523
+      ],
+      [
+        "2010",
+        "5",
+        31711.56336917564
+      ],
+      [
+        "2010",
+        "6",
+        31362.499935483884
+      ],
+      [
+        "2010",
+        "7",
+        31765.43850649351
+      ],
+      [
+        "2010",
+        "8",
+        31803.49295373665
+      ],
+      [
+        "2010",
+        "9",
+        33002.798078291824
+      ],
+      [
+        "2010",
+        "10",
+        31697.250294117646
+      ],
+      [
+        "2010",
+        "11",
+        33026.26352059926
+      ],
+      [
+        "2010",
+        "12",
+        32527.130769230775
+      ],
+      [
+        "2011",
+        "1",
+        31764.421804511283
+      ],
+      [
+        "2011",
+        "2",
+        31358.295810810814
+      ],
+      [
+        "2011",
+        "3",
+        32198.95621993128
+      ],
+      [
+        "2011",
+        "4",
+        32871.644662162165
+      ],
+      [
+        "2011",
+        "5",
+        31296.403048780485
+      ],
+      [
+        "2011",
+        "6",
+        32662.454222222215
+      ],
+      [
+        "2011",
+        "7",
+        33288.91142857144
+      ],
+      [
+        "2011",
+        "8",
+        33080.996
+      ],
+      [
+        "2011",
+        "9",
+        32786.79190476191
+      ],
+      [
+        "2011",
+        "10",
+        33361.44620462047
+      ],
+      [
+        "2011",
+        "11",
+        34370.53023890786
+      ],
+      [
+        "2011",
+        "12",
+        34514.497658227854
+      ],
+      [
+        "2012",
+        "1",
+        34701.71408805032
+      ],
+      [
+        "2012",
+        "2",
+        33715.49113149848
+      ],
+      [
+        "2012",
+        "3",
+        33170.620977011495
+      ],
+      [
+        "2012",
+        "4",
+        31921.618523076922
+      ],
+      [
+        "2012",
+        "5",
+        33417.783975535174
+      ],
+      [
+        "2012",
+        "6",
+        33360.976857142865
+      ],
+      [
+        "2012",
+        "7",
+        31712.302108433738
+      ],
+      [
+        "2012",
+        "8",
+        34265.881577287066
+      ],
+      [
+        "2012",
+        "9",
+        32882.3626537217
+      ],
+      [
+        "2012",
+        "10",
+        33048.513531157274
+      ],
+      [
+        "2012",
+        "11",
+        32056.58906832298
+      ],
+      [
+        "2012",
+        "12",
+        33409.54112094397
+      ],
+      [
+        "2013",
+        "1",
+        31024.34764872522
+      ],
+      [
+        "2013",
+        "2",
+        32817.0390106007
+      ],
+      [
+        "2013",
+        "3",
+        31083.865813953493
+      ],
+      [
+        "2013",
+        "4",
+        33713.5456980057
+      ],
+      [
+        "2013",
+        "5",
+        33309.7830487805
+      ],
+      [
+        "2013",
+        "6",
+        31474.09740506329
+      ],
+      [
+        "2013",
+        "7",
+        33621.75903030304
+      ],
+      [
+        "2013",
+        "8",
+        31291.37963855423
+      ],
+      [
+        "2013",
+        "9",
+        33854.027732558156
+      ],
+      [
+        "2013",
+        "10",
+        32627.202832369952
+      ],
+      [
+        "2013",
+        "11",
+        32221.082434782624
+      ],
+      [
+        "2013",
+        "12",
+        32879.27965000001
+      ],
+      [
+        "2014",
+        "1",
+        32935.37310734465
+      ],
+      [
+        "2014",
+        "2",
+        31101.005313432852
+      ],
+      [
+        "2014",
+        "3",
+        33980.149824561406
+      ],
+      [
+        "2014",
+        "4",
+        33292.91216617212
+      ],
+      [
+        "2014",
+        "5",
+        31878.90486187847
+      ],
+      [
+        "2014",
+        "6",
+        31970.679344262302
+      ],
+      [
+        "2014",
+        "7",
+        31443.525947521885
+      ],
+      [
+        "2014",
+        "8",
+        30146.787401129954
+      ],
+      [
+        "2014",
+        "9",
+        31181.59861271677
+      ],
+      [
+        "2014",
+        "10",
+        33229.85191135735
+      ],
+      [
+        "2014",
+        "11",
+        33430.23188235294
+      ],
+      [
+        "2014",
+        "12",
+        33281.26681318682
+      ],
+      [
+        "2015",
+        "1",
+        31486.786133333335
+      ],
+      [
+        "2015",
+        "2",
+        31425.829276315795
+      ],
+      [
+        "2015",
+        "3",
+        31393.814248021106
+      ],
+      [
+        "2015",
+        "4",
+        32251.529479452045
+      ],
+      [
+        "2015",
+        "5",
+        30663.455828877017
+      ],
+      [
+        "2015",
+        "6",
+        31748.63537142859
+      ],
+      [
+        "2015",
+        "7",
+        30632.254951923078
+      ],
+      [
+        "2015",
+        "8",
+        32232.35791666668
+      ],
+      [
+        "2015",
+        "9",
+        30615.235465116286
+      ],
+      [
+        "2015",
+        "10",
+        30945.597037037038
+      ]
+    ]
+  },
+  {
+    "id": "GT054",
+    "question": "Qual a correlação entre nível educacional e valor das internações?",
+    "ground_truth_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "instrucao"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 1.0,
+    "generated_sql": "SELECT ins.\"INSTRU\", AVG(i.\"VAL_TOT\") as avg_cost FROM instrucao ins JOIN internacoes i ON ins.\"N_AIH\" = i.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY avg_cost DESC;",
+    "timestamp": "2025-09-21T05:48:54.446571+00:00",
+    "ground_truth_result": [
+      [
+        "01",
+        0.0
+      ],
+      [
+        "02",
+        0.0
+      ],
+      [
+        "03",
+        0.0
+      ],
+      [
+        "04",
+        0.0
+      ],
+      [
+        "06",
+        0.0
+      ],
+      [
+        "08",
+        0.0
+      ]
+    ],
+    "generated_result": [
+      [
+        "01",
+        0.0
+      ],
+      [
+        "02",
+        0.0
+      ],
+      [
+        "03",
+        0.0
+      ],
+      [
+        "04",
+        0.0
+      ],
+      [
+        "06",
+        0.0
+      ],
+      [
+        "08",
+        0.0
+      ]
+    ]
+  },
+  {
+    "id": "GT055",
+    "question": "Quais municípios têm taxa de mortalidade acima da densidade demográfica?",
+    "ground_truth_tables": [
+      "internacoes",
+      "mortes",
+      "dado_ibge"
+    ],
+    "selected_tables": [
+      "dado_ibge",
+      "municipios",
+      "internacoes",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.75,
+    "generated_sql": "SELECT mu.nome, d.populacao, d.densidade_demografica, i.mortalidade_infantil FROM dado_ibge d JOIN municipios mu ON d.codigo_municipio_completo = mu.codigo_6d WHERE d.densidade_demografica < i.mortalidade_infantil LIMIT 100;",
+    "timestamp": "2025-09-21T05:49:02.633610+00:00",
+    "ground_truth_result": [],
+    "generated_result": {
+      "error": "(psycopg2.errors.UndefinedTable) ERRO:  faltando entrada para tabela \"i\" na cláusula FROM\nLINE 1: ...CT mu.nome, d.populacao, d.densidade_demografica, i.mortalid...\n                                                             ^\n\n[SQL: SELECT mu.nome, d.populacao, d.densidade_demografica, i.mortalidade_infantil FROM dado_ibge d JOIN municipios mu ON d.codigo_municipio_completo = mu.codigo_6d WHERE d.densidade_demografica < i.mortalidade_infantil LIMIT 100;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+    }
+  },
+  {
+    "id": "GT060",
+    "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
+    "ground_truth_tables": [
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "selected_tables": [
+      "internacoes",
+      "condicoes_especificas",
+      "mortes"
+    ],
+    "tables_match": true,
+    "recall": 1.0,
+    "precision": 0.6666666666666666,
+    "generated_sql": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN condicoes_especificas ce ON mo.\"N_AIH\" = ce.\"N_AIH\" JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE ce.\"IND_VDRL\" = '1' AND mo.\"CID_MORTE\" IS NOT NULL;",
+    "timestamp": "2025-09-21T05:49:10.089210+00:00",
+    "ground_truth_result": [
+      [
+        430
+      ]
+    ],
+    "generated_result": [
+      [
+        430
+      ]
+    ]
+  }
+]

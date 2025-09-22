@@ -64,28 +64,43 @@ TABLE_TEMPLATES = {
 
     "mortes": """
         MORTES TABLE RULES - DEATH RECORDS DURING HOSPITALIZATION:
-        
+
         MANDATORY USAGE RULES:
         - PRIMARY TABLE for ALL death counts and mortality statistics
         - Use for: "mortes", "óbitos", "deaths", "mortality", "taxa de mortalidade"
         - "N_AIH" links to internacoes table
         - "CID_MORTE" contains death cause (ICD-10 code)
-        
+
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH" (hospitalization ID), "CID_MORTE" (death cause code)
-        
-        CRITICAL PATTERNS:
-        - Cardiovascular deaths: "CID_MORTE" LIKE 'I%'
-        - Respiratory deaths: "CID_MORTE" LIKE 'J%'  
-        - Cancer deaths: "CID_MORTE" LIKE 'C%'
+
+        MEDICAL CID-10 APPROACH (USE cid10 TABLE FOR DISEASE CLASSIFICATION):
+        - CARDIOVASCULAR DEATHS: Use cid10 table to find all cardiovascular-related codes
+          Keywords: cardiovascular, cardíaca, coração, infarto, AVC, derrame, circulatório
+          APPROACH: JOIN mortes with cid10 and search description for cardiovascular terms
+          PRIMARY: I00-I99 codes (main cardiovascular category)
+          ADDITIONAL: Search cid10."CD_DESCRICAO" for 'cardiovascular' to find other codes
+          NEVER use 'C%' for cardiovascular - that's cancer!
+        - CANCER DEATHS: "CID_MORTE" LIKE 'Cancer%' (C00-D48)
+          Keywords: câncer, tumor, neoplasia, oncologia
+        - RESPIRATORY DEATHS: "CID_MORTE" LIKE 'J%' (J00-J99)
+          Keywords: respiratória, pulmão, pneumonia, asma
+        - INFECTIOUS DEATHS: "CID_MORTE" LIKE 'A%' OR "CID_MORTE" LIKE 'B%'
+          Keywords: infecção, infecciosa, COVID, vírus, bactéria
+        - EXTERNAL CAUSES: "CID_MORTE" LIKE 'V%' OR "CID_MORTE" LIKE 'W%' OR "CID_MORTE" LIKE 'X%' OR "CID_MORTE" LIKE 'Y%'
+          Keywords: acidente, violência, suicídio, trauma
         - External causes: "CID_MORTE" LIKE 'V%' OR "CID_MORTE" LIKE 'W%'
         
         EXACT QUERY EXAMPLES:
         -- Total deaths
         SELECT COUNT(*) FROM mortes;
-        
-        -- Cardiovascular deaths
-        SELECT COUNT(*) FROM mortes WHERE "CID_MORTE" LIKE 'I%';
+
+        -- CARDIOVASCULAR DEATHS (EXAMPLE - JOIN WITH CID10 FOR COMPLETE SEARCH):
+        question: "Quantas mortes foram por causas cardiovasculares?"
+        SELECT COUNT(*) FROM mortes m
+        JOIN cid10 c ON m."CID_MORTE" = c."CID"
+        WHERE LOWER(c."CD_DESCRICAO") LIKE '%cardiovascular%';
+
         
         -- Deaths with hospitalization data
         SELECT COUNT(DISTINCT m."N_AIH") 
@@ -114,17 +129,8 @@ TABLE_TEMPLATES = {
         - "CID" (ICD-10 code), "CD_DESCRICAO" (description)
         
         CRITICAL SEARCH PATTERNS:
-        - Specific code: WHERE "CID" = 'A15'
-        - Category search: WHERE "CID" LIKE 'I%' (cardiovascular)
         - Description search: WHERE "CD_DESCRICAO" ILIKE '%pneumonia%'
-        
-        ICD-10 CATEGORIES:
-        - A00-B99: Infectious diseases
-        - C00-D48: Neoplasms (cancer)
-        - I00-I99: Cardiovascular diseases
-        - J00-J99: Respiratory diseases
-        - O00-O99: Pregnancy/childbirth
-        
+               
         EXACT QUERY EXAMPLES:
         -- Total ICD codes available
         SELECT COUNT(*) FROM cid10;
@@ -136,9 +142,7 @@ TABLE_TEMPLATES = {
         SELECT "CID", "CD_DESCRICAO" 
         FROM cid10 
         WHERE "CID" LIKE 'E1%' AND "CID" >= 'E10' AND "CID" <= 'E14';
-        
-        -- Cardiovascular diseases
-        SELECT COUNT(*) FROM cid10 WHERE "CID" LIKE 'I%';
+    
 """,
 
     "hospital": """

@@ -104,17 +104,9 @@
     "notes": "Gender filtering in main table - SEXO=1 for male"
   },
   {
-    "id": "GT014",
-    "difficulty": "medium",
-    "question": "Qual o valor total gasto em todas as internações?",
-    "query": "SELECT SUM(\"VAL_TOT\") AS valor_total FROM internacoes WHERE \"VAL_TOT\" IS NOT NULL;",
-    "tables": ["internacoes"],
-    "notes": "Financial data from main table"
-  },
-  {
     "id": "GT015",
     "difficulty": "medium",
-    "question": "Quantas mortes foram causadas por doenças cardiovasculares (CID I)?",
+    "question": "Quantas mortes foram causadas por doenças cardiovasculares?",
     "query": "SELECT COUNT(*) AS mortes_cardiovasculares FROM mortes WHERE \"CID_MORTE\" LIKE 'I%';",
     "tables": ["mortes"],
     "notes": "CRITICAL: Use mortes table for death causes"
@@ -392,34 +384,6 @@
     "question": "Qual a correlação entre nível educacional e valor das internações?",
     "query": "SELECT ins.\"INSTRU\" AS nivel_educacional, AVG(i.\"VAL_TOT\") AS valor_medio FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY valor_medio DESC;",
     "tables": ["internacoes", "instrucao"]
-  },
-  {
-    "id": "GT055",
-    "difficulty": "hard",
-    "question": "Quais municípios têm taxa de mortalidade acima da densidade demográfica?",
-    "query": "SELECT d.nome_municipio, ROUND((COUNT(m.\"N_AIH\")::numeric / COUNT(i.\"N_AIH\") * 100), 2) AS taxa_mortalidade, d.densidade_demografica FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE d.densidade_demografica IS NOT NULL GROUP BY d.nome_municipio, d.densidade_demografica HAVING COUNT(i.\"N_AIH\") > 10 AND (COUNT(m.\"N_AIH\")::numeric / COUNT(i.\"N_AIH\") * 100) > d.densidade_demografica;",
-    "tables": ["internacoes", "mortes", "dado_ibge"]
-  },
-  {
-    "id": "GT056",
-    "difficulty": "hard",
-    "question": "Quantos profissionais CBOR trabalharam em casos que foram à óbito?",
-    "query": "SELECT COUNT(DISTINCT c.\"CBOR\") AS profissionais_casos_obito FROM cbor c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"CBOR\" IS NOT NULL;",
-    "tables": ["cbor", "mortes"]
-  },
-  {
-    "id": "GT057",
-    "difficulty": "hard",
-    "question": "Qual a eficiência financeira por tipo de hospital (custo/dia)?",
-    "query": "SELECT h.\"NATUREZA\", AVG(i.\"VAL_TOT\" / NULLIF(i.\"DIAS_PERM\", 0)) AS eficiencia_financeira FROM internacoes i JOIN hospital h ON i.\"CNES\" = h.\"CNES\" WHERE i.\"VAL_TOT\" IS NOT NULL AND i.\"DIAS_PERM\" > 0 AND h.\"NATUREZA\" IS NOT NULL GROUP BY h.\"NATUREZA\";",
-    "tables": ["internacoes", "hospital"]
-  },
-  {
-    "id": "GT059",
-    "difficulty": "hard",
-    "question": "Qual o perfil socioeconômico dos municípios com mais mortes cardiovasculares?",
-    "query": "SELECT d.nome_municipio, COUNT(m.\"N_AIH\") AS mortes_cardiovasculares, AVG(d.salario_medio) AS salario_medio, AVG(d.populacao) AS populacao FROM internacoes i JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" JOIN dado_ibge d ON i.\"MUNIC_RES\" = d.codigo_municipio_completo WHERE m.\"CID_MORTE\" LIKE 'I%' GROUP BY d.nome_municipio HAVING COUNT(m.\"N_AIH\") > 5 ORDER BY mortes_cardiovasculares DESC LIMIT 10;",
-    "tables": ["internacoes", "mortes", "dado_ibge"]
   },
   {
     "id": "GT060",

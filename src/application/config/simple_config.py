@@ -26,7 +26,7 @@ class ApplicationConfig:
     # llm_provider: str = "huggingface"  # ollama, huggingface
     # llm_model: str = "maiconkevyn/mistral-txt2sql-sus"  # Fine-tuned SUS model
     llm_provider: str = "ollama"  # Fallback to Ollama
-    llm_model: str = "llama3.1:8b"  # llama3.1:8b with tool calling support
+    llm_model: str = "Llama3.1:8b"  # llama3.1:8b with tool calling support
     # llm_model: str = "defog/sqlcoder-7b-2"  # Heavy model - causes IDE crashes
     llm_temperature: float = 0.1  # Optimized for fine-tuned model
     llm_timeout: int = 120
