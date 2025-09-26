@@ -1,26 +1,3 @@
-"""Execute ground-truth and generated SQL queries and persist outputs.
-
-This utility augments an evaluation results JSON (produced by
-``run_table_selection_eval.py``) with the actual outputs returned by the
-database for both the reference SQL and the agent-generated SQL. Instead of
-comparing query strings, we rely on the execution results so that equivalent
-queries with different formatting or aliases can be evaluated fairly.
-
-Usage:
-    python evaluation/scripts/enrich_results_with_sql_outputs.py \
-        --results-file evaluation/results/tables_result_12.json \
-        [--output-file evaluation/results/tables_result_12_outputs.json] \
-        [--limit-rows 100]
-
-Outputs two new fields per entry:
-    - ``ground_truth_result``: list of rows returned by the canonical query
-    - ``generated_result``: list of rows returned by the agent SQL (if any)
-
-Both lists omit column names, keeping only the row values to avoid mismatch due
-to aliasing. When execution fails, an ``{"error": "..."}`` placeholder is
-stored instead of rows.
-"""
-
 from __future__ import annotations
 
 import argparse
