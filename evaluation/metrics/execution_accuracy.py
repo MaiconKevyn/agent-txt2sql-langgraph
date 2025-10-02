@@ -142,33 +142,49 @@ class ExecutionAccuracyMetric(BaseMetric):
             Tuple of (results, error_message)
         """
         try:
-            # Get raw connection for direct execution
-            if hasattr(db_connection, 'get_raw_connection'):
+            # Check if connection has execute_query method (our DatabaseConnection)
+            if hasattr(db_connection, 'execute_query'):
+                return db_connection.execute_query(sql_query)
+
+            # Check if connection has get_raw_connection method
+            elif hasattr(db_connection, 'get_raw_connection'):
                 conn = db_connection.get_raw_connection()
+                cursor = conn.cursor()
+
+                # Set query timeout
+                cursor.execute(f"SET statement_timeout = {self.execution_timeout * 1000}")
+
+                # Execute the query
+                cursor.execute(sql_query)
+
+                # Fetch results
+                try:
+                    results = cursor.fetchall()
+                    return results, None
+                except Exception:
+                    # Query doesn't return results (e.g., INSERT, UPDATE)
+                    return [], None
+
+            # Direct connection usage (fallback)
             else:
-                # Assume it's already a raw connection
-                conn = db_connection
+                cursor = db_connection.cursor()
 
-            cursor = conn.cursor()
+                # Set query timeout
+                cursor.execute(f"SET statement_timeout = {self.execution_timeout * 1000}")
 
-            # Set query timeout
-            cursor.execute(f"SET statement_timeout = {self.execution_timeout * 1000}")
+                # Execute the query
+                cursor.execute(sql_query)
 
-            # Execute the query
-            cursor.execute(sql_query)
+                # Fetch results
+                try:
+                    results = cursor.fetchall()
+                    return results, None
+                except Exception:
+                    # Query doesn't return results (e.g., INSERT, UPDATE)
+                    return [], None
 
-            # Fetch results
-            try:
-                results = cursor.fetchall()
-                return results, None
-            except psycopg2.ProgrammingError:
-                # Query doesn't return results (e.g., INSERT, UPDATE)
-                return [], None
-
-        except psycopg2.Error as e:
-            return None, str(e)
         except Exception as e:
-            return None, f"Unexpected error: {str(e)}"
+            return None, f"Query execution error: {str(e)}"
 
     def _compare_results(self, gt_results: List, pred_results: List) -> Tuple[bool, Dict[str, Any]]:
         """
