@@ -16,6 +16,7 @@ Following the Spider benchmark standards:
 from typing import Dict, Any, List, Set
 import re
 from .base_metrics import BaseMetric, MetricResult, EvaluationContext, SQLParser, SQLNormalizer
+from .improved_sql_parser import ImprovedSQLParser, ImprovedColumnComparator
 
 
 class ComponentMatchingMetric(BaseMetric):
@@ -76,9 +77,9 @@ class ComponentMatchingMetric(BaseMetric):
                 }
             )
 
-        # Extract components from both queries
-        gt_components = SQLParser.extract_components(context.ground_truth_sql)
-        pred_components = SQLParser.extract_components(context.predicted_sql)
+        # Extract components from both queries using improved parser
+        gt_components = ImprovedSQLParser.extract_components(context.ground_truth_sql)
+        pred_components = ImprovedSQLParser.extract_components(context.predicted_sql)
 
         # Evaluate each component
         component_scores = {}
@@ -145,41 +146,21 @@ class ComponentMatchingMetric(BaseMetric):
             return self._evaluate_generic_clause(gt_component, pred_component)
 
     def _evaluate_select_clause(self, gt_select: str, pred_select: str) -> tuple:
-        """Evaluate SELECT clause with column and function matching"""
+        """Evaluate SELECT clause with improved column and function matching"""
         if not gt_select.strip() and not pred_select.strip():
             return 1.0, {'match': 'both_empty'}
 
         if not gt_select.strip() or not pred_select.strip():
             return 0.0, {'match': 'one_empty', 'gt_select': gt_select, 'pred_select': pred_select}
 
-        # Normalize and extract columns/expressions
-        gt_columns = self._extract_select_items(gt_select)
-        pred_columns = self._extract_select_items(pred_select)
+        # Use improved column comparator
+        gt_columns = ImprovedColumnComparator.extract_select_items(gt_select)
+        pred_columns = ImprovedColumnComparator.extract_select_items(pred_select)
 
-        # Calculate overlap
-        gt_set = set(gt_columns)
-        pred_set = set(pred_columns)
+        # Get detailed comparison with alias handling
+        comparison = ImprovedColumnComparator.compare_select_items(gt_columns, pred_columns)
 
-        if not gt_set and not pred_set:
-            return 1.0, {'match': 'both_empty_after_parsing'}
-
-        if not gt_set or not pred_set:
-            return 0.0, {'match': 'one_empty_after_parsing'}
-
-        # Calculate Jaccard similarity
-        intersection = len(gt_set.intersection(pred_set))
-        union = len(gt_set.union(pred_set))
-        score = intersection / union if union > 0 else 0.0
-
-        details = {
-            'gt_columns': gt_columns,
-            'pred_columns': pred_columns,
-            'intersection_count': intersection,
-            'union_count': union,
-            'jaccard_similarity': score
-        }
-
-        return score, details
+        return comparison['jaccard_similarity'], comparison
 
     def _evaluate_from_clause(self, gt_from: str, pred_from: str) -> tuple:
         """Evaluate FROM clause with table matching"""
@@ -303,24 +284,6 @@ class ComponentMatchingMetric(BaseMetric):
 
         return score, details
 
-    def _extract_select_items(self, select_clause: str) -> List[str]:
-        """Extract individual items from SELECT clause"""
-        if not select_clause.strip():
-            return []
-
-        # Remove SELECT keyword if present
-        clause = re.sub(r'^\s*SELECT\s+', '', select_clause.strip(), flags=re.IGNORECASE)
-
-        # Split by comma and normalize each item
-        items = []
-        for item in clause.split(','):
-            item = item.strip()
-            if item:
-                # Normalize the item
-                normalized = SQLNormalizer.normalize_sql(item)
-                items.append(normalized)
-
-        return items
 
     def _extract_table_names(self, from_clause: str) -> List[str]:
         """Extract table names from FROM clause"""

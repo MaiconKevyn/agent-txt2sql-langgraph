@@ -1,0 +1,872 @@
+{
+  "summary": {
+    "total_questions": 5,
+    "successful_evaluations": 5,
+    "agent_success_rate": 1.0,
+    "metric_scores": {
+      "Exact Match (EM)": 0.2,
+      "Execution Accuracy (EX)": 0.2,
+      "Component Matching (CM)": 0.552
+    },
+    "metric_accuracies": {
+      "Exact Match (EM)": 0.2,
+      "Execution Accuracy (EX)": 0.2,
+      "Component Matching (CM)": 0.2
+    },
+    "evaluation_time_seconds": 3.27417,
+    "database_enabled": true,
+    "timestamp": "2025-09-29T08:18:09.574513"
+  },
+  "individual_results": [
+    {
+      "question_id": "GT042",
+      "question": "Quantas internações ocorreram em 2015?",
+      "ground_truth_sql": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+      "predicted_sql": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+            "predicted_original": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015",
+            "predicted_normalized": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+            "match": false,
+            "length_difference": -42,
+            "first_difference_position": 19,
+            "first_difference_context": {
+              "ground_truth": "UNT(*) AS internacoe",
+              "predicted": "UNT(*) AS total_inte"
+            },
+            "word_count_difference": -6,
+            "differing_words": [
+              {
+                "position": 3,
+                "ground_truth": "internacoes_2015",
+                "predicted": "total_internacoes"
+              },
+              {
+                "position": 6,
+                "ground_truth": "WHERE",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 7,
+                "ground_truth": "EXTRACT(YEAR",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 8,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 9,
+                "ground_truth": "\"DT_INTER\")",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.55,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.55,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "gt_columns": [
+                  "COUNT(*) AS internacoes_2015"
+                ],
+                "pred_columns": [
+                  "COUNT(*) AS total_internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT(*) AS internacoes_2015",
+              "from": "internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT(*) AS total_internacoes",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  758854
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT008",
+      "question": "Quantos casos de condições especiais foram registrados?",
+      "ground_truth_sql": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas;",
+      "predicted_sql": "SELECT COUNT(*) FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas;",
+            "predicted_original": "SELECT COUNT(*) FROM internacoes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas",
+            "predicted_normalized": "SELECT COUNT(*) FROM internacoes",
+            "match": false,
+            "length_difference": -29,
+            "first_difference_position": 16,
+            "first_difference_context": {
+              "ground_truth": " COUNT(*) AS total_c",
+              "predicted": " COUNT(*) FROM inter"
+            },
+            "word_count_difference": -2,
+            "differing_words": [
+              {
+                "position": 2,
+                "ground_truth": "AS",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "total_condicoes",
+                "predicted": "internacoes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 5,
+                "ground_truth": "condicoes_especificas",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": []
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.55,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.55,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "gt_columns": [
+                  "COUNT(*) AS total_condicoes"
+                ],
+                "pred_columns": [
+                  "COUNT(*)"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "from": {
+                "gt_tables": [
+                  "condicoes_especificas ;"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT(*) AS total_condicoes",
+              "from": "condicoes_especificas ;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT(*)",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  1118626
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT002",
+      "question": "Quantas mortes foram registradas?",
+      "ground_truth_sql": "SELECT COUNT(*) AS total_mortes FROM mortes;",
+      "predicted_sql": "SELECT COUNT(*) AS total_mortes FROM mortes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS total_mortes FROM mortes;",
+            "predicted_original": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "predicted_normalized": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "match": true
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.8,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.8,
+            "component_scores": {
+              "select": 1.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "gt_columns": [
+                  "COUNT(*) AS total_mortes"
+                ],
+                "pred_columns": [
+                  "COUNT(*) AS total_mortes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "from": {
+                "gt_tables": [
+                  "mortes ;"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT(*) AS total_mortes",
+              "from": "mortes ;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT(*) AS total_mortes",
+              "from": "mortes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": true,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT049",
+      "question": "Qual o procedimento com maior valor médio?",
+      "ground_truth_sql": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1;",
+      "predicted_sql": "SELECT COUNT(*) FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1;",
+            "predicted_original": "SELECT COUNT(*) FROM internacoes",
+            "ground_truth_normalized": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1",
+            "predicted_normalized": "SELECT COUNT(*) FROM internacoes",
+            "match": false,
+            "length_difference": -142,
+            "first_difference_position": 7,
+            "first_difference_context": {
+              "ground_truth": "SELECT \"PROC_REA\"",
+              "predicted": "SELECT COUNT(*) F"
+            },
+            "word_count_difference": -22,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "\"PROC_REA\",",
+                "predicted": "COUNT(*)"
+              },
+              {
+                "position": 2,
+                "ground_truth": "AVG(\"VAL_TOT\")",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "AS",
+                "predicted": "internacoes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "valor_medio",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 5,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Missing GROUP BY clause",
+              "Missing ORDER BY clause",
+              "Missing LIMIT clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.38,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.38,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 0.0,
+              "order_by": 0.0,
+              "having": 1.0,
+              "limit": 0.0
+            },
+            "component_details": {
+              "select": {
+                "gt_columns": [
+                  "\"PROC_REA\"",
+                  "AVG(\"VAL_TOT\") AS valor_medio"
+                ],
+                "pred_columns": [
+                  "COUNT(*)"
+                ],
+                "intersection_count": 0,
+                "union_count": 3,
+                "jaccard_similarity": 0.0
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "one_empty"
+              },
+              "order_by": {
+                "match": "one_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "one_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "\"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio",
+              "from": "internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL",
+              "where": "",
+              "group_by": "\"PROC_REA\"",
+              "having": "",
+              "order_by": "valor_medio DESC",
+              "limit": "1 ;",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT(*)",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  "0201010038",
+                  0.0
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT019",
+      "question": "Qual município tem a maior população segundo dados do IBGE?",
+      "ground_truth_sql": "SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;",
+      "predicted_sql": "SELECT COUNT(*) FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;",
+            "predicted_original": "SELECT COUNT(*) FROM internacoes",
+            "ground_truth_normalized": "SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1",
+            "predicted_normalized": "SELECT COUNT(*) FROM internacoes",
+            "match": false,
+            "length_difference": -75,
+            "first_difference_position": 7,
+            "first_difference_context": {
+              "ground_truth": "SELECT nome_munic",
+              "predicted": "SELECT COUNT(*) F"
+            },
+            "word_count_difference": -12,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "nome_municipio,",
+                "predicted": "COUNT(*)"
+              },
+              {
+                "position": 2,
+                "ground_truth": "populacao",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "FROM",
+                "predicted": "internacoes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "dado_ibge",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 5,
+                "ground_truth": "WHERE",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Missing ORDER BY clause",
+              "Missing LIMIT clause"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.48,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.48,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 0.0,
+              "having": 1.0,
+              "limit": 0.0
+            },
+            "component_details": {
+              "select": {
+                "gt_columns": [
+                  "nome_municipio",
+                  "populacao"
+                ],
+                "pred_columns": [
+                  "COUNT(*)"
+                ],
+                "intersection_count": 0,
+                "union_count": 3,
+                "jaccard_similarity": 0.0
+              },
+              "from": {
+                "gt_tables": [
+                  "dado_ibge WHERE populacao IS NOT"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "one_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "one_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "nome_municipio, populacao",
+              "from": "dado_ibge WHERE populacao IS NOT NULL",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "populacao DESC",
+              "limit": "1 ;",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT(*)",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  "MaceiÃ³",
+                  957.92
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "config": {
+    "sample_size": 5,
+    "difficulty_filter": null,
+    "database_enabled": true,
+    "metrics_count": 3
+  }
+}

@@ -1,0 +1,521 @@
+{
+  "summary": {
+    "total_questions": 3,
+    "successful_evaluations": 3,
+    "agent_success_rate": 1.0,
+    "metric_scores": {
+      "Execution Accuracy (EX)": 0.3333333333333333,
+      "Component Matching (CM)": 0.775,
+      "Exact Match (EM)": 0.3333333333333333
+    },
+    "metric_accuracies": {
+      "Execution Accuracy (EX)": 0.3333333333333333,
+      "Component Matching (CM)": 0.6666666666666666,
+      "Exact Match (EM)": 0.3333333333333333
+    },
+    "evaluation_time_seconds": 0.953554,
+    "database_enabled": true,
+    "timestamp": "2025-09-29T08:32:49.872762"
+  },
+  "individual_results": [
+    {
+      "question_id": "GT042",
+      "question": "Quantas internações ocorreram em 2015?",
+      "ground_truth_sql": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+      "predicted_sql": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
+            "predicted_original": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015",
+            "predicted_normalized": "SELECT COUNT(*) AS total_internacoes FROM internacoes",
+            "match": false,
+            "length_difference": -42,
+            "first_difference_position": 19,
+            "first_difference_context": {
+              "ground_truth": "UNT(*) AS internacoe",
+              "predicted": "UNT(*) AS total_inte"
+            },
+            "word_count_difference": -6,
+            "differing_words": [
+              {
+                "position": 3,
+                "ground_truth": "internacoes_2015",
+                "predicted": "total_internacoes"
+              },
+              {
+                "position": 6,
+                "ground_truth": "WHERE",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 7,
+                "ground_truth": "EXTRACT(YEAR",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 8,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 9,
+                "ground_truth": "\"DT_INTER\")",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.8,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.8,
+            "component_scores": {
+              "select": 1.0,
+              "from": 1.0,
+              "where": 0.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 1.0,
+                "gt_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "exact_match": true
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "where": {
+                "match": "one_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( * ) internacoes_2015",
+              "from": "internacoes",
+              "where": "EXTRACT ( YEAR FROM \"DT_INTER\" ) = 2015 ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( * ) total_internacoes",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  758854
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT008",
+      "question": "Quantos casos de condições especiais foram registrados?",
+      "ground_truth_sql": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas;",
+      "predicted_sql": "SELECT COUNT(*) FROM internacoes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas;",
+            "predicted_original": "SELECT COUNT(*) FROM internacoes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas",
+            "predicted_normalized": "SELECT COUNT(*) FROM internacoes",
+            "match": false,
+            "length_difference": -29,
+            "first_difference_position": 16,
+            "first_difference_context": {
+              "ground_truth": " COUNT(*) AS total_c",
+              "predicted": " COUNT(*) FROM inter"
+            },
+            "word_count_difference": -2,
+            "differing_words": [
+              {
+                "position": 2,
+                "ground_truth": "AS",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "total_condicoes",
+                "predicted": "internacoes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 5,
+                "ground_truth": "condicoes_especificas",
+                "predicted": "<EXTRA>"
+              }
+            ],
+            "common_errors": []
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.725,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.725,
+            "component_scores": {
+              "select": 0.7,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.7,
+                "gt_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( * )"
+                ],
+                "gt_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( * )"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "condicoes_especificas ;"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( * ) total_condicoes",
+              "from": "condicoes_especificas ;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( * )",
+              "from": "internacoes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  1118626
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  11022199
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT002",
+      "question": "Quantas mortes foram registradas?",
+      "ground_truth_sql": "SELECT COUNT(*) AS total_mortes FROM mortes;",
+      "predicted_sql": "SELECT COUNT(*) AS total_mortes FROM mortes",
+      "agent_success": true,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS total_mortes FROM mortes;",
+            "predicted_original": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "ground_truth_normalized": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "predicted_normalized": "SELECT COUNT(*) AS total_mortes FROM mortes",
+            "match": true
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.8,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "overall_score": 0.8,
+            "component_scores": {
+              "select": 1.0,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 1.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 1.0,
+                "gt_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "exact_match": true
+              },
+              "from": {
+                "gt_tables": [
+                  "mortes ;"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( * ) total_mortes",
+              "from": "mortes ;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( * ) total_mortes",
+              "from": "mortes",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error_message": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": true,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "config": {
+    "sample_size": 3,
+    "difficulty_filter": null,
+    "database_enabled": true,
+    "metrics_count": 3
+  }
+}
