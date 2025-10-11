@@ -1,15 +1,15 @@
 {
-  "evaluation_timestamp": "2025-09-28T23:19:46.378295",
+  "evaluation_timestamp": "2025-10-08T21:37:36.828504",
   "total_questions": 10,
   "summary": {
     "metric_scores": {
       "Exact Match (EM)": 0.0,
-      "Component Matching (CM)": 0.65,
+      "Component Matching (CM)": 0.825,
       "Execution Accuracy (EX)": 0
     },
     "metric_accuracy": {
       "Exact Match (EM)": 0.0,
-      "Component Matching (CM)": 0.0,
+      "Component Matching (CM)": 0.5,
       "Execution Accuracy (EX)": 0
     }
   },
@@ -26,8 +26,8 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.75,
-          "is_correct": false,
+          "score": 0.925,
+          "is_correct": true,
           "error": null
         }
       }
@@ -44,8 +44,8 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.75,
-          "is_correct": false,
+          "score": 0.925,
+          "is_correct": true,
           "error": null
         }
       }
@@ -62,8 +62,8 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.75,
-          "is_correct": false,
+          "score": 0.925,
+          "is_correct": true,
           "error": null
         }
       }
@@ -80,8 +80,8 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.75,
-          "is_correct": false,
+          "score": 0.925,
+          "is_correct": true,
           "error": null
         }
       }
@@ -98,8 +98,8 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.75,
-          "is_correct": false,
+          "score": 0.925,
+          "is_correct": true,
           "error": null
         }
       }
@@ -116,7 +116,7 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.55,
+          "score": 0.725,
           "is_correct": false,
           "error": null
         }
@@ -134,7 +134,7 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.55,
+          "score": 0.725,
           "is_correct": false,
           "error": null
         }
@@ -152,7 +152,7 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.55,
+          "score": 0.725,
           "is_correct": false,
           "error": null
         }
@@ -170,7 +170,7 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.55,
+          "score": 0.725,
           "is_correct": false,
           "error": null
         }
@@ -188,7 +188,7 @@
           "error": null
         },
         "Component Matching (CM)": {
-          "score": 0.55,
+          "score": 0.725,
           "is_correct": false,
           "error": null
         }
