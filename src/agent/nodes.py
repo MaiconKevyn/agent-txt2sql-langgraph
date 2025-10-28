@@ -590,6 +590,23 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         6. Include LIMIT clauses when appropriate (default LIMIT 100)
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+
+         CRITICAL DISEASE LOOKUP RULE - ALWAYS JOIN WITH CID10 TABLE:
+        9. For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
+        10. NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN, CID_MORTE)
+        11. ALWAYS use the cid10 table to get proper disease descriptions and search there
+        12. Pattern: JOIN cid10 c ON [table]."[CID_FIELD]" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
+
+         INTELLIGENT MEDICAL SEARCH RULES:
+        13. When user asks about diseases, USE YOUR MEDICAL KNOWLEDGE to expand search terms
+        14. For diabetes: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
+        15. For cardiovascular diseases: combine CID codes (I00-I99) AND flexible patterns ('%card%', '%miocardio%', '%arterial%', '%vascular%', '%circulatorio%')
+        16. For respiratory diseases: combine CID codes (J00-J99) AND patterns ('%respir%', '%pulm%', '%pneum%', '%bronqu%')
+        17. For cancer/neoplasms: combine CID codes (C00-D48) AND patterns ('%cancer%', '%tumor%', '%neoplasia%', '%carcinoma%')
+        18. For infectious diseases: combine CID codes (A00-B99) AND patterns ('%infec%', '%virus%', '%bacter%')
+        19. ALWAYS use OR conditions to capture related terms that you know are medically equivalent
+        20. Don't be literal - use your medical training to find ALL relevant conditions
+        21. Example: "doença cardiovascular" should search: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%']))
         
          DATABASE SCHEMA:
         {schema_context}"""),

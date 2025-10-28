@@ -1,44 +1,264 @@
 {
-  "evaluation_timestamp": "2025-10-08T22:29:11.923841",
-  "total_questions": 52,
-  "agent_type": "LangGraphOrchestrator",
+  "evaluation_timestamp": "2025-10-27T23:28:58.746604",
+  "configuration": {
+    "llm_provider": "ollama",
+    "llm_model": "llama3.1:8b"
+  },
   "agent_config": {
     "provider": "ollama",
     "model": "llama3.1:8b"
   },
-  "database_connected": true,
-  "execution_accuracy_enabled": true,
-  "agent_stats": {
-    "success_count": 48,
-    "failure_count": 4,
-    "total_time": 613.9275221824646
-  },
   "summary": {
-    "metric_scores": {
-      "Exact Match (EM)": 0.0,
-      "Component Matching (CM)": 0.54875,
-      "Execution Accuracy (EX)": 0.7291666666666666
+    "total_questions": 55,
+    "agent_success_rate": 0.9272727272727272,
+    "agent_failure_rate": 0.07272727272727272,
+    "total_execution_time": 652.9450657367706,
+    "avg_execution_time": 11.871728467941285
+  },
+  "metrics": {
+    "Exact Match (EM)": {
+      "average_score": 0.0,
+      "accuracy": 0.0,
+      "perfect_matches": 0,
+      "total_evaluated": 51
     },
-    "metric_accuracy": {
-      "Exact Match (EM)": 0.0,
-      "Component Matching (CM)": 0.25,
-      "Execution Accuracy (EX)": 0.7291666666666666
+    "Component Matching (CM)": {
+      "average_score": 0.5307352941176471,
+      "accuracy": 0.23529411764705882,
+      "perfect_matches": 0,
+      "total_evaluated": 51
     },
-    "difficulty_breakdown": {
-      "easy": {
-        "total": 22,
-        "agent_success": 22,
-        "ex_correct": 20
-      },
-      "medium": {
-        "total": 17,
-        "agent_success": 15,
-        "ex_correct": 8
-      },
-      "hard": {
-        "total": 13,
-        "agent_success": 11,
-        "ex_correct": 7
+    "Execution Accuracy (EX)": {
+      "average_score": 0.6862745098039216,
+      "accuracy": 0.6862745098039216,
+      "perfect_matches": 35,
+      "total_evaluated": 51
+    }
+  },
+  "difficulty_breakdown": {
+    "easy": {
+      "total": 19,
+      "agent_success": 18,
+      "metrics": {
+        "Exact Match (EM)": {
+          "correct": 0,
+          "total": 18,
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "Component Matching (CM)": {
+          "correct": 9,
+          "total": 18,
+          "scores": [
+            0.75,
+            0.925,
+            0.75,
+            0.75,
+            0.925,
+            0.525,
+            0.925,
+            0.925,
+            0.925,
+            0.925,
+            0.925,
+            0.925,
+            0.55,
+            0.55,
+            0.725,
+            0.35,
+            0.925,
+            0.05
+          ]
+        },
+        "Execution Accuracy (EX)": {
+          "correct": 17,
+          "total": 18,
+          "scores": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    "medium": {
+      "total": 18,
+      "agent_success": 17,
+      "metrics": {
+        "Exact Match (EM)": {
+          "correct": 0,
+          "total": 17,
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "Component Matching (CM)": {
+          "correct": 2,
+          "total": 17,
+          "scores": [
+            0.55,
+            0.4,
+            0.55,
+            0.2,
+            0.2,
+            0.48,
+            0.8,
+            0.705,
+            0.25,
+            0.55,
+            0.48,
+            0.4,
+            0.525,
+            0.25,
+            0.925,
+            0.45,
+            0.4
+          ]
+        },
+        "Execution Accuracy (EX)": {
+          "correct": 9,
+          "total": 17,
+          "scores": [
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0
+          ]
+        }
+      }
+    },
+    "hard": {
+      "total": 18,
+      "agent_success": 16,
+      "metrics": {
+        "Exact Match (EM)": {
+          "correct": 0,
+          "total": 16,
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "Component Matching (CM)": {
+          "correct": 1,
+          "total": 16,
+          "scores": [
+            0.2,
+            0.4,
+            0.2,
+            0.4,
+            0.92,
+            0.6,
+            0.375,
+            0.2,
+            0.12000000000000001,
+            0.25,
+            0.525,
+            0.2,
+            0.3625,
+            0.2,
+            0.05,
+            0.625
+          ]
+        },
+        "Execution Accuracy (EX)": {
+          "correct": 9,
+          "total": 16,
+          "scores": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        }
       }
     }
   },
@@ -50,7 +270,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_internacoes FROM internacoes;",
       "predicted_sql": "SELECT COUNT(\"N_AIH\") FROM internacoes;",
       "agent_success": true,
-      "agent_execution_time": 17.41963839530945,
+      "agent_execution_time": 8.247599601745605,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -222,7 +442,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_mortes FROM mortes;",
       "predicted_sql": "SELECT COUNT(*) FROM mortes;",
       "agent_success": true,
-      "agent_execution_time": 6.534258842468262,
+      "agent_execution_time": 6.646198511123657,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -387,7 +607,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_procedimentos FROM procedimentos;",
       "predicted_sql": "SELECT COUNT(DISTINCT \"PROC_REA\") FROM procedimentos;",
       "agent_success": true,
-      "agent_execution_time": 6.48292875289917,
+      "agent_execution_time": 6.488600015640259,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -559,7 +779,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_cids FROM cid10;",
       "predicted_sql": "SELECT COUNT(\"CID\") FROM cid10;",
       "agent_success": true,
-      "agent_execution_time": 5.963936805725098,
+      "agent_execution_time": 6.2329487800598145,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -731,7 +951,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_hospitais FROM hospital;",
       "predicted_sql": "SELECT COUNT(*) FROM hospital;",
       "agent_success": true,
-      "agent_execution_time": 5.647875547409058,
+      "agent_execution_time": 6.039952516555786,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -896,7 +1116,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_municipios FROM dado_ibge;",
       "predicted_sql": "SELECT COUNT(*) FROM dado_ibge WHERE \"populacao\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 7.785322189331055,
+      "agent_execution_time": 8.754113912582397,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1069,7 +1289,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_uti FROM uti_detalhes;",
       "predicted_sql": "SELECT COUNT(*) FROM uti_detalhes;",
       "agent_success": true,
-      "agent_execution_time": 6.082506895065308,
+      "agent_execution_time": 6.69311261177063,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1234,7 +1454,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_condicoes FROM condicoes_especificas;",
       "predicted_sql": "SELECT COUNT(*) FROM condicoes_especificas;",
       "agent_success": true,
-      "agent_execution_time": 5.997838497161865,
+      "agent_execution_time": 6.369146347045898,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1399,7 +1619,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_cbor FROM cbor;",
       "predicted_sql": "SELECT COUNT(*) FROM cbor;",
       "agent_success": true,
-      "agent_execution_time": 5.180985927581787,
+      "agent_execution_time": 5.919055700302124,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1564,7 +1784,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_obstetricos FROM obstetricos;",
       "predicted_sql": "SELECT COUNT(*) FROM obstetricos;",
       "agent_success": true,
-      "agent_execution_time": 5.93370246887207,
+      "agent_execution_time": 6.283360958099365,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1729,7 +1949,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_vincprev FROM vincprev;",
       "predicted_sql": "SELECT COUNT(*) FROM vincprev;",
       "agent_success": true,
-      "agent_execution_time": 5.315639495849609,
+      "agent_execution_time": 5.573148727416992,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -1894,7 +2114,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS total_instrucao FROM instrucao;",
       "predicted_sql": "SELECT COUNT(*) FROM instrucao;",
       "agent_success": true,
-      "agent_execution_time": 5.4547178745269775,
+      "agent_execution_time": 5.781409502029419,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -2059,7 +2279,7 @@
       "ground_truth_sql": "SELECT COUNT(*) AS homens FROM internacoes WHERE \"SEXO\" = 1;",
       "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM internacoes i WHERE i.\"SEXO\" = 1;",
       "agent_success": true,
-      "agent_execution_time": 8.187819719314575,
+      "agent_execution_time": 8.648073673248291,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -2233,31 +2453,166 @@
       }
     },
     {
-      "question_id": "GT015",
+      "question_id": "GT014",
       "difficulty": "medium",
       "question": "Quantas mortes foram causadas por doenças cardiovasculares?",
       "ground_truth_sql": "SELECT COUNT(*) AS mortes_cardiovasculares FROM mortes WHERE \"CID_MORTE\" LIKE 'I%';",
-      "predicted_sql": "",
-      "agent_success": false,
-      "agent_execution_time": 54.167845487594604,
+      "predicted_sql": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE (c.\"CID\" LIKE 'I%' OR c.\"CD_DESCRICAO\" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%'])) AND mo.\"CID_MORTE\" IS NOT NULL;",
+      "agent_success": true,
+      "agent_execution_time": 11.825798749923706,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_normalized": "",
-            "predicted_normalized": "",
-            "reason": "Empty or missing SQL query"
+            "ground_truth_original": "SELECT COUNT(*) AS mortes_cardiovasculares FROM mortes WHERE \"CID_MORTE\" LIKE 'I%';",
+            "predicted_original": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE (c.\"CID\" LIKE 'I%' OR c.\"CD_DESCRICAO\" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%'])) AND mo.\"CID_MORTE\" IS NOT NULL;",
+            "ground_truth_normalized": "SELECT COUNT(*) AS mortes_cardiovasculares FROM mortes WHERE \"CID_MORTE\" LIKE 'I%'",
+            "predicted_normalized": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE (c.\"CID\" LIKE 'I%' OR c.\"CD_DESCRICAO\" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%'])) AND mo.\"CID_MORTE\" IS NOT NULL",
+            "match": false,
+            "length_difference": 176,
+            "first_difference_position": 13,
+            "first_difference_context": {
+              "ground_truth": "ECT COUNT(*) AS mort",
+              "predicted": "ECT COUNT(mo.\"N_AIH\""
+            },
+            "word_count_difference": 24,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "COUNT(*)",
+                "predicted": "COUNT(mo.\"N_AIH\")"
+              },
+              {
+                "position": 2,
+                "ground_truth": "AS",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "mortes_cardiovasculares",
+                "predicted": "mortes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "FROM",
+                "predicted": "mo"
+              },
+              {
+                "position": 5,
+                "ground_truth": "mortes",
+                "predicted": "JOIN"
+              }
+            ],
+            "common_errors": [
+              "Quote mismatch (identifier quoting)",
+              "Unexpected JOIN operation"
+            ]
           }
         },
         "Component Matching (CM)": {
-          "score": 0.0,
+          "score": 0.4,
           "is_correct": false,
           "error": null,
           "details": {
-            "reason": "Empty or missing SQL query",
-            "component_scores": {}
+            "overall_score": 0.4,
+            "component_scores": {
+              "select": 0.0,
+              "from": 1.0,
+              "where": 0.0,
+              "joins": 0.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( mo . \"N_AIH\" )"
+                ],
+                "gt_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( mo . \"N_AIH\" )"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "mortes"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "where": {
+                "gt_conditions": [
+                  "\"CID_MORTE\" LIKE 'I%' "
+                ],
+                "pred_conditions": [
+                  "( c . \"CID\" LIKE 'I%'",
+                  "c . \"CD_DESCRICAO\" ILIKE ANY ( ARRAY [ '%card%' , '%miocardio%' , '%vascular%' ] ) ) mo . \"CID_MORTE\" "
+                ],
+                "intersection_count": 0,
+                "union_count": 3,
+                "jaccard_similarity": 0.0
+              },
+              "joins": {
+                "match": "one_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( * ) mortes_cardiovasculares",
+              "from": "mortes",
+              "where": "\"CID_MORTE\" LIKE 'I%' ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( mo . \"N_AIH\" )",
+              "from": "mortes mo",
+              "where": "( c . \"CID\" LIKE 'I%' OR c . \"CD_DESCRICAO\" ILIKE ANY ( ARRAY [ '%card%' , '%miocardio%' , '%vascular%' ] ) ) mo . \"CID_MORTE\" ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": "internacoes i mo . \"N_AIH\" = i . \"N_AIH\" cid10 c i . \"DIAG_PRINC\" = c . \"CID\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
           }
         },
         "Execution Accuracy (EX)": {
@@ -2265,21 +2620,41 @@
           "is_correct": false,
           "error": null,
           "details": {
-            "reason": "Empty or missing SQL query",
-            "ground_truth_executed": false,
-            "predicted_executed": false
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  49962
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  104465
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
           }
         }
       }
     },
     {
-      "question_id": "GT016",
+      "question_id": "GT015",
       "difficulty": "medium",
       "question": "Qual a descrição do código CID A15?",
       "ground_truth_sql": "SELECT \"CD_DESCRICAO\" FROM cid10 WHERE \"CID\" = 'A15';",
       "predicted_sql": "SELECT c.\"CD_DESCRICAO\" FROM cid10 c WHERE c.\"CID\" = 'A15';",
       "agent_success": true,
-      "agent_execution_time": 6.385850191116333,
+      "agent_execution_time": 6.848116397857666,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -2451,13 +2826,13 @@
       }
     },
     {
-      "question_id": "GT017",
+      "question_id": "GT016",
       "difficulty": "medium",
       "question": "Quantos casos de VDRL positivo foram registrados?",
       "ground_truth_sql": "SELECT COUNT(*) AS vdrl_positivo FROM condicoes_especificas WHERE \"IND_VDRL\" = '1';",
       "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM internacoes i JOIN condicoes_especificas c ON i.\"N_AIH\" = c.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1';",
       "agent_success": true,
-      "agent_execution_time": 22.609733819961548,
+      "agent_execution_time": 12.425305366516113,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -2632,13 +3007,13 @@
       }
     },
     {
-      "question_id": "GT018",
+      "question_id": "GT017",
       "difficulty": "medium",
       "question": "Qual o tempo médio de permanência em UTI?",
       "ground_truth_sql": "SELECT AVG(\"UTI_MES_TO\") AS tempo_medio_uti FROM uti_detalhes WHERE \"UTI_MES_TO\" > 0;",
       "predicted_sql": "SELECT AVG(i.\"QT_DIARIAS\") AS media_tempo_permanencia FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\";",
       "agent_success": true,
-      "agent_execution_time": 10.036681652069092,
+      "agent_execution_time": 8.775066137313843,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -2819,13 +3194,13 @@
       }
     },
     {
-      "question_id": "GT019",
+      "question_id": "GT018",
       "difficulty": "medium",
       "question": "Qual município tem a maior população segundo dados do IBGE?",
       "ground_truth_sql": "SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;",
       "predicted_sql": "SELECT \"nome_municipio\" FROM dado_ibge WHERE \"populacao\" = ( SELECT MAX(\"populacao\") FROM dado_ibge );",
       "agent_success": true,
-      "agent_execution_time": 8.737590312957764,
+      "agent_execution_time": 9.46827507019043,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3017,13 +3392,13 @@
       }
     },
     {
-      "question_id": "GT020",
+      "question_id": "GT019",
       "difficulty": "medium",
       "question": "Quantos casos obstétricos tiveram acompanhamento pré-natal?",
       "ground_truth_sql": "SELECT COUNT(*) AS com_prenatal FROM obstetricos WHERE \"INSC_PN\" IS NOT NULL AND \"INSC_PN\" != '';",
       "predicted_sql": "",
       "agent_success": false,
-      "agent_execution_time": 33.70608448982239,
+      "agent_execution_time": 32.5152108669281,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3057,13 +3432,13 @@
       }
     },
     {
-      "question_id": "GT021",
+      "question_id": "GT020",
       "difficulty": "hard",
       "question": "Quantas internações resultaram em óbito?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS internacoes_com_obito FROM internacoes i INNER JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
       "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE mo.\"CID_MORTE\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 11.105110883712769,
+      "agent_execution_time": 8.788480997085571,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3230,13 +3605,13 @@
       }
     },
     {
-      "question_id": "GT022",
+      "question_id": "GT021",
       "difficulty": "hard",
       "question": "Quais são os 5 procedimentos mais comuns (baseado em códigos únicos)?",
       "ground_truth_sql": "SELECT \"PROC_REA\", COUNT(*) AS total_realizacoes FROM internacoes WHERE \"PROC_REA\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY total_realizacoes DESC LIMIT 5;",
-      "predicted_sql": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Total\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5;",
+      "predicted_sql": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Quantidade\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5;",
       "agent_success": true,
-      "agent_execution_time": 17.436822414398193,
+      "agent_execution_time": 11.938109636306763,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3244,11 +3619,11 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT \"PROC_REA\", COUNT(*) AS total_realizacoes FROM internacoes WHERE \"PROC_REA\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY total_realizacoes DESC LIMIT 5;",
-            "predicted_original": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Total\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5;",
+            "predicted_original": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Quantidade\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5;",
             "ground_truth_normalized": "SELECT \"PROC_REA\", COUNT(*) AS total_realizacoes FROM internacoes WHERE \"PROC_REA\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY total_realizacoes DESC LIMIT 5",
-            "predicted_normalized": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Total\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5",
+            "predicted_normalized": "SELECT i.\"PROC_REA\" AS \"Procedimento\", COUNT(*) AS \"Quantidade\" FROM internacoes i GROUP BY i.\"PROC_REA\" ORDER BY COUNT(*) DESC LIMIT 5",
             "match": false,
-            "length_difference": -24,
+            "length_difference": -19,
             "first_difference_position": 7,
             "first_difference_context": {
               "ground_truth": "SELECT \"PROC_REA\"",
@@ -3313,7 +3688,7 @@
                 ],
                 "pred_items": [
                   "i . \"PROC_REA\" \"Procedimento\"",
-                  "COUNT ( * ) \"Total\""
+                  "COUNT ( * ) \"Quantidade\""
                 ],
                 "gt_normalized": [
                   "\"PROC_REA\"",
@@ -3321,7 +3696,7 @@
                 ],
                 "pred_normalized": [
                   "i . \"PROC_REA\" \"Procedimento\"",
-                  "COUNT ( * ) \"Total\""
+                  "COUNT ( * ) \"Quantidade\""
                 ],
                 "exact_match": false
               },
@@ -3376,7 +3751,7 @@
               "joins": ""
             },
             "predicted_components": {
-              "select": "i . \"PROC_REA\" \"Procedimento\" , COUNT ( * ) \"Total\"",
+              "select": "i . \"PROC_REA\" \"Procedimento\" , COUNT ( * ) \"Quantidade\"",
               "from": "internacoes i",
               "where": "",
               "group_by": "i . \"PROC_REA\"",
@@ -3417,13 +3792,13 @@
       }
     },
     {
-      "question_id": "GT023",
+      "question_id": "GT022",
       "difficulty": "hard",
       "question": "Quantos hospitais registraram pelo menos uma morte?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_com_mortes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
       "predicted_sql": "SELECT COUNT(DISTINCT i.\"CNES\") FROM internacoes i JOIN mortes mo ON i.\"N_AIH\" = mo.\"N_AIH\" WHERE mo.\"CID_MORTE\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 10.385799646377563,
+      "agent_execution_time": 10.916436672210693,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3592,13 +3967,13 @@
       }
     },
     {
-      "question_id": "GT024",
+      "question_id": "GT023",
       "difficulty": "hard",
       "question": "Quantas internações de UTI resultaram em óbito?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT u.\"N_AIH\") AS uti_com_obito FROM uti_detalhes u JOIN mortes m ON u.\"N_AIH\" = m.\"N_AIH\";",
-      "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_INT_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL;",
+      "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_MES_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 9.60409164428711,
+      "agent_execution_time": 9.33572793006897,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3606,9 +3981,9 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT COUNT(DISTINCT u.\"N_AIH\") AS uti_com_obito FROM uti_detalhes u JOIN mortes m ON u.\"N_AIH\" = m.\"N_AIH\";",
-            "predicted_original": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_INT_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL;",
+            "predicted_original": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_MES_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL;",
             "ground_truth_normalized": "SELECT COUNT(DISTINCT u.\"N_AIH\") AS uti_com_obito FROM uti_detalhes u JOIN mortes m ON u.\"N_AIH\" = m.\"N_AIH\"",
-            "predicted_normalized": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_INT_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL",
+            "predicted_normalized": "SELECT COUNT(i.\"N_AIH\") FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE u.\"UTI_MES_TO\" > 0 AND m.\"CID_MORTE\" IS NOT NULL",
             "match": false,
             "length_difference": 73,
             "first_difference_position": 13,
@@ -3728,7 +4103,7 @@
             "predicted_components": {
               "select": "COUNT ( i . \"N_AIH\" )",
               "from": "uti_detalhes u",
-              "where": "u . \"UTI_INT_TO\" > 0 m . \"CID_MORTE\" ;",
+              "where": "u . \"UTI_MES_TO\" > 0 m . \"CID_MORTE\" ;",
               "group_by": "",
               "having": "",
               "order_by": "",
@@ -3770,7 +4145,7 @@
               ],
               "extra_rows_sample": [
                 [
-                  0
+                  44
                 ]
               ],
               "overlap_ratio": 0.0
@@ -3780,13 +4155,13 @@
       }
     },
     {
-      "question_id": "GT025",
+      "question_id": "GT024",
       "difficulty": "hard",
       "question": "Quais hospitais têm mais de 1000 internações registradas?",
       "ground_truth_sql": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000 ORDER BY total_internacoes DESC;",
-      "predicted_sql": "SELECT \"CNES\", COUNT(*) AS total_internacoes FROM internacoes GROUP BY \"CNES\" HAVING COUNT(*) > 1000;",
+      "predicted_sql": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000;",
       "agent_success": true,
-      "agent_execution_time": 10.794523239135742,
+      "agent_execution_time": 12.919931650161743,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3794,116 +4169,106 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000 ORDER BY total_internacoes DESC;",
-            "predicted_original": "SELECT \"CNES\", COUNT(*) AS total_internacoes FROM internacoes GROUP BY \"CNES\" HAVING COUNT(*) > 1000;",
+            "predicted_original": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000;",
             "ground_truth_normalized": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000 ORDER BY total_internacoes DESC",
-            "predicted_normalized": "SELECT \"CNES\", COUNT(*) AS total_internacoes FROM internacoes GROUP BY \"CNES\" HAVING COUNT(*) > 1000",
+            "predicted_normalized": "SELECT h.\"CNES\", COUNT(i.\"N_AIH\") AS total_internacoes FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" GROUP BY h.\"CNES\" HAVING COUNT(i.\"N_AIH\") > 1000",
             "match": false,
-            "length_difference": -93,
-            "first_difference_position": 7,
-            "first_difference_context": {
-              "ground_truth": "SELECT h.\"CNES\", ",
-              "predicted": "SELECT \"CNES\", CO"
-            },
-            "word_count_difference": -12,
+            "length_difference": -32,
+            "word_count_difference": -4,
             "differing_words": [
               {
-                "position": 1,
-                "ground_truth": "h.\"CNES\",",
-                "predicted": "\"CNES\","
+                "position": 22,
+                "ground_truth": "ORDER",
+                "predicted": "<EXTRA>"
               },
               {
-                "position": 2,
-                "ground_truth": "COUNT(i.\"N_AIH\")",
-                "predicted": "COUNT(*)"
+                "position": 23,
+                "ground_truth": "BY",
+                "predicted": "<EXTRA>"
               },
               {
-                "position": 6,
-                "ground_truth": "hospital",
-                "predicted": "internacoes"
+                "position": 24,
+                "ground_truth": "total_internacoes",
+                "predicted": "<EXTRA>"
               },
               {
-                "position": 7,
-                "ground_truth": "h",
-                "predicted": "GROUP"
-              },
-              {
-                "position": 8,
-                "ground_truth": "JOIN",
-                "predicted": "BY"
+                "position": 25,
+                "ground_truth": "DESC",
+                "predicted": "<EXTRA>"
               }
             ],
             "common_errors": [
-              "Missing ORDER BY clause",
-              "Quote mismatch (identifier quoting)",
-              "Missing JOIN operation"
+              "Missing ORDER BY clause"
             ]
           }
         },
         "Component Matching (CM)": {
-          "score": 0.22,
-          "is_correct": false,
+          "score": 0.92,
+          "is_correct": true,
           "error": null,
           "details": {
-            "overall_score": 0.22,
+            "overall_score": 0.92,
             "component_scores": {
-              "select": 0.0,
-              "from": 0.0,
+              "select": 1.0,
+              "from": 1.0,
               "where": 1.0,
-              "joins": 0.0,
-              "group_by": 0.0,
+              "joins": 1.0,
+              "group_by": 1.0,
               "order_by": 0.0,
               "having": 0.0,
               "limit": 1.0
             },
             "component_details": {
               "select": {
-                "jaccard_similarity": 0.0,
+                "jaccard_similarity": 1.0,
                 "gt_items": [
                   "h . \"CNES\"",
                   "COUNT ( i . \"N_AIH\" ) AS <alias>"
                 ],
                 "pred_items": [
-                  "\"CNES\"",
-                  "COUNT ( * ) AS <alias>"
+                  "h . \"CNES\"",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
                 ],
                 "gt_normalized": [
                   "h . \"CNES\"",
                   "COUNT ( i . \"N_AIH\" ) AS <alias>"
                 ],
                 "pred_normalized": [
-                  "\"CNES\"",
-                  "COUNT ( * ) AS <alias>"
+                  "h . \"CNES\"",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
                 ],
-                "exact_match": false
+                "exact_match": true
               },
               "from": {
                 "gt_tables": [
                   "hospital"
                 ],
                 "pred_tables": [
-                  "internacoes"
+                  "hospital"
                 ],
-                "intersection_count": 0,
-                "union_count": 2,
-                "jaccard_similarity": 0.0
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
               },
               "where": {
                 "match": "both_empty"
               },
               "joins": {
-                "match": "one_empty"
+                "gt_normalized": "internacoes i h . \"CNES\" = i . \"CNES\"",
+                "pred_normalized": "internacoes i h . \"CNES\" = i . \"CNES\"",
+                "exact_match": true
               },
               "group_by": {
                 "gt_normalized": "h . \"CNES\"",
-                "pred_normalized": "\"CNES\"",
-                "exact_match": false
+                "pred_normalized": "h . \"CNES\"",
+                "exact_match": true
               },
               "order_by": {
                 "match": "one_empty"
               },
               "having": {
                 "gt_normalized": "COUNT ( i . \"N_AIH\" ) > 1000",
-                "pred_normalized": "COUNT ( * ) > 1000 ",
+                "pred_normalized": "COUNT ( i . \"N_AIH\" ) > 1000 ",
                 "exact_match": false
               },
               "limit": {
@@ -3921,14 +4286,14 @@
               "joins": "internacoes i h . \"CNES\" = i . \"CNES\""
             },
             "predicted_components": {
-              "select": "\"CNES\" , COUNT ( * ) total_internacoes",
-              "from": "internacoes",
+              "select": "h . \"CNES\" , COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "hospital h",
               "where": "",
-              "group_by": "\"CNES\"",
-              "having": "COUNT ( * ) > 1000 ;",
+              "group_by": "h . \"CNES\"",
+              "having": "COUNT ( i . \"N_AIH\" ) > 1000 ;",
               "order_by": "",
               "limit": "",
-              "joins": ""
+              "joins": "internacoes i h . \"CNES\" = i . \"CNES\""
             },
             "clause_weights": {
               "select": 0.25,
@@ -3962,13 +4327,13 @@
       }
     },
     {
-      "question_id": "GT026",
+      "question_id": "GT025",
       "difficulty": "hard",
       "question": "Quantas internações com condições especiais resultaram em morte?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS condicoes_com_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\";",
-      "predicted_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE ce.\"IND_VDRL\" IS NOT NULL;",
+      "predicted_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
       "agent_success": true,
-      "agent_execution_time": 9.158523321151733,
+      "agent_execution_time": 8.768235206604004,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -3976,17 +4341,17 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS condicoes_com_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\";",
-            "predicted_original": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE ce.\"IND_VDRL\" IS NOT NULL;",
+            "predicted_original": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
             "ground_truth_normalized": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS condicoes_com_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\"",
-            "predicted_normalized": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE ce.\"IND_VDRL\" IS NOT NULL",
+            "predicted_normalized": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM condicoes_especificas ce JOIN internacoes i ON ce.\"N_AIH\" = i.\"N_AIH\" JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\"",
             "match": false,
-            "length_difference": 55,
+            "length_difference": 23,
             "first_difference_position": 22,
             "first_difference_context": {
               "ground_truth": "(DISTINCT c.\"N_AIH\")",
               "predicted": "(DISTINCT i.\"N_AIH\")"
             },
-            "word_count_difference": 10,
+            "word_count_difference": 5,
             "differing_words": [
               {
                 "position": 2,
@@ -4015,21 +4380,20 @@
               }
             ],
             "common_errors": [
-              "Extra WHERE clause",
               "Quote mismatch (identifier quoting)"
             ]
           }
         },
         "Component Matching (CM)": {
-          "score": 0.4,
+          "score": 0.6,
           "is_correct": false,
           "error": null,
           "details": {
-            "overall_score": 0.4,
+            "overall_score": 0.6,
             "component_scores": {
               "select": 0.0,
               "from": 1.0,
-              "where": 0.0,
+              "where": 1.0,
               "joins": 0.0,
               "group_by": 1.0,
               "order_by": 1.0,
@@ -4065,11 +4429,11 @@
                 "jaccard_similarity": 1.0
               },
               "where": {
-                "match": "one_empty"
+                "match": "both_empty"
               },
               "joins": {
                 "gt_normalized": "mortes m c . \"N_AIH\" = m . \"N_AIH\" ",
-                "pred_normalized": "internacoes i ce . \"N_AIH\" = i . \"N_AIH\" mortes m i . \"N_AIH\" = m . \"N_AIH\"",
+                "pred_normalized": "internacoes i ce . \"N_AIH\" = i . \"N_AIH\" mortes m i . \"N_AIH\" = m . \"N_AIH\" ",
                 "exact_match": false
               },
               "group_by": {
@@ -4098,12 +4462,12 @@
             "predicted_components": {
               "select": "COUNT ( DISTINCT i . \"N_AIH\" )",
               "from": "condicoes_especificas ce",
-              "where": "ce . \"IND_VDRL\" ;",
+              "where": "",
               "group_by": "",
               "having": "",
               "order_by": "",
               "limit": "",
-              "joins": "internacoes i ce . \"N_AIH\" = i . \"N_AIH\" mortes m i . \"N_AIH\" = m . \"N_AIH\""
+              "joins": "internacoes i ce . \"N_AIH\" = i . \"N_AIH\" mortes m i . \"N_AIH\" = m . \"N_AIH\" ;"
             },
             "clause_weights": {
               "select": 0.25,
@@ -4137,13 +4501,13 @@
       }
     },
     {
-      "question_id": "GT027",
+      "question_id": "GT026",
       "difficulty": "hard",
       "question": "Qual o valor médio das internações que resultaram em óbito?",
       "ground_truth_sql": "SELECT AVG(i.\"VAL_TOT\") AS valor_medio_obitos FROM internacoes i JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"VAL_TOT\" IS NOT NULL;",
       "predicted_sql": "SELECT AVG(i.\"VAL_TOT\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\";",
       "agent_success": true,
-      "agent_execution_time": 9.270761966705322,
+      "agent_execution_time": 8.742025136947632,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -4312,13 +4676,13 @@
       }
     },
     {
-      "question_id": "GT028",
+      "question_id": "GT027",
       "difficulty": "hard",
       "question": "Quantos casos CBOR tiveram acompanhamento em UTI?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS cbor_com_uti FROM cbor c JOIN uti_detalhes u ON c.\"N_AIH\" = u.\"N_AIH\";",
       "predicted_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") FROM internacoes i JOIN cbor cb ON i.\"N_AIH\" = cb.\"N_AIH\" JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" WHERE cb.\"CBOR\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 9.07146430015564,
+      "agent_execution_time": 8.73364543914795,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -4487,13 +4851,13 @@
       }
     },
     {
-      "question_id": "GT029",
+      "question_id": "GT028",
       "difficulty": "hard",
       "question": "Qual a taxa de mortalidade por município (top 10)?",
       "ground_truth_sql": "SELECT i.\"MUNIC_RES\", COUNT(DISTINCT i.\"N_AIH\") as internacoes, COUNT(DISTINCT m.\"N_AIH\") as mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) as taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"MUNIC_RES\" IS NOT NULL GROUP BY i.\"MUNIC_RES\" HAVING COUNT(DISTINCT i.\"N_AIH\") > 100 ORDER BY taxa_mortalidade DESC LIMIT 10;",
       "predicted_sql": "",
       "agent_success": false,
-      "agent_execution_time": 11.78622841835022,
+      "agent_execution_time": 67.44272541999817,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -4527,13 +4891,13 @@
       }
     },
     {
-      "question_id": "GT030",
+      "question_id": "GT029",
       "difficulty": "hard",
       "question": "Quais códigos de procedimento têm maior taxa de mortalidade (top 5)?",
       "ground_truth_sql": "SELECT i.\"PROC_REA\", COUNT(DISTINCT i.\"N_AIH\") as total_casos, COUNT(DISTINCT m.\"N_AIH\") as mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) as taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"PROC_REA\" IS NOT NULL GROUP BY i.\"PROC_REA\" HAVING COUNT(DISTINCT i.\"N_AIH\") > 100 ORDER BY taxa_mortalidade DESC LIMIT 5;",
       "predicted_sql": "SELECT p.\"PROC_REA\", COUNT(mo.\"N_AIH\") AS total_mortes, COUNT(i.\"N_AIH\") - COUNT(mo.\"N_AIH\") AS total_internacoes, ROUND(COUNT(mo.\"N_AIH\") * 100.0 / (COUNT(i.\"N_AIH\") - COUNT(mo.\"N_AIH\")), 2) AS taxa_mortalidade FROM internacoes i JOIN mortes mo ON i.\"N_AIH\" = mo.\"N_AIH\" JOIN procedimentos p ON i.\"PROC_REA\" = p.\"PROC_REA\" GROUP BY p.\"PROC_REA\" ORDER BY taxa_mortalidade DESC LIMIT 5;",
       "agent_success": true,
-      "agent_execution_time": 13.969414710998535,
+      "agent_execution_time": 12.660784006118774,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -4728,13 +5092,13 @@
       }
     },
     {
-      "question_id": "GT031",
+      "question_id": "GT030",
       "difficulty": "medium",
       "question": "Qual é o valor médio de UTI para homens?",
       "ground_truth_sql": "SELECT AVG(u.\"VAL_UTI\") AS valor_medio_uti_homens FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"SEXO\" = 1 AND u.\"VAL_UTI\" IS NOT NULL;",
       "predicted_sql": "SELECT AVG(u.\"VAL_UTI\") AS media_uti_homem FROM uti_detalhes u JOIN internacoes i ON u.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"SEXO\" = 1;",
       "agent_success": true,
-      "agent_execution_time": 14.735765933990479,
+      "agent_execution_time": 13.930169105529785,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -4910,13 +5274,13 @@
       }
     },
     {
-      "question_id": "GT032",
+      "question_id": "GT031",
       "difficulty": "easy",
       "question": "Quantas mulheres foram internadas?",
       "ground_truth_sql": "SELECT COUNT(*) AS total_mulheres FROM internacoes WHERE \"SEXO\" = 3;",
       "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM internacoes i WHERE i.\"SEXO\" = 3;",
       "agent_success": true,
-      "agent_execution_time": 7.916042327880859,
+      "agent_execution_time": 7.007964611053467,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -5090,381 +5454,13 @@
       }
     },
     {
-      "question_id": "GT033",
-      "difficulty": "easy",
-      "question": "Qual o valor total das diárias hospitalares?",
-      "ground_truth_sql": "SELECT SUM(\"QT_DIARIAS\") AS total_diarias FROM internacoes WHERE \"QT_DIARIAS\" IS NOT NULL;",
-      "predicted_sql": "SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das Diarias Hospitalares\" FROM internacoes i GROUP BY i.\"VAL_TOT\";",
-      "agent_success": true,
-      "agent_execution_time": 11.527727365493774,
-      "metrics": {
-        "Exact Match (EM)": {
-          "score": 0.0,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "ground_truth_original": "SELECT SUM(\"QT_DIARIAS\") AS total_diarias FROM internacoes WHERE \"QT_DIARIAS\" IS NOT NULL;",
-            "predicted_original": "SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das Diarias Hospitalares\" FROM internacoes i GROUP BY i.\"VAL_TOT\";",
-            "ground_truth_normalized": "SELECT SUM(\"QT_DIARIAS\") AS total_diarias FROM internacoes WHERE \"QT_DIARIAS\" IS NOT NULL",
-            "predicted_normalized": "SELECT SUM(i.\"QT_DIARIAS\") * i.\"VAL_TOT\" AS \"Valor Total Das Diarias Hospitalares\" FROM internacoes i GROUP BY i.\"VAL_TOT\"",
-            "match": false,
-            "length_difference": 33,
-            "first_difference_position": 11,
-            "first_difference_context": {
-              "ground_truth": "ELECT SUM(\"QT_DIARIA",
-              "predicted": "ELECT SUM(i.\"QT_DIAR"
-            },
-            "word_count_difference": 5,
-            "differing_words": [
-              {
-                "position": 1,
-                "ground_truth": "SUM(\"QT_DIARIAS\")",
-                "predicted": "SUM(i.\"QT_DIARIAS\")"
-              },
-              {
-                "position": 2,
-                "ground_truth": "AS",
-                "predicted": "*"
-              },
-              {
-                "position": 3,
-                "ground_truth": "total_diarias",
-                "predicted": "i.\"VAL_TOT\""
-              },
-              {
-                "position": 4,
-                "ground_truth": "FROM",
-                "predicted": "AS"
-              },
-              {
-                "position": 5,
-                "ground_truth": "internacoes",
-                "predicted": "\"Valor"
-              }
-            ],
-            "common_errors": [
-              "Missing WHERE clause",
-              "Extra GROUP BY clause",
-              "Quote mismatch (identifier quoting)"
-            ]
-          }
-        },
-        "Component Matching (CM)": {
-          "score": 0.45,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "overall_score": 0.45,
-            "component_scores": {
-              "select": 0.0,
-              "from": 1.0,
-              "where": 0.0,
-              "joins": 1.0,
-              "group_by": 0.0,
-              "order_by": 1.0,
-              "having": 1.0,
-              "limit": 1.0
-            },
-            "component_details": {
-              "select": {
-                "jaccard_similarity": 0.0,
-                "gt_items": [
-                  "SUM ( \"QT_DIARIAS\" ) AS <alias>"
-                ],
-                "pred_items": [
-                  "SUM ( i . \"QT_DIARIAS\" ) * i . \"VAL_TOT\" \"Valor Total Das Diarias Hospitalares\""
-                ],
-                "gt_normalized": [
-                  "SUM ( \"QT_DIARIAS\" ) AS <alias>"
-                ],
-                "pred_normalized": [
-                  "SUM ( i . \"QT_DIARIAS\" ) * i . \"VAL_TOT\" \"Valor Total Das Diarias Hospitalares\""
-                ],
-                "exact_match": false
-              },
-              "from": {
-                "gt_tables": [
-                  "internacoes"
-                ],
-                "pred_tables": [
-                  "internacoes"
-                ],
-                "intersection_count": 1,
-                "union_count": 1,
-                "jaccard_similarity": 1.0
-              },
-              "where": {
-                "match": "one_empty"
-              },
-              "joins": {
-                "match": "both_empty"
-              },
-              "group_by": {
-                "match": "one_empty"
-              },
-              "order_by": {
-                "match": "both_empty"
-              },
-              "having": {
-                "match": "both_empty"
-              },
-              "limit": {
-                "match": "both_empty"
-              }
-            },
-            "ground_truth_components": {
-              "select": "SUM ( \"QT_DIARIAS\" ) total_diarias",
-              "from": "internacoes",
-              "where": "\"QT_DIARIAS\" ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "predicted_components": {
-              "select": "SUM ( i . \"QT_DIARIAS\" ) * i . \"VAL_TOT\" \"Valor Total Das Diarias Hospitalares\"",
-              "from": "internacoes i",
-              "where": "",
-              "group_by": "i . \"VAL_TOT\" ;",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "clause_weights": {
-              "select": 0.25,
-              "from": 0.2,
-              "where": 0.2,
-              "joins": 0.15,
-              "group_by": 0.1,
-              "order_by": 0.05,
-              "having": 0.03,
-              "limit": 0.02
-            }
-          }
-        },
-        "Execution Accuracy (EX)": {
-          "score": 0.0,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "ground_truth_executed": true,
-            "predicted_executed": true,
-            "ground_truth_rows": 1,
-            "predicted_rows": 1,
-            "results_match": false,
-            "comparison_details": {
-              "gt_size": 1,
-              "pred_size": 1,
-              "normalized_match": false,
-              "missing_rows_count": 1,
-              "extra_rows_count": 1,
-              "missing_rows_sample": [
-                [
-                  298658
-                ]
-              ],
-              "extra_rows_sample": [
-                [
-                  0.0
-                ]
-              ],
-              "overlap_ratio": 0.0
-            }
-          }
-        }
-      }
-    },
-    {
-      "question_id": "GT034",
-      "difficulty": "easy",
-      "question": "Quantos hospitais são de natureza pública?",
-      "ground_truth_sql": "SELECT COUNT(*) AS hospitais_publicos FROM hospital WHERE \"NATUREZA\" LIKE '%PUBLICA%' OR \"NATUREZA\" LIKE '%PUBLIC%';",
-      "predicted_sql": "SELECT COUNT(*) FROM hospital WHERE \"NATUREZA\" = 'PÚBLICA' LIMIT 100;",
-      "agent_success": true,
-      "agent_execution_time": 6.438644886016846,
-      "metrics": {
-        "Exact Match (EM)": {
-          "score": 0.0,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "ground_truth_original": "SELECT COUNT(*) AS hospitais_publicos FROM hospital WHERE \"NATUREZA\" LIKE '%PUBLICA%' OR \"NATUREZA\" LIKE '%PUBLIC%';",
-            "predicted_original": "SELECT COUNT(*) FROM hospital WHERE \"NATUREZA\" = 'PÚBLICA' LIMIT 100;",
-            "ground_truth_normalized": "SELECT COUNT(*) AS hospitais_publicos FROM hospital WHERE \"NATUREZA\" LIKE '%PUBLICA%' OR \"NATUREZA\" LIKE '%PUBLIC%'",
-            "predicted_normalized": "SELECT COUNT(*) FROM hospital WHERE \"NATUREZA\" = 'PÚBLICA' LIMIT 100",
-            "match": false,
-            "length_difference": -47,
-            "first_difference_position": 16,
-            "first_difference_context": {
-              "ground_truth": " COUNT(*) AS hospita",
-              "predicted": " COUNT(*) FROM hospi"
-            },
-            "word_count_difference": -4,
-            "differing_words": [
-              {
-                "position": 2,
-                "ground_truth": "AS",
-                "predicted": "FROM"
-              },
-              {
-                "position": 3,
-                "ground_truth": "hospitais_publicos",
-                "predicted": "hospital"
-              },
-              {
-                "position": 4,
-                "ground_truth": "FROM",
-                "predicted": "WHERE"
-              },
-              {
-                "position": 5,
-                "ground_truth": "hospital",
-                "predicted": "\"NATUREZA\""
-              },
-              {
-                "position": 6,
-                "ground_truth": "WHERE",
-                "predicted": "="
-              }
-            ],
-            "common_errors": [
-              "Extra LIMIT clause",
-              "Quote mismatch (identifier quoting)"
-            ]
-          }
-        },
-        "Component Matching (CM)": {
-          "score": 0.705,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "overall_score": 0.705,
-            "component_scores": {
-              "select": 0.7,
-              "from": 1.0,
-              "where": 0.0,
-              "joins": 1.0,
-              "group_by": 1.0,
-              "order_by": 1.0,
-              "having": 1.0,
-              "limit": 0.0
-            },
-            "component_details": {
-              "select": {
-                "jaccard_similarity": 0.7,
-                "gt_items": [
-                  "COUNT ( * ) AS <alias>"
-                ],
-                "pred_items": [
-                  "COUNT ( * )"
-                ],
-                "gt_normalized": [
-                  "COUNT ( * ) AS <alias>"
-                ],
-                "pred_normalized": [
-                  "COUNT ( * )"
-                ],
-                "exact_match": false
-              },
-              "from": {
-                "gt_tables": [
-                  "hospital"
-                ],
-                "pred_tables": [
-                  "hospital"
-                ],
-                "intersection_count": 1,
-                "union_count": 1,
-                "jaccard_similarity": 1.0
-              },
-              "where": {
-                "gt_conditions": [
-                  "\"NATUREZA\" LIKE '%PUBLICA%' \"NATUREZA\" LIKE '%PUBLIC%' "
-                ],
-                "pred_conditions": [
-                  "\"NATUREZA\" = 'PÚBLICA'"
-                ],
-                "intersection_count": 0,
-                "union_count": 2,
-                "jaccard_similarity": 0.0
-              },
-              "joins": {
-                "match": "both_empty"
-              },
-              "group_by": {
-                "match": "both_empty"
-              },
-              "order_by": {
-                "match": "both_empty"
-              },
-              "having": {
-                "match": "both_empty"
-              },
-              "limit": {
-                "match": "one_empty"
-              }
-            },
-            "ground_truth_components": {
-              "select": "COUNT ( * ) hospitais_publicos",
-              "from": "hospital",
-              "where": "\"NATUREZA\" LIKE '%PUBLICA%' \"NATUREZA\" LIKE '%PUBLIC%' ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "predicted_components": {
-              "select": "COUNT ( * )",
-              "from": "hospital",
-              "where": "\"NATUREZA\" = 'PÚBLICA'",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "100 ;",
-              "joins": ""
-            },
-            "clause_weights": {
-              "select": 0.25,
-              "from": 0.2,
-              "where": 0.2,
-              "joins": 0.15,
-              "group_by": 0.1,
-              "order_by": 0.05,
-              "having": 0.03,
-              "limit": 0.02
-            }
-          }
-        },
-        "Execution Accuracy (EX)": {
-          "score": 1.0,
-          "is_correct": true,
-          "error": null,
-          "details": {
-            "ground_truth_executed": true,
-            "predicted_executed": true,
-            "ground_truth_rows": 1,
-            "predicted_rows": 1,
-            "results_match": true,
-            "comparison_details": {
-              "gt_size": 1,
-              "pred_size": 1,
-              "normalized_match": true
-            }
-          }
-        }
-      }
-    },
-    {
-      "question_id": "GT035",
+      "question_id": "GT032",
       "difficulty": "easy",
       "question": "Qual a latitude e longitude de Porto Alegre?",
       "ground_truth_sql": "SELECT latitude, longitude FROM municipios WHERE nome = 'Porto Alegre';",
       "predicted_sql": "SELECT \"latitude\", \"longitude\" FROM municipios WHERE \"nome\" = 'Porto Alegre';",
       "agent_success": true,
-      "agent_execution_time": 8.151313781738281,
+      "agent_execution_time": 8.609898090362549,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -5632,13 +5628,13 @@
       }
     },
     {
-      "question_id": "GT036",
+      "question_id": "GT033",
       "difficulty": "easy",
       "question": "Quantos municípios estão no estado do RS?",
       "ground_truth_sql": "SELECT COUNT(*) AS municipios_rs FROM municipios WHERE estado = 'RS';",
       "predicted_sql": "SELECT COUNT(*) FROM municipios WHERE \"estado\" = 'RS';",
       "agent_success": true,
-      "agent_execution_time": 7.63216757774353,
+      "agent_execution_time": 7.681014776229858,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -5812,13 +5808,13 @@
       }
     },
     {
-      "question_id": "GT037",
+      "question_id": "GT034",
       "difficulty": "easy",
       "question": "Qual a idade média dos pacientes internados?",
       "ground_truth_sql": "SELECT AVG(\"IDADE\") AS idade_media FROM internacoes WHERE \"IDADE\" IS NOT NULL;",
-      "predicted_sql": "SELECT AVG(i.\"IDADE\") AS idade_media FROM internacoes i;",
+      "predicted_sql": "SELECT AVG(i.\"IDADE\") AS media_idade FROM internacoes i;",
       "agent_success": true,
-      "agent_execution_time": 7.787708759307861,
+      "agent_execution_time": 7.111352443695068,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -5826,9 +5822,9 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT AVG(\"IDADE\") AS idade_media FROM internacoes WHERE \"IDADE\" IS NOT NULL;",
-            "predicted_original": "SELECT AVG(i.\"IDADE\") AS idade_media FROM internacoes i;",
+            "predicted_original": "SELECT AVG(i.\"IDADE\") AS media_idade FROM internacoes i;",
             "ground_truth_normalized": "SELECT AVG(\"IDADE\") AS idade_media FROM internacoes WHERE \"IDADE\" IS NOT NULL",
-            "predicted_normalized": "SELECT AVG(i.\"IDADE\") AS idade_media FROM internacoes i",
+            "predicted_normalized": "SELECT AVG(i.\"IDADE\") AS media_idade FROM internacoes i",
             "match": false,
             "length_difference": -22,
             "first_difference_position": 11,
@@ -5844,6 +5840,11 @@
                 "predicted": "AVG(i.\"IDADE\")"
               },
               {
+                "position": 3,
+                "ground_truth": "idade_media",
+                "predicted": "media_idade"
+              },
+              {
                 "position": 6,
                 "ground_truth": "WHERE",
                 "predicted": "i"
@@ -5856,11 +5857,6 @@
               {
                 "position": 8,
                 "ground_truth": "IS",
-                "predicted": "<EXTRA>"
-              },
-              {
-                "position": 9,
-                "ground_truth": "NOT",
                 "predicted": "<EXTRA>"
               }
             ],
@@ -5944,7 +5940,7 @@
               "joins": ""
             },
             "predicted_components": {
-              "select": "AVG ( i . \"IDADE\" ) idade_media",
+              "select": "AVG ( i . \"IDADE\" ) media_idade",
               "from": "internacoes i ;",
               "where": "",
               "group_by": "",
@@ -5985,13 +5981,13 @@
       }
     },
     {
-      "question_id": "GT038",
+      "question_id": "GT035",
       "difficulty": "easy",
       "question": "Quantas internações duraram mais de 30 dias?",
       "ground_truth_sql": "SELECT COUNT(*) AS internacoes_longas FROM internacoes WHERE \"DIAS_PERM\" > 30;",
       "predicted_sql": "SELECT COUNT(*) FROM internacoes WHERE \"DIAS_PERM\" > 30;",
       "agent_success": true,
-      "agent_execution_time": 8.875660419464111,
+      "agent_execution_time": 8.624915838241577,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -6163,364 +6159,53 @@
       }
     },
     {
-      "question_id": "GT039",
-      "difficulty": "easy",
-      "question": "Qual o número total de filhos dos pacientes internados?",
-      "ground_truth_sql": "SELECT SUM(\"NUM_FILHOS\") AS total_filhos FROM internacoes WHERE \"NUM_FILHOS\" IS NOT NULL;",
-      "predicted_sql": "SELECT SUM(i.\"NUM_FILHOS\") FROM internacoes i;",
-      "agent_success": true,
-      "agent_execution_time": 7.3496787548065186,
-      "metrics": {
-        "Exact Match (EM)": {
-          "score": 0.0,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "ground_truth_original": "SELECT SUM(\"NUM_FILHOS\") AS total_filhos FROM internacoes WHERE \"NUM_FILHOS\" IS NOT NULL;",
-            "predicted_original": "SELECT SUM(i.\"NUM_FILHOS\") FROM internacoes i;",
-            "ground_truth_normalized": "SELECT SUM(\"NUM_FILHOS\") AS total_filhos FROM internacoes WHERE \"NUM_FILHOS\" IS NOT NULL",
-            "predicted_normalized": "SELECT SUM(i.\"NUM_FILHOS\") FROM internacoes i",
-            "match": false,
-            "length_difference": -43,
-            "first_difference_position": 11,
-            "first_difference_context": {
-              "ground_truth": "ELECT SUM(\"NUM_FILHO",
-              "predicted": "ELECT SUM(i.\"NUM_FIL"
-            },
-            "word_count_difference": -6,
-            "differing_words": [
-              {
-                "position": 1,
-                "ground_truth": "SUM(\"NUM_FILHOS\")",
-                "predicted": "SUM(i.\"NUM_FILHOS\")"
-              },
-              {
-                "position": 2,
-                "ground_truth": "AS",
-                "predicted": "FROM"
-              },
-              {
-                "position": 3,
-                "ground_truth": "total_filhos",
-                "predicted": "internacoes"
-              },
-              {
-                "position": 4,
-                "ground_truth": "FROM",
-                "predicted": "i"
-              },
-              {
-                "position": 5,
-                "ground_truth": "internacoes",
-                "predicted": "<EXTRA>"
-              }
-            ],
-            "common_errors": [
-              "Missing WHERE clause",
-              "Quote mismatch (identifier quoting)"
-            ]
-          }
-        },
-        "Component Matching (CM)": {
-          "score": 0.35,
-          "is_correct": false,
-          "error": null,
-          "details": {
-            "overall_score": 0.35,
-            "component_scores": {
-              "select": 0.0,
-              "from": 0.0,
-              "where": 0.0,
-              "joins": 1.0,
-              "group_by": 1.0,
-              "order_by": 1.0,
-              "having": 1.0,
-              "limit": 1.0
-            },
-            "component_details": {
-              "select": {
-                "jaccard_similarity": 0.0,
-                "gt_items": [
-                  "SUM ( \"NUM_FILHOS\" ) AS <alias>"
-                ],
-                "pred_items": [
-                  "SUM ( i . \"NUM_FILHOS\" )"
-                ],
-                "gt_normalized": [
-                  "SUM ( \"NUM_FILHOS\" ) AS <alias>"
-                ],
-                "pred_normalized": [
-                  "SUM ( i . \"NUM_FILHOS\" )"
-                ],
-                "exact_match": false
-              },
-              "from": {
-                "gt_tables": [
-                  "internacoes"
-                ],
-                "pred_tables": [
-                  "internacoes i ;"
-                ],
-                "intersection_count": 0,
-                "union_count": 2,
-                "jaccard_similarity": 0.0
-              },
-              "where": {
-                "match": "one_empty"
-              },
-              "joins": {
-                "match": "both_empty"
-              },
-              "group_by": {
-                "match": "both_empty"
-              },
-              "order_by": {
-                "match": "both_empty"
-              },
-              "having": {
-                "match": "both_empty"
-              },
-              "limit": {
-                "match": "both_empty"
-              }
-            },
-            "ground_truth_components": {
-              "select": "SUM ( \"NUM_FILHOS\" ) total_filhos",
-              "from": "internacoes",
-              "where": "\"NUM_FILHOS\" ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "predicted_components": {
-              "select": "SUM ( i . \"NUM_FILHOS\" )",
-              "from": "internacoes i ;",
-              "where": "",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "clause_weights": {
-              "select": 0.25,
-              "from": 0.2,
-              "where": 0.2,
-              "joins": 0.15,
-              "group_by": 0.1,
-              "order_by": 0.05,
-              "having": 0.03,
-              "limit": 0.02
-            }
-          }
-        },
-        "Execution Accuracy (EX)": {
-          "score": 1.0,
-          "is_correct": true,
-          "error": null,
-          "details": {
-            "ground_truth_executed": true,
-            "predicted_executed": true,
-            "ground_truth_rows": 1,
-            "predicted_rows": 1,
-            "results_match": true,
-            "comparison_details": {
-              "gt_size": 1,
-              "pred_size": 1,
-              "normalized_match": true
-            }
-          }
-        }
-      }
-    },
-    {
-      "question_id": "GT040",
+      "question_id": "GT036",
       "difficulty": "easy",
       "question": "Quantos procedimentos têm 'CIRURGIA' no nome?",
       "ground_truth_sql": "SELECT COUNT(*) AS procedimentos_cirurgia FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%';",
-      "predicted_sql": "SELECT COUNT(*) FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%';",
-      "agent_success": true,
-      "agent_execution_time": 6.595029830932617,
+      "predicted_sql": "",
+      "agent_success": false,
+      "agent_execution_time": 27.508975744247437,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_original": "SELECT COUNT(*) AS procedimentos_cirurgia FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%';",
-            "predicted_original": "SELECT COUNT(*) FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%';",
-            "ground_truth_normalized": "SELECT COUNT(*) AS procedimentos_cirurgia FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%'",
-            "predicted_normalized": "SELECT COUNT(*) FROM procedimentos WHERE \"NOME_PROC\" ILIKE '%CIRURGIA%'",
-            "match": false,
-            "length_difference": -26,
-            "first_difference_position": 16,
-            "first_difference_context": {
-              "ground_truth": " COUNT(*) AS procedi",
-              "predicted": " COUNT(*) FROM proce"
-            },
-            "word_count_difference": -2,
-            "differing_words": [
-              {
-                "position": 2,
-                "ground_truth": "AS",
-                "predicted": "FROM"
-              },
-              {
-                "position": 3,
-                "ground_truth": "procedimentos_cirurgia",
-                "predicted": "procedimentos"
-              },
-              {
-                "position": 4,
-                "ground_truth": "FROM",
-                "predicted": "WHERE"
-              },
-              {
-                "position": 5,
-                "ground_truth": "procedimentos",
-                "predicted": "\"NOME_PROC\""
-              },
-              {
-                "position": 6,
-                "ground_truth": "WHERE",
-                "predicted": "ILIKE"
-              }
-            ],
-            "common_errors": []
+            "ground_truth_normalized": "",
+            "predicted_normalized": "",
+            "reason": "Empty or missing SQL query"
           }
         },
         "Component Matching (CM)": {
-          "score": 0.925,
-          "is_correct": true,
+          "score": 0.0,
+          "is_correct": false,
           "error": null,
           "details": {
-            "overall_score": 0.925,
-            "component_scores": {
-              "select": 0.7,
-              "from": 1.0,
-              "where": 1.0,
-              "joins": 1.0,
-              "group_by": 1.0,
-              "order_by": 1.0,
-              "having": 1.0,
-              "limit": 1.0
-            },
-            "component_details": {
-              "select": {
-                "jaccard_similarity": 0.7,
-                "gt_items": [
-                  "COUNT ( * ) AS <alias>"
-                ],
-                "pred_items": [
-                  "COUNT ( * )"
-                ],
-                "gt_normalized": [
-                  "COUNT ( * ) AS <alias>"
-                ],
-                "pred_normalized": [
-                  "COUNT ( * )"
-                ],
-                "exact_match": false
-              },
-              "from": {
-                "gt_tables": [
-                  "procedimentos"
-                ],
-                "pred_tables": [
-                  "procedimentos"
-                ],
-                "intersection_count": 1,
-                "union_count": 1,
-                "jaccard_similarity": 1.0
-              },
-              "where": {
-                "gt_conditions": [
-                  "\"NOME_PROC\" ILIKE '%CIRURGIA%' "
-                ],
-                "pred_conditions": [
-                  "\"NOME_PROC\" ILIKE '%CIRURGIA%' "
-                ],
-                "intersection_count": 1,
-                "union_count": 1,
-                "jaccard_similarity": 1.0
-              },
-              "joins": {
-                "match": "both_empty"
-              },
-              "group_by": {
-                "match": "both_empty"
-              },
-              "order_by": {
-                "match": "both_empty"
-              },
-              "having": {
-                "match": "both_empty"
-              },
-              "limit": {
-                "match": "both_empty"
-              }
-            },
-            "ground_truth_components": {
-              "select": "COUNT ( * ) procedimentos_cirurgia",
-              "from": "procedimentos",
-              "where": "\"NOME_PROC\" ILIKE '%CIRURGIA%' ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "predicted_components": {
-              "select": "COUNT ( * )",
-              "from": "procedimentos",
-              "where": "\"NOME_PROC\" ILIKE '%CIRURGIA%' ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": ""
-            },
-            "clause_weights": {
-              "select": 0.25,
-              "from": 0.2,
-              "where": 0.2,
-              "joins": 0.15,
-              "group_by": 0.1,
-              "order_by": 0.05,
-              "having": 0.03,
-              "limit": 0.02
-            }
+            "reason": "Empty or missing SQL query",
+            "component_scores": {}
           }
         },
         "Execution Accuracy (EX)": {
-          "score": 1.0,
-          "is_correct": true,
+          "score": 0.0,
+          "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_executed": true,
-            "predicted_executed": true,
-            "ground_truth_rows": 1,
-            "predicted_rows": 1,
-            "results_match": true,
-            "comparison_details": {
-              "gt_size": 1,
-              "pred_size": 1,
-              "normalized_match": true
-            }
+            "reason": "Empty or missing SQL query",
+            "ground_truth_executed": false,
+            "predicted_executed": false
           }
         }
       }
     },
     {
-      "question_id": "GT041",
+      "question_id": "GT037",
       "difficulty": "easy",
       "question": "Qual o diagnóstico mais comum nas internações?",
       "ground_truth_sql": "SELECT \"DIAG_PRINC\", COUNT(*) AS total FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL GROUP BY \"DIAG_PRINC\" ORDER BY total DESC LIMIT 1;",
       "predicted_sql": "SELECT c.\"CD_DESCRICAO\", COUNT(i.\"DIAG_PRINC\") AS total_diagnosticos FROM cid10 c JOIN internacoes i ON c.\"CID\" = i.\"DIAG_PRINC\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_diagnosticos DESC LIMIT 1;",
       "agent_success": true,
-      "agent_execution_time": 10.03220534324646,
+      "agent_execution_time": 9.736169576644897,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -6717,13 +6402,13 @@
       }
     },
     {
-      "question_id": "GT042",
+      "question_id": "GT038",
       "difficulty": "medium",
       "question": "Quantas internações ocorreram em 2015?",
       "ground_truth_sql": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
       "predicted_sql": "SELECT COUNT(*) FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015 LIMIT 100;",
       "agent_success": true,
-      "agent_execution_time": 8.311673879623413,
+      "agent_execution_time": 7.677943706512451,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -6897,13 +6582,13 @@
       }
     },
     {
-      "question_id": "GT043",
+      "question_id": "GT039",
       "difficulty": "medium",
       "question": "Qual o valor médio das internações por complexidade?",
       "ground_truth_sql": "SELECT \"COMPLEX\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"COMPLEX\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"COMPLEX\";",
-      "predicted_sql": "SELECT AVG(i.\"VAL_TOT\") AS media_internacoes FROM internacoes i;",
+      "predicted_sql": "SELECT AVG(i.\"VAL_SH\") AS media_internacoes FROM internacoes i;",
       "agent_success": true,
-      "agent_execution_time": 7.991968154907227,
+      "agent_execution_time": 7.205274343490601,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -6911,11 +6596,11 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT \"COMPLEX\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"COMPLEX\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"COMPLEX\";",
-            "predicted_original": "SELECT AVG(i.\"VAL_TOT\") AS media_internacoes FROM internacoes i;",
+            "predicted_original": "SELECT AVG(i.\"VAL_SH\") AS media_internacoes FROM internacoes i;",
             "ground_truth_normalized": "SELECT \"COMPLEX\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"COMPLEX\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"COMPLEX\"",
-            "predicted_normalized": "SELECT AVG(i.\"VAL_TOT\") AS media_internacoes FROM internacoes i",
+            "predicted_normalized": "SELECT AVG(i.\"VAL_SH\") AS media_internacoes FROM internacoes i",
             "match": false,
-            "length_difference": -74,
+            "length_difference": -75,
             "first_difference_position": 7,
             "first_difference_context": {
               "ground_truth": "SELECT \"COMPLEX\",",
@@ -6926,7 +6611,7 @@
               {
                 "position": 1,
                 "ground_truth": "\"COMPLEX\",",
-                "predicted": "AVG(i.\"VAL_TOT\")"
+                "predicted": "AVG(i.\"VAL_SH\")"
               },
               {
                 "position": 2,
@@ -6980,14 +6665,14 @@
                   "AVG ( \"VAL_TOT\" ) AS <alias>"
                 ],
                 "pred_items": [
-                  "AVG ( i . \"VAL_TOT\" ) AS <alias>"
+                  "AVG ( i . \"VAL_SH\" ) AS <alias>"
                 ],
                 "gt_normalized": [
                   "\"COMPLEX\"",
                   "AVG ( \"VAL_TOT\" ) AS <alias>"
                 ],
                 "pred_normalized": [
-                  "AVG ( i . \"VAL_TOT\" ) AS <alias>"
+                  "AVG ( i . \"VAL_SH\" ) AS <alias>"
                 ],
                 "exact_match": false
               },
@@ -7032,7 +6717,7 @@
               "joins": ""
             },
             "predicted_components": {
-              "select": "AVG ( i . \"VAL_TOT\" ) media_internacoes",
+              "select": "AVG ( i . \"VAL_SH\" ) media_internacoes",
               "from": "internacoes i ;",
               "where": "",
               "group_by": "",
@@ -7074,13 +6759,13 @@
       }
     },
     {
-      "question_id": "GT044",
+      "question_id": "GT040",
       "difficulty": "medium",
       "question": "Quantos pacientes nasceram antes de 1950?",
       "ground_truth_sql": "SELECT COUNT(*) AS nascidos_antes_1950 FROM internacoes WHERE EXTRACT(YEAR FROM \"NASC\") < 1950;",
       "predicted_sql": "SELECT COUNT(i.\"NASC\") AS total_pacientes FROM internacoes i WHERE EXTRACT(YEAR FROM i.\"NASC\") < 1950;",
       "agent_success": true,
-      "agent_execution_time": 9.265262126922607,
+      "agent_execution_time": 8.457428216934204,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -7254,13 +6939,13 @@
       }
     },
     {
-      "question_id": "GT045",
+      "question_id": "GT041",
       "difficulty": "medium",
       "question": "Qual município tem o maior salário médio?",
       "ground_truth_sql": "SELECT nome_municipio, salario_medio FROM dado_ibge WHERE salario_medio IS NOT NULL ORDER BY salario_medio DESC LIMIT 1;",
       "predicted_sql": "SELECT \"nome_municipio\" FROM dado_ibge WHERE \"salario_medio\" = ( SELECT MAX(\"salario_medio\") FROM dado_ibge );",
       "agent_success": true,
-      "agent_execution_time": 8.6431725025177,
+      "agent_execution_time": 8.618185758590698,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -7452,13 +7137,13 @@
       }
     },
     {
-      "question_id": "GT046",
+      "question_id": "GT042",
       "difficulty": "medium",
       "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
       "ground_truth_sql": "SELECT COUNT(*) AS internacoes_diabetes FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'E1%' AND \"DIAG_PRINC\" >= 'E10' AND \"DIAG_PRINC\" <= 'E14Z';",
       "predicted_sql": "SELECT COUNT(i.\"N_AIH\") FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE c.\"CD_DESCRICAO\" ILIKE '%diabetes%' OR c.\"CID\" LIKE 'E1%' OR c.\"CID\" LIKE 'E2%' OR c.\"CID\" LIKE 'E3%' OR c.\"CID\" LIKE 'E4%' OR c.\"CID\" LIKE 'E5%';",
       "agent_success": true,
-      "agent_execution_time": 10.60967469215393,
+      "agent_execution_time": 10.099926471710205,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -7646,13 +7331,13 @@
       }
     },
     {
-      "question_id": "GT047",
+      "question_id": "GT043",
       "difficulty": "medium",
       "question": "Qual a taxa de mortalidade infantil média no Brasil?",
       "ground_truth_sql": "SELECT AVG(mortalidade_infantil) AS taxa_media_mortalidade_infantil FROM dado_ibge WHERE mortalidade_infantil IS NOT NULL;",
-      "predicted_sql": "SELECT AVG(mortalidade_infantil) AS taxa_mortalidade_infantil_med FROM dado_ibge;",
+      "predicted_sql": "SELECT AVG(mortalidade_infantil) FROM dado_ibge;",
       "agent_success": true,
-      "agent_execution_time": 8.353959560394287,
+      "agent_execution_time": 8.054248571395874,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -7660,41 +7345,41 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT AVG(mortalidade_infantil) AS taxa_media_mortalidade_infantil FROM dado_ibge WHERE mortalidade_infantil IS NOT NULL;",
-            "predicted_original": "SELECT AVG(mortalidade_infantil) AS taxa_mortalidade_infantil_med FROM dado_ibge;",
+            "predicted_original": "SELECT AVG(mortalidade_infantil) FROM dado_ibge;",
             "ground_truth_normalized": "SELECT AVG(mortalidade_infantil) AS taxa_media_mortalidade_infantil FROM dado_ibge WHERE mortalidade_infantil IS NOT NULL",
-            "predicted_normalized": "SELECT AVG(mortalidade_infantil) AS taxa_mortalidade_infantil_med FROM dado_ibge",
+            "predicted_normalized": "SELECT AVG(mortalidade_infantil) FROM dado_ibge",
             "match": false,
-            "length_difference": -41,
-            "first_difference_position": 42,
+            "length_difference": -74,
+            "first_difference_position": 33,
             "first_difference_context": {
-              "ground_truth": " AS taxa_media_morta",
-              "predicted": " AS taxa_mortalidade"
+              "ground_truth": "infantil) AS taxa_me",
+              "predicted": "infantil) FROM dado_"
             },
-            "word_count_difference": -5,
+            "word_count_difference": -7,
             "differing_words": [
+              {
+                "position": 2,
+                "ground_truth": "AS",
+                "predicted": "FROM"
+              },
               {
                 "position": 3,
                 "ground_truth": "taxa_media_mortalidade_infantil",
-                "predicted": "taxa_mortalidade_infantil_med"
+                "predicted": "dado_ibge"
+              },
+              {
+                "position": 4,
+                "ground_truth": "FROM",
+                "predicted": "<EXTRA>"
+              },
+              {
+                "position": 5,
+                "ground_truth": "dado_ibge",
+                "predicted": "<EXTRA>"
               },
               {
                 "position": 6,
                 "ground_truth": "WHERE",
-                "predicted": "<EXTRA>"
-              },
-              {
-                "position": 7,
-                "ground_truth": "mortalidade_infantil",
-                "predicted": "<EXTRA>"
-              },
-              {
-                "position": 8,
-                "ground_truth": "IS",
-                "predicted": "<EXTRA>"
-              },
-              {
-                "position": 9,
-                "ground_truth": "NOT",
                 "predicted": "<EXTRA>"
               }
             ],
@@ -7704,13 +7389,13 @@
           }
         },
         "Component Matching (CM)": {
-          "score": 0.6,
+          "score": 0.525,
           "is_correct": false,
           "error": null,
           "details": {
-            "overall_score": 0.6,
+            "overall_score": 0.525,
             "component_scores": {
-              "select": 1.0,
+              "select": 0.7,
               "from": 0.0,
               "where": 0.0,
               "joins": 1.0,
@@ -7721,20 +7406,20 @@
             },
             "component_details": {
               "select": {
-                "jaccard_similarity": 1.0,
+                "jaccard_similarity": 0.7,
                 "gt_items": [
                   "AVG ( mortalidade_infantil ) AS <alias>"
                 ],
                 "pred_items": [
-                  "AVG ( mortalidade_infantil ) AS <alias>"
+                  "AVG ( mortalidade_infantil )"
                 ],
                 "gt_normalized": [
                   "AVG ( mortalidade_infantil ) AS <alias>"
                 ],
                 "pred_normalized": [
-                  "AVG ( mortalidade_infantil ) AS <alias>"
+                  "AVG ( mortalidade_infantil )"
                 ],
-                "exact_match": true
+                "exact_match": false
               },
               "from": {
                 "gt_tables": [
@@ -7777,7 +7462,7 @@
               "joins": ""
             },
             "predicted_components": {
-              "select": "AVG ( mortalidade_infantil ) taxa_mortalidade_infantil_med",
+              "select": "AVG ( mortalidade_infantil )",
               "from": "dado_ibge ;",
               "where": "",
               "group_by": "",
@@ -7818,166 +7503,31 @@
       }
     },
     {
-      "question_id": "GT048",
-      "difficulty": "medium",
+      "question_id": "GT044",
+      "difficulty": "hard",
       "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d JOIN dado_ibge d ON m.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100;",
-      "predicted_sql": "SELECT COUNT(DISTINCT h.\"CNES\") FROM internacoes h JOIN dado_ibge mu ON h.\"MUNIC_RES\" = mu.codigo_municipio_completo WHERE mu.populacao > 100000;",
-      "agent_success": true,
-      "agent_execution_time": 32.97297239303589,
+      "predicted_sql": "",
+      "agent_success": false,
+      "agent_execution_time": 46.680975914001465,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_original": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d JOIN dado_ibge d ON m.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100;",
-            "predicted_original": "SELECT COUNT(DISTINCT h.\"CNES\") FROM internacoes h JOIN dado_ibge mu ON h.\"MUNIC_RES\" = mu.codigo_municipio_completo WHERE mu.populacao > 100000;",
-            "ground_truth_normalized": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d JOIN dado_ibge d ON m.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100",
-            "predicted_normalized": "SELECT COUNT(DISTINCT h.\"CNES\") FROM internacoes h JOIN dado_ibge mu ON h.\"MUNIC_RES\" = mu.codigo_municipio_completo WHERE mu.populacao > 100000",
-            "match": false,
-            "length_difference": -114,
-            "first_difference_position": 32,
-            "first_difference_context": {
-              "ground_truth": "h.\"CNES\") AS hospita",
-              "predicted": "h.\"CNES\") FROM inter"
-            },
-            "word_count_difference": -16,
-            "differing_words": [
-              {
-                "position": 3,
-                "ground_truth": "AS",
-                "predicted": "FROM"
-              },
-              {
-                "position": 4,
-                "ground_truth": "hospitais_grandes_municipios",
-                "predicted": "internacoes"
-              },
-              {
-                "position": 5,
-                "ground_truth": "FROM",
-                "predicted": "h"
-              },
-              {
-                "position": 6,
-                "ground_truth": "hospital",
-                "predicted": "JOIN"
-              },
-              {
-                "position": 7,
-                "ground_truth": "h",
-                "predicted": "dado_ibge"
-              }
-            ],
-            "common_errors": [
-              "Quote mismatch (identifier quoting)"
-            ]
+            "ground_truth_normalized": "",
+            "predicted_normalized": "",
+            "reason": "Empty or missing SQL query"
           }
         },
         "Component Matching (CM)": {
-          "score": 0.375,
+          "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "overall_score": 0.375,
-            "component_scores": {
-              "select": 0.7,
-              "from": 0.0,
-              "where": 0.0,
-              "joins": 0.0,
-              "group_by": 1.0,
-              "order_by": 1.0,
-              "having": 1.0,
-              "limit": 1.0
-            },
-            "component_details": {
-              "select": {
-                "jaccard_similarity": 0.7,
-                "gt_items": [
-                  "COUNT ( DISTINCT h . \"CNES\" ) AS <alias>"
-                ],
-                "pred_items": [
-                  "COUNT ( DISTINCT h . \"CNES\" )"
-                ],
-                "gt_normalized": [
-                  "COUNT ( DISTINCT h . \"CNES\" ) AS <alias>"
-                ],
-                "pred_normalized": [
-                  "COUNT ( DISTINCT h . \"CNES\" )"
-                ],
-                "exact_match": false
-              },
-              "from": {
-                "gt_tables": [
-                  "hospital"
-                ],
-                "pred_tables": [
-                  "internacoes"
-                ],
-                "intersection_count": 0,
-                "union_count": 2,
-                "jaccard_similarity": 0.0
-              },
-              "where": {
-                "gt_conditions": [
-                  "d . populacao > 100 "
-                ],
-                "pred_conditions": [
-                  "mu . populacao > 100000 "
-                ],
-                "intersection_count": 0,
-                "union_count": 2,
-                "jaccard_similarity": 0.0
-              },
-              "joins": {
-                "gt_normalized": "internacoes i h . \"CNES\" = i . \"CNES\" municipios m i . \"MUNIC_RES\" = m . codigo_6d dado_ibge d m . codigo_ibge = d . codigo_municipio_completo",
-                "pred_normalized": "dado_ibge mu h . \"MUNIC_RES\" = mu . codigo_municipio_completo",
-                "exact_match": false
-              },
-              "group_by": {
-                "match": "both_empty"
-              },
-              "order_by": {
-                "match": "both_empty"
-              },
-              "having": {
-                "match": "both_empty"
-              },
-              "limit": {
-                "match": "both_empty"
-              }
-            },
-            "ground_truth_components": {
-              "select": "COUNT ( DISTINCT h . \"CNES\" ) hospitais_grandes_municipios",
-              "from": "hospital h",
-              "where": "d . populacao > 100 ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": "internacoes i h . \"CNES\" = i . \"CNES\" municipios m i . \"MUNIC_RES\" = m . codigo_6d dado_ibge d m . codigo_ibge = d . codigo_municipio_completo"
-            },
-            "predicted_components": {
-              "select": "COUNT ( DISTINCT h . \"CNES\" )",
-              "from": "internacoes h",
-              "where": "mu . populacao > 100000 ;",
-              "group_by": "",
-              "having": "",
-              "order_by": "",
-              "limit": "",
-              "joins": "dado_ibge mu h . \"MUNIC_RES\" = mu . codigo_municipio_completo"
-            },
-            "clause_weights": {
-              "select": 0.25,
-              "from": 0.2,
-              "where": 0.2,
-              "joins": 0.15,
-              "group_by": 0.1,
-              "order_by": 0.05,
-              "having": 0.03,
-              "limit": 0.02
-            }
+            "reason": "Empty or missing SQL query",
+            "component_scores": {}
           }
         },
         "Execution Accuracy (EX)": {
@@ -7985,41 +7535,21 @@
           "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_executed": true,
-            "predicted_executed": true,
-            "ground_truth_rows": 1,
-            "predicted_rows": 1,
-            "results_match": false,
-            "comparison_details": {
-              "gt_size": 1,
-              "pred_size": 1,
-              "normalized_match": false,
-              "missing_rows_count": 1,
-              "extra_rows_count": 1,
-              "missing_rows_sample": [
-                [
-                  159
-                ]
-              ],
-              "extra_rows_sample": [
-                [
-                  0
-                ]
-              ],
-              "overlap_ratio": 0.0
-            }
+            "reason": "Empty or missing SQL query",
+            "ground_truth_executed": false,
+            "predicted_executed": false
           }
         }
       }
     },
     {
-      "question_id": "GT049",
+      "question_id": "GT045",
       "difficulty": "medium",
       "question": "Qual o procedimento com maior valor médio?",
       "ground_truth_sql": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1;",
       "predicted_sql": "SELECT p.\"PROC_REA\", AVG(i.\"VAL_TOT\") AS media FROM internacoes i JOIN procedimentos p ON i.\"PROC_REA\" = p.\"PROC_REA\" GROUP BY p.\"PROC_REA\" ORDER BY media DESC LIMIT 1;",
       "agent_success": true,
-      "agent_execution_time": 8.412358522415161,
+      "agent_execution_time": 7.733310222625732,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -8201,13 +7731,13 @@
       }
     },
     {
-      "question_id": "GT050",
+      "question_id": "GT046",
       "difficulty": "medium",
       "question": "Quantas internações tiveram tanto diagnóstico principal quanto secundário?",
       "ground_truth_sql": "SELECT COUNT(*) AS com_ambos_diagnosticos FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL AND \"DIAG_SECUN\" IS NOT NULL;",
       "predicted_sql": "SELECT COUNT(*) FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL AND \"DIAG_SECUN\" IS NOT NULL;",
       "agent_success": true,
-      "agent_execution_time": 8.288875818252563,
+      "agent_execution_time": 7.4736175537109375,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -8379,13 +7909,13 @@
       }
     },
     {
-      "question_id": "GT052",
+      "question_id": "GT047",
       "difficulty": "hard",
       "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
       "ground_truth_sql": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(u.\"VAL_UTI\") AS custo_medio_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL AND u.\"VAL_UTI\" IS NOT NULL GROUP BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END;",
-      "predicted_sql": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia, faixa_etaria LIMIT 100;",
+      "predicted_sql": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia;",
       "agent_success": true,
-      "agent_execution_time": 16.727176189422607,
+      "agent_execution_time": 17.370905876159668,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -8393,17 +7923,17 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(u.\"VAL_UTI\") AS custo_medio_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL AND u.\"VAL_UTI\" IS NOT NULL GROUP BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END;",
-            "predicted_original": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia, faixa_etaria LIMIT 100;",
+            "predicted_original": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia;",
             "ground_truth_normalized": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(u.\"VAL_UTI\") AS custo_medio_uti FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL AND u.\"VAL_UTI\" IS NOT NULL GROUP BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor' WHEN i.\"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END",
-            "predicted_normalized": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia, faixa_etaria LIMIT 100",
+            "predicted_normalized": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, i.\"IDADE\" AS faixa_etaria, AVG(ud.\"VAL_UTI\") AS custo_medio FROM internacoes i JOIN uti_detalhes ud ON i.\"N_AIH\" = ud.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\"), i.\"IDADE\" ORDER BY ano, mes, dia",
             "match": false,
-            "length_difference": 51,
+            "length_difference": 27,
             "first_difference_position": 7,
             "first_difference_context": {
               "ground_truth": "SELECT CASE WHEN ",
               "predicted": "SELECT EXTRACT(YE"
             },
-            "word_count_difference": -8,
+            "word_count_difference": -11,
             "differing_words": [
               {
                 "position": 1,
@@ -8434,17 +7964,16 @@
             "common_errors": [
               "Missing WHERE clause",
               "Extra ORDER BY clause",
-              "Extra LIMIT clause",
               "Quote mismatch (identifier quoting)"
             ]
           }
         },
         "Component Matching (CM)": {
-          "score": 0.23,
+          "score": 0.25,
           "is_correct": false,
           "error": null,
           "details": {
-            "overall_score": 0.23,
+            "overall_score": 0.25,
             "component_scores": {
               "select": 0.0,
               "from": 1.0,
@@ -8453,7 +7982,7 @@
               "group_by": 0.0,
               "order_by": 0.0,
               "having": 1.0,
-              "limit": 0.0
+              "limit": 1.0
             },
             "component_details": {
               "select": {
@@ -8513,7 +8042,7 @@
                 "match": "both_empty"
               },
               "limit": {
-                "match": "one_empty"
+                "match": "both_empty"
               }
             },
             "ground_truth_components": {
@@ -8532,8 +8061,8 @@
               "where": "",
               "group_by": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) , EXTRACT ( MONTH FROM i . \"DT_INTER\" ) , EXTRACT ( DAY FROM i . \"DT_INTER\" ) , i . \"IDADE\"",
               "having": "",
-              "order_by": "ano , mes , dia , faixa_etaria",
-              "limit": "100 ;",
+              "order_by": "ano , mes , dia ;",
+              "limit": "",
               "joins": "uti_detalhes ud i . \"N_AIH\" = ud . \"N_AIH\""
             },
             "clause_weights": {
@@ -8556,26 +8085,26 @@
             "ground_truth_executed": true,
             "predicted_executed": true,
             "ground_truth_rows": 3,
-            "predicted_rows": 100,
+            "predicted_rows": 48414,
             "results_match": false,
             "comparison_details": {
               "size_mismatch": true,
               "gt_size": 3,
-              "pred_size": 100,
-              "size_difference": 97
+              "pred_size": 48414,
+              "size_difference": 48411
             }
           }
         }
       }
     },
     {
-      "question_id": "GT054",
+      "question_id": "GT048",
       "difficulty": "hard",
       "question": "Qual a correlação entre nível educacional e valor das internações?",
       "ground_truth_sql": "SELECT ins.\"INSTRU\" AS nivel_educacional, AVG(i.\"VAL_TOT\") AS valor_medio FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY valor_medio DESC;",
-      "predicted_sql": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\";",
+      "predicted_sql": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\" ORDER BY media_valor_internacao DESC;",
       "agent_success": true,
-      "agent_execution_time": 11.392777442932129,
+      "agent_execution_time": 10.503801584243774,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
@@ -8583,17 +8112,17 @@
           "error": null,
           "details": {
             "ground_truth_original": "SELECT ins.\"INSTRU\" AS nivel_educacional, AVG(i.\"VAL_TOT\") AS valor_medio FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY valor_medio DESC;",
-            "predicted_original": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\";",
+            "predicted_original": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\" ORDER BY media_valor_internacao DESC;",
             "ground_truth_normalized": "SELECT ins.\"INSTRU\" AS nivel_educacional, AVG(i.\"VAL_TOT\") AS valor_medio FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" WHERE ins.\"INSTRU\" IS NOT NULL AND i.\"VAL_TOT\" IS NOT NULL GROUP BY ins.\"INSTRU\" ORDER BY valor_medio DESC",
-            "predicted_normalized": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\"",
+            "predicted_normalized": "SELECT i.\"ESPEC\", AVG(i.\"VAL_TOT\") AS media_valor_internacao FROM internacoes i JOIN instrucao ins ON i.\"N_AIH\" = ins.\"N_AIH\" GROUP BY i.\"ESPEC\" ORDER BY media_valor_internacao DESC",
             "match": false,
-            "length_difference": -101,
+            "length_difference": -64,
             "first_difference_position": 8,
             "first_difference_context": {
               "ground_truth": "SELECT ins.\"INSTRU",
               "predicted": "SELECT i.\"ESPEC\", "
             },
-            "word_count_difference": -16,
+            "word_count_difference": -12,
             "differing_words": [
               {
                 "position": 1,
@@ -8623,7 +8152,6 @@
             ],
             "common_errors": [
               "Missing WHERE clause",
-              "Missing ORDER BY clause",
               "Quote mismatch (identifier quoting)"
             ]
           }
@@ -8686,11 +8214,13 @@
               },
               "group_by": {
                 "gt_normalized": "ins . \"INSTRU\"",
-                "pred_normalized": "i . \"ESPEC\" ",
+                "pred_normalized": "i . \"ESPEC\"",
                 "exact_match": false
               },
               "order_by": {
-                "match": "one_empty"
+                "gt_normalized": "valor_medio ",
+                "pred_normalized": "media_valor_internacao ",
+                "exact_match": false
               },
               "having": {
                 "match": "both_empty"
@@ -8713,9 +8243,9 @@
               "select": "i . \"ESPEC\" , AVG ( i . \"VAL_TOT\" ) media_valor_internacao",
               "from": "internacoes i",
               "where": "",
-              "group_by": "i . \"ESPEC\" ;",
+              "group_by": "i . \"ESPEC\"",
               "having": "",
-              "order_by": "",
+              "order_by": "media_valor_internacao ;",
               "limit": "",
               "joins": "instrucao ins i . \"N_AIH\" = ins . \"N_AIH\""
             },
@@ -8752,31 +8282,531 @@
       }
     },
     {
-      "question_id": "GT060",
+      "question_id": "GT049",
       "difficulty": "hard",
       "question": "Quantos casos tiveram VDRL positivo e evoluíram para óbito?",
       "ground_truth_sql": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS vdrl_positivo_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1';",
-      "predicted_sql": "",
-      "agent_success": false,
-      "agent_execution_time": 45.70200800895691,
+      "predicted_sql": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN condicoes_especificas i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"IND_VDRL\" = '1' AND mo.\"CID_MORTE\" IS NOT NULL;",
+      "agent_success": true,
+      "agent_execution_time": 14.557881593704224,
       "metrics": {
         "Exact Match (EM)": {
           "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "ground_truth_normalized": "",
-            "predicted_normalized": "",
-            "reason": "Empty or missing SQL query"
+            "ground_truth_original": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS vdrl_positivo_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1';",
+            "predicted_original": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN condicoes_especificas i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"IND_VDRL\" = '1' AND mo.\"CID_MORTE\" IS NOT NULL;",
+            "ground_truth_normalized": "SELECT COUNT(DISTINCT c.\"N_AIH\") AS vdrl_positivo_obito FROM condicoes_especificas c JOIN mortes m ON c.\"N_AIH\" = m.\"N_AIH\" WHERE c.\"IND_VDRL\" = '1'",
+            "predicted_normalized": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN condicoes_especificas i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"IND_VDRL\" = '1' AND mo.\"CID_MORTE\" IS NOT NULL",
+            "match": false,
+            "length_difference": 2,
+            "first_difference_position": 13,
+            "first_difference_context": {
+              "ground_truth": "ECT COUNT(DISTINCT c",
+              "predicted": "ECT COUNT(mo.\"N_AIH\""
+            },
+            "word_count_difference": 2,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "COUNT(DISTINCT",
+                "predicted": "COUNT(mo.\"N_AIH\")"
+              },
+              {
+                "position": 2,
+                "ground_truth": "c.\"N_AIH\")",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "AS",
+                "predicted": "mortes"
+              },
+              {
+                "position": 4,
+                "ground_truth": "vdrl_positivo_obito",
+                "predicted": "mo"
+              },
+              {
+                "position": 5,
+                "ground_truth": "FROM",
+                "predicted": "JOIN"
+              }
+            ],
+            "common_errors": [
+              "Quote mismatch (identifier quoting)"
+            ]
           }
         },
         "Component Matching (CM)": {
+          "score": 0.2,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.2,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 0.0,
+              "joins": 0.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "COUNT ( DISTINCT c . \"N_AIH\" ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( mo . \"N_AIH\" )"
+                ],
+                "gt_normalized": [
+                  "COUNT ( DISTINCT c . \"N_AIH\" ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( mo . \"N_AIH\" )"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "condicoes_especificas"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "gt_conditions": [
+                  "c . \"IND_VDRL\" = '1' "
+                ],
+                "pred_conditions": [
+                  "i . \"IND_VDRL\" = '1' mo . \"CID_MORTE\" "
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "joins": {
+                "gt_normalized": "mortes m c . \"N_AIH\" = m . \"N_AIH\"",
+                "pred_normalized": "condicoes_especificas i mo . \"N_AIH\" = i . \"N_AIH\"",
+                "exact_match": false
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( DISTINCT c . \"N_AIH\" ) vdrl_positivo_obito",
+              "from": "condicoes_especificas c",
+              "where": "c . \"IND_VDRL\" = '1' ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": "mortes m c . \"N_AIH\" = m . \"N_AIH\""
+            },
+            "predicted_components": {
+              "select": "COUNT ( mo . \"N_AIH\" )",
+              "from": "mortes mo",
+              "where": "i . \"IND_VDRL\" = '1' mo . \"CID_MORTE\" ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": "condicoes_especificas i mo . \"N_AIH\" = i . \"N_AIH\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": true,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT050",
+      "difficulty": "medium",
+      "question": "Qual a evolução de internações para cada ano?",
+      "ground_truth_sql": "SELECT EXTRACT(YEAR FROM \"DT_INTER\") AS ano, COUNT(*) AS total_internacoes FROM internacoes WHERE \"DT_INTER\" IS NOT NULL GROUP BY ano ORDER BY ano;",
+      "predicted_sql": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\") ORDER BY ano ASC;",
+      "agent_success": true,
+      "agent_execution_time": 13.041166067123413,
+      "metrics": {
+        "Exact Match (EM)": {
           "score": 0.0,
           "is_correct": false,
           "error": null,
           "details": {
-            "reason": "Empty or missing SQL query",
-            "component_scores": {}
+            "ground_truth_original": "SELECT EXTRACT(YEAR FROM \"DT_INTER\") AS ano, COUNT(*) AS total_internacoes FROM internacoes WHERE \"DT_INTER\" IS NOT NULL GROUP BY ano ORDER BY ano;",
+            "predicted_original": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\") ORDER BY ano ASC;",
+            "ground_truth_normalized": "SELECT EXTRACT(YEAR FROM \"DT_INTER\") AS ano, COUNT(*) AS total_internacoes FROM internacoes WHERE \"DT_INTER\" IS NOT NULL GROUP BY ano ORDER BY ano",
+            "predicted_normalized": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\") ORDER BY ano ASC",
+            "match": false,
+            "length_difference": 15,
+            "first_difference_position": 25,
+            "first_difference_context": {
+              "ground_truth": "YEAR FROM \"DT_INTER\"",
+              "predicted": "YEAR FROM i.\"DT_INTE"
+            },
+            "word_count_difference": -1,
+            "differing_words": [
+              {
+                "position": 3,
+                "ground_truth": "\"DT_INTER\")",
+                "predicted": "i.\"DT_INTER\")"
+              },
+              {
+                "position": 6,
+                "ground_truth": "COUNT(*)",
+                "predicted": "COUNT(i.\"N_AIH\")"
+              },
+              {
+                "position": 11,
+                "ground_truth": "WHERE",
+                "predicted": "i"
+              },
+              {
+                "position": 12,
+                "ground_truth": "\"DT_INTER\"",
+                "predicted": "GROUP"
+              },
+              {
+                "position": 13,
+                "ground_truth": "IS",
+                "predicted": "BY"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.45,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.45,
+            "component_scores": {
+              "select": 0.0,
+              "from": 1.0,
+              "where": 0.0,
+              "joins": 1.0,
+              "group_by": 0.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "EXTRACT ( YEAR FROM \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "EXTRACT ( YEAR FROM \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "where": {
+                "match": "one_empty"
+              },
+              "joins": {
+                "match": "both_empty"
+              },
+              "group_by": {
+                "gt_normalized": "ano",
+                "pred_normalized": "EXTRACT ( YEAR FROM i . \"DT_INTER\" )",
+                "exact_match": false
+              },
+              "order_by": {
+                "gt_normalized": "ano ",
+                "pred_normalized": "ano ",
+                "exact_match": true
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "EXTRACT ( YEAR FROM \"DT_INTER\" ) ano , COUNT ( * ) total_internacoes",
+              "from": "internacoes",
+              "where": "\"DT_INTER\"",
+              "group_by": "ano",
+              "having": "",
+              "order_by": "ano ;",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) ano , COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "internacoes i",
+              "where": "",
+              "group_by": "EXTRACT ( YEAR FROM i . \"DT_INTER\" )",
+              "having": "",
+              "order_by": "ano ;",
+              "limit": "",
+              "joins": ""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 16,
+            "predicted_rows": 16,
+            "results_match": true,
+            "comparison_details": {
+              "gt_size": 16,
+              "pred_size": 16,
+              "normalized_match": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT051",
+      "difficulty": "medium",
+      "question": "Quantas internações por doença respiratória ocorrem no inverno (junho a agosto)?",
+      "ground_truth_sql": "SELECT COUNT(*) AS internacoes_respiratorias_inverno FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'J%' AND EXTRACT(MONTH FROM \"DT_INTER\") IN (6, 7, 8);",
+      "predicted_sql": "SELECT COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE EXTRACT(MONTH FROM i.\"DT_INTER\") BETWEEN 6 AND 8 AND (c.\"CD_DESCRICAO\" ILIKE '%pulm%' OR c.\"CD_DESCRICAO\" ILIKE '%respir%' OR c.\"CD_DESCRICAO\" ILIKE '%pneum%') OR (c.\"CID\" LIKE 'J%' OR c.\"CD_DESCRICAO\" ILIKE '%bronqu%');",
+      "agent_success": true,
+      "agent_execution_time": 12.96216082572937,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_original": "SELECT COUNT(*) AS internacoes_respiratorias_inverno FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'J%' AND EXTRACT(MONTH FROM \"DT_INTER\") IN (6, 7, 8);",
+            "predicted_original": "SELECT COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE EXTRACT(MONTH FROM i.\"DT_INTER\") BETWEEN 6 AND 8 AND (c.\"CD_DESCRICAO\" ILIKE '%pulm%' OR c.\"CD_DESCRICAO\" ILIKE '%respir%' OR c.\"CD_DESCRICAO\" ILIKE '%pneum%') OR (c.\"CID\" LIKE 'J%' OR c.\"CD_DESCRICAO\" ILIKE '%bronqu%');",
+            "ground_truth_normalized": "SELECT COUNT(*) AS internacoes_respiratorias_inverno FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'J%' AND EXTRACT(MONTH FROM \"DT_INTER\") IN (6, 7, 8)",
+            "predicted_normalized": "SELECT COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE EXTRACT(MONTH FROM i.\"DT_INTER\") BETWEEN 6 AND 8 AND (c.\"CD_DESCRICAO\" ILIKE '%pulm%' OR c.\"CD_DESCRICAO\" ILIKE '%respir%' OR c.\"CD_DESCRICAO\" ILIKE '%pneum%') OR (c.\"CID\" LIKE 'J%' OR c.\"CD_DESCRICAO\" ILIKE '%bronqu%')",
+            "match": false,
+            "length_difference": 184,
+            "first_difference_position": 13,
+            "first_difference_context": {
+              "ground_truth": "ECT COUNT(*) AS inte",
+              "predicted": "ECT COUNT(i.\"N_AIH\")"
+            },
+            "word_count_difference": 24,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "COUNT(*)",
+                "predicted": "COUNT(i.\"N_AIH\")"
+              },
+              {
+                "position": 3,
+                "ground_truth": "internacoes_respiratorias_inverno",
+                "predicted": "total_internacoes"
+              },
+              {
+                "position": 6,
+                "ground_truth": "WHERE",
+                "predicted": "i"
+              },
+              {
+                "position": 7,
+                "ground_truth": "\"DIAG_PRINC\"",
+                "predicted": "JOIN"
+              },
+              {
+                "position": 8,
+                "ground_truth": "LIKE",
+                "predicted": "cid10"
+              }
+            ],
+            "common_errors": [
+              "Quote mismatch (identifier quoting)",
+              "Unexpected JOIN operation"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.4,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.4,
+            "component_scores": {
+              "select": 0.0,
+              "from": 1.0,
+              "where": 0.0,
+              "joins": 0.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "where": {
+                "gt_conditions": [
+                  "\"DIAG_PRINC\" LIKE 'J%' EXTRACT ( MONTH FROM \"DT_INTER\" ) ( 6 , 7 , 8 ) "
+                ],
+                "pred_conditions": [
+                  "EXTRACT ( MONTH FROM i . \"DT_INTER\" ) 6 8 ( c . \"CD_DESCRICAO\" ILIKE '%pulm%'",
+                  "c . \"CD_DESCRICAO\" ILIKE '%respir%'",
+                  "c . \"CD_DESCRICAO\" ILIKE '%pneum%' ) ( c . \"CID\" LIKE 'J%'",
+                  "c . \"CD_DESCRICAO\" ILIKE '%bronqu%' ) "
+                ],
+                "intersection_count": 0,
+                "union_count": 5,
+                "jaccard_similarity": 0.0
+              },
+              "joins": {
+                "match": "one_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "COUNT ( * ) internacoes_respiratorias_inverno",
+              "from": "internacoes",
+              "where": "\"DIAG_PRINC\" LIKE 'J%' EXTRACT ( MONTH FROM \"DT_INTER\" ) ( 6 , 7 , 8 ) ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "internacoes i",
+              "where": "EXTRACT ( MONTH FROM i . \"DT_INTER\" ) 6 8 ( c . \"CD_DESCRICAO\" ILIKE '%pulm%' OR c . \"CD_DESCRICAO\" ILIKE '%respir%' OR c . \"CD_DESCRICAO\" ILIKE '%pneum%' ) ( c . \"CID\" LIKE 'J%' OR c . \"CD_DESCRICAO\" ILIKE '%bronqu%' ) ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": "cid10 c i . \"DIAG_PRINC\" = c . \"CID\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
           }
         },
         "Execution Accuracy (EX)": {
@@ -8784,9 +8814,840 @@
           "is_correct": false,
           "error": null,
           "details": {
-            "reason": "Empty or missing SQL query",
-            "ground_truth_executed": false,
-            "predicted_executed": false
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  486123
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  1543926
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT052",
+      "difficulty": "hard",
+      "question": "Quais são as 10 principais causas de morte (com descrição)?",
+      "ground_truth_sql": "SELECT c.\"CID\", c.\"CD_DESCRICAO\", COUNT(*) AS total_mortes FROM mortes m JOIN cid10 c ON m.\"CID_MORTE\" = c.\"CID\" GROUP BY c.\"CID\", c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10;",
+      "predicted_sql": "SELECT c.\"CD_DESCRICAO\", COUNT(mo.\"N_AIH\") AS total_mortes FROM cid10 c JOIN mortes mo ON c.\"CID\" = mo.\"CID_MORTE\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10;",
+      "agent_success": true,
+      "agent_execution_time": 11.615390062332153,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_original": "SELECT c.\"CID\", c.\"CD_DESCRICAO\", COUNT(*) AS total_mortes FROM mortes m JOIN cid10 c ON m.\"CID_MORTE\" = c.\"CID\" GROUP BY c.\"CID\", c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10;",
+            "predicted_original": "SELECT c.\"CD_DESCRICAO\", COUNT(mo.\"N_AIH\") AS total_mortes FROM cid10 c JOIN mortes mo ON c.\"CID\" = mo.\"CID_MORTE\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10;",
+            "ground_truth_normalized": "SELECT c.\"CID\", c.\"CD_DESCRICAO\", COUNT(*) AS total_mortes FROM mortes m JOIN cid10 c ON m.\"CID_MORTE\" = c.\"CID\" GROUP BY c.\"CID\", c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10",
+            "predicted_normalized": "SELECT c.\"CD_DESCRICAO\", COUNT(mo.\"N_AIH\") AS total_mortes FROM cid10 c JOIN mortes mo ON c.\"CID\" = mo.\"CID_MORTE\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 10",
+            "match": false,
+            "length_difference": -7,
+            "first_difference_position": 11,
+            "first_difference_context": {
+              "ground_truth": "ELECT c.\"CID\", c.\"CD",
+              "predicted": "ELECT c.\"CD_DESCRICA"
+            },
+            "word_count_difference": -2,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "c.\"CID\",",
+                "predicted": "c.\"CD_DESCRICAO\","
+              },
+              {
+                "position": 2,
+                "ground_truth": "c.\"CD_DESCRICAO\",",
+                "predicted": "COUNT(mo.\"N_AIH\")"
+              },
+              {
+                "position": 3,
+                "ground_truth": "COUNT(*)",
+                "predicted": "AS"
+              },
+              {
+                "position": 4,
+                "ground_truth": "AS",
+                "predicted": "total_mortes"
+              },
+              {
+                "position": 5,
+                "ground_truth": "total_mortes",
+                "predicted": "FROM"
+              }
+            ],
+            "common_errors": [
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.3625,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.3625,
+            "component_scores": {
+              "select": 0.25,
+              "from": 0.0,
+              "where": 1.0,
+              "joins": 0.0,
+              "group_by": 0.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.25,
+                "gt_items": [
+                  "c . \"CID\"",
+                  "c . \"CD_DESCRICAO\"",
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_items": [
+                  "c . \"CD_DESCRICAO\"",
+                  "COUNT ( mo . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "c . \"CID\"",
+                  "c . \"CD_DESCRICAO\"",
+                  "COUNT ( * ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "c . \"CD_DESCRICAO\"",
+                  "COUNT ( mo . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "mortes"
+                ],
+                "pred_tables": [
+                  "cid10"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "gt_normalized": "cid10 c m . \"CID_MORTE\" = c . \"CID\"",
+                "pred_normalized": "mortes mo c . \"CID\" = mo . \"CID_MORTE\"",
+                "exact_match": false
+              },
+              "group_by": {
+                "gt_normalized": "c . \"CID\" , c . \"CD_DESCRICAO\"",
+                "pred_normalized": "c . \"CD_DESCRICAO\"",
+                "exact_match": false
+              },
+              "order_by": {
+                "gt_normalized": "total_mortes",
+                "pred_normalized": "total_mortes",
+                "exact_match": true
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "gt_numbers": [
+                  "10"
+                ],
+                "pred_numbers": [
+                  "10"
+                ],
+                "match": true
+              }
+            },
+            "ground_truth_components": {
+              "select": "c . \"CID\" , c . \"CD_DESCRICAO\" , COUNT ( * ) total_mortes",
+              "from": "mortes m",
+              "where": "",
+              "group_by": "c . \"CID\" , c . \"CD_DESCRICAO\"",
+              "having": "",
+              "order_by": "total_mortes",
+              "limit": "10 ;",
+              "joins": "cid10 c m . \"CID_MORTE\" = c . \"CID\""
+            },
+            "predicted_components": {
+              "select": "c . \"CD_DESCRICAO\" , COUNT ( mo . \"N_AIH\" ) total_mortes",
+              "from": "cid10 c",
+              "where": "",
+              "group_by": "c . \"CD_DESCRICAO\"",
+              "having": "",
+              "order_by": "total_mortes",
+              "limit": "10 ;",
+              "joins": "mortes mo c . \"CID\" = mo . \"CID_MORTE\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 10,
+            "predicted_rows": 10,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 10,
+              "pred_size": 10,
+              "normalized_match": false,
+              "missing_rows_count": 10,
+              "extra_rows_count": 10,
+              "missing_rows_sample": [
+                [
+                  "0",
+                  "Nao preenchido",
+                  335838
+                ],
+                [
+                  "J960",
+                  "Insuf respirat aguda",
+                  21187
+                ],
+                [
+                  "A419",
+                  "Septicemia NE",
+                  15601
+                ],
+                [
+                  "I469",
+                  "Parada cardiaca NE",
+                  12155
+                ],
+                [
+                  "J189",
+                  "Pneumonia NE",
+                  8037
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  "Nao preenchido",
+                  335838
+                ],
+                [
+                  "Insuf respirat aguda",
+                  21187
+                ],
+                [
+                  "Septicemia NE",
+                  15601
+                ],
+                [
+                  "Parada cardiaca NE",
+                  12155
+                ],
+                [
+                  "Pneumonia NE",
+                  8037
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT053",
+      "difficulty": "hard",
+      "question": "Qual a taxa de mortalidade hospitalar geral do Rio Grande do Sul?",
+      "ground_truth_sql": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
+      "predicted_sql": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS total_mortes, COUNT(i.\"N_AIH\") AS total_internacoes FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"MUNIC_RES\" IN ( SELECT codigo_6d FROM municipios WHERE estado ILIKE 'RS' );",
+      "agent_success": true,
+      "agent_execution_time": 11.89359426498413,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_original": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
+            "predicted_original": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS total_mortes, COUNT(i.\"N_AIH\") AS total_internacoes FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"MUNIC_RES\" IN ( SELECT codigo_6d FROM municipios WHERE estado ILIKE 'RS' );",
+            "ground_truth_normalized": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\"",
+            "predicted_normalized": "SELECT COUNT(DISTINCT i.\"N_AIH\") AS total_mortes, COUNT(i.\"N_AIH\") AS total_internacoes FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"MUNIC_RES\" IN ( SELECT codigo_6d FROM municipios WHERE estado ILIKE 'RS' )",
+            "match": false,
+            "length_difference": 56,
+            "first_difference_position": 7,
+            "first_difference_context": {
+              "ground_truth": "SELECT ROUND((COU",
+              "predicted": "SELECT COUNT(DIST"
+            },
+            "word_count_difference": 9,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "ROUND((COUNT(DISTINCT",
+                "predicted": "COUNT(DISTINCT"
+              },
+              {
+                "position": 2,
+                "ground_truth": "m.\"N_AIH\")::numeric",
+                "predicted": "i.\"N_AIH\")"
+              },
+              {
+                "position": 3,
+                "ground_truth": "/",
+                "predicted": "AS"
+              },
+              {
+                "position": 4,
+                "ground_truth": "COUNT(DISTINCT",
+                "predicted": "total_mortes,"
+              },
+              {
+                "position": 5,
+                "ground_truth": "i.\"N_AIH\")",
+                "predicted": "COUNT(i.\"N_AIH\")"
+              }
+            ],
+            "common_errors": [
+              "Extra WHERE clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.2,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.2,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 0.0,
+              "joins": 0.0,
+              "group_by": 1.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "ROUND ( ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100 )",
+                  "2 ) AS <alias>"
+                ],
+                "pred_items": [
+                  "COUNT ( DISTINCT i . \"N_AIH\" ) AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "ROUND ( ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100 )",
+                  "2 ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "COUNT ( DISTINCT i . \"N_AIH\" ) AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes i mortes m i . \"N_AIH\" = m . \"N_AIH\" ;"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "one_empty"
+              },
+              "joins": {
+                "match": "one_empty"
+              },
+              "group_by": {
+                "match": "both_empty"
+              },
+              "order_by": {
+                "match": "both_empty"
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "ROUND ( ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100 ) , 2 ) taxa_mortalidade_perc",
+              "from": "internacoes i mortes m i . \"N_AIH\" = m . \"N_AIH\" ;",
+              "where": "",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "COUNT ( DISTINCT i . \"N_AIH\" ) total_mortes , COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "mortes mo",
+              "where": "i . \"MUNIC_RES\" ( SELECT codigo_6d FROM municipios WHERE estado ILIKE 'RS' ) ;",
+              "group_by": "",
+              "having": "",
+              "order_by": "",
+              "limit": "",
+              "joins": "internacoes i mo . \"N_AIH\" = i . \"N_AIH\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 1,
+            "predicted_rows": 1,
+            "results_match": false,
+            "comparison_details": {
+              "gt_size": 1,
+              "pred_size": 1,
+              "normalized_match": false,
+              "missing_rows_count": 1,
+              "extra_rows_count": 1,
+              "missing_rows_sample": [
+                [
+                  "5.17"
+                ]
+              ],
+              "extra_rows_sample": [
+                [
+                  568627,
+                  568627
+                ]
+              ],
+              "overlap_ratio": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT054",
+      "difficulty": "hard",
+      "question": "Qual a taxa de mortalidade por faixa etária?",
+      "ground_truth_sql": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN '0-17 anos' WHEN i.\"IDADE\" < 40 THEN '18-39 anos' WHEN i.\"IDADE\" < 60 THEN '40-59 anos' ELSE '60+ anos' END AS faixa_etaria, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes, COUNT(DISTINCT m.\"N_AIH\") AS total_mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) AS taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL GROUP BY faixa_etaria ORDER BY faixa_etaria;",
+      "predicted_sql": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, COUNT(CASE WHEN mo.\"CID_MORTE\" IS NOT NULL THEN 1 END) / COUNT(i.\"N_AIH\") AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\") ORDER BY EXTRACT(YEAR FROM i.\"DT_INTER\");",
+      "agent_success": true,
+      "agent_execution_time": 16.987741947174072,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_original": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN '0-17 anos' WHEN i.\"IDADE\" < 40 THEN '18-39 anos' WHEN i.\"IDADE\" < 60 THEN '40-59 anos' ELSE '60+ anos' END AS faixa_etaria, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes, COUNT(DISTINCT m.\"N_AIH\") AS total_mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) AS taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL GROUP BY faixa_etaria ORDER BY faixa_etaria;",
+            "predicted_original": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, COUNT(CASE WHEN mo.\"CID_MORTE\" IS NOT NULL THEN 1 END) / COUNT(i.\"N_AIH\") AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\") ORDER BY EXTRACT(YEAR FROM i.\"DT_INTER\");",
+            "ground_truth_normalized": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN '0-17 anos' WHEN i.\"IDADE\" < 40 THEN '18-39 anos' WHEN i.\"IDADE\" < 60 THEN '40-59 anos' ELSE '60+ anos' END AS faixa_etaria, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes, COUNT(DISTINCT m.\"N_AIH\") AS total_mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) AS taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL GROUP BY faixa_etaria ORDER BY faixa_etaria",
+            "predicted_normalized": "SELECT EXTRACT(YEAR FROM i.\"DT_INTER\") AS ano, EXTRACT(MONTH FROM i.\"DT_INTER\") AS mes, EXTRACT(DAY FROM i.\"DT_INTER\") AS dia, COUNT(CASE WHEN mo.\"CID_MORTE\" IS NOT NULL THEN 1 END) / COUNT(i.\"N_AIH\") AS taxa_mortalidade FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" GROUP BY EXTRACT(YEAR FROM i.\"DT_INTER\"), EXTRACT(MONTH FROM i.\"DT_INTER\"), EXTRACT(DAY FROM i.\"DT_INTER\") ORDER BY EXTRACT(YEAR FROM i.\"DT_INTER\")",
+            "match": false,
+            "length_difference": -58,
+            "first_difference_position": 7,
+            "first_difference_context": {
+              "ground_truth": "SELECT CASE WHEN ",
+              "predicted": "SELECT EXTRACT(YE"
+            },
+            "word_count_difference": -14,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "CASE",
+                "predicted": "EXTRACT(YEAR"
+              },
+              {
+                "position": 2,
+                "ground_truth": "WHEN",
+                "predicted": "FROM"
+              },
+              {
+                "position": 3,
+                "ground_truth": "i.\"IDADE\"",
+                "predicted": "i.\"DT_INTER\")"
+              },
+              {
+                "position": 4,
+                "ground_truth": "<",
+                "predicted": "AS"
+              },
+              {
+                "position": 5,
+                "ground_truth": "18",
+                "predicted": "ano,"
+              }
+            ],
+            "common_errors": [
+              "Missing WHERE clause",
+              "Quote mismatch (identifier quoting)"
+            ]
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.05,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.05,
+            "component_scores": {
+              "select": 0.0,
+              "from": 0.0,
+              "where": 0.0,
+              "joins": 0.0,
+              "group_by": 0.0,
+              "order_by": 0.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.0,
+                "gt_items": [
+                  "i . \"IDADE\" < 18 '0-17 anos' i . \"IDADE\" < 40 '18-39 anos' i . \"IDADE\" < 60 '40-59 anos' '60+ anos' AS <alias>",
+                  "COUNT ( DISTINCT i . \"N_AIH\" ) AS <alias>",
+                  "COUNT ( DISTINCT m . \"N_AIH\" ) AS <alias>",
+                  "ROUND ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100",
+                  "2 ) AS <alias>"
+                ],
+                "pred_items": [
+                  "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) AS <alias>",
+                  "EXTRACT ( MONTH FROM i . \"DT_INTER\" ) AS <alias>",
+                  "EXTRACT ( DAY FROM i . \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( CASE WHEN mo . \"CID_MORTE\" IS NOT NULL THEN 1 END ) / COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "i . \"IDADE\" < 18 '0-17 anos' i . \"IDADE\" < 40 '18-39 anos' i . \"IDADE\" < 60 '40-59 anos' '60+ anos' AS <alias>",
+                  "COUNT ( DISTINCT i . \"N_AIH\" ) AS <alias>",
+                  "COUNT ( DISTINCT m . \"N_AIH\" ) AS <alias>",
+                  "ROUND ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100",
+                  "2 ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) AS <alias>",
+                  "EXTRACT ( MONTH FROM i . \"DT_INTER\" ) AS <alias>",
+                  "EXTRACT ( DAY FROM i . \"DT_INTER\" ) AS <alias>",
+                  "COUNT ( CASE WHEN mo . \"CID_MORTE\" IS NOT NULL THEN 1 END ) / COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes i mortes m i . \"N_AIH\" = m . \"N_AIH"
+                ],
+                "pred_tables": [
+                  "mortes"
+                ],
+                "intersection_count": 0,
+                "union_count": 2,
+                "jaccard_similarity": 0.0
+              },
+              "where": {
+                "match": "one_empty"
+              },
+              "joins": {
+                "match": "one_empty"
+              },
+              "group_by": {
+                "gt_normalized": "faixa_etaria",
+                "pred_normalized": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) , EXTRACT ( MONTH FROM i . \"DT_INTER\" ) , EXTRACT ( DAY FROM i . \"DT_INTER\" )",
+                "exact_match": false
+              },
+              "order_by": {
+                "gt_normalized": "faixa_etaria ",
+                "pred_normalized": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) ",
+                "exact_match": false
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "match": "both_empty"
+              }
+            },
+            "ground_truth_components": {
+              "select": "i . \"IDADE\" < 18 '0-17 anos' i . \"IDADE\" < 40 '18-39 anos' i . \"IDADE\" < 60 '40-59 anos' '60+ anos' faixa_etaria , COUNT ( DISTINCT i . \"N_AIH\" ) total_internacoes , COUNT ( DISTINCT m . \"N_AIH\" ) total_mortes , ROUND ( COUNT ( DISTINCT m . \"N_AIH\" ) :: numeric / COUNT ( DISTINCT i . \"N_AIH\" ) * 100 , 2 ) taxa_mortalidade",
+              "from": "internacoes i mortes m i . \"N_AIH\" = m . \"N_AIH\"",
+              "where": "i . \"IDADE\"",
+              "group_by": "faixa_etaria",
+              "having": "",
+              "order_by": "faixa_etaria ;",
+              "limit": "",
+              "joins": ""
+            },
+            "predicted_components": {
+              "select": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) ano , EXTRACT ( MONTH FROM i . \"DT_INTER\" ) mes , EXTRACT ( DAY FROM i . \"DT_INTER\" ) dia , COUNT ( CASE WHEN mo . \"CID_MORTE\" IS NOT NULL THEN 1 END ) / COUNT ( i . \"N_AIH\" ) taxa_mortalidade",
+              "from": "mortes mo",
+              "where": "",
+              "group_by": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) , EXTRACT ( MONTH FROM i . \"DT_INTER\" ) , EXTRACT ( DAY FROM i . \"DT_INTER\" )",
+              "having": "",
+              "order_by": "EXTRACT ( YEAR FROM i . \"DT_INTER\" ) ;",
+              "limit": "",
+              "joins": "internacoes i mo . \"N_AIH\" = i . \"N_AIH\""
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 4,
+            "predicted_rows": 5610,
+            "results_match": false,
+            "comparison_details": {
+              "size_mismatch": true,
+              "gt_size": 4,
+              "pred_size": 5610,
+              "size_difference": 5606
+            }
+          }
+        }
+      }
+    },
+    {
+      "question_id": "GT055",
+      "difficulty": "hard",
+      "question": "Quais são os 10 municípios com mais internações?",
+      "ground_truth_sql": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10;",
+      "predicted_sql": "SELECT mu.nome, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome ORDER BY total_internacoes DESC LIMIT 10;",
+      "agent_success": true,
+      "agent_execution_time": 12.020457029342651,
+      "metrics": {
+        "Exact Match (EM)": {
+          "score": 0.0,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "ground_truth_original": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10;",
+            "predicted_original": "SELECT mu.nome, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome ORDER BY total_internacoes DESC LIMIT 10;",
+            "ground_truth_normalized": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10",
+            "predicted_normalized": "SELECT mu.nome, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome ORDER BY total_internacoes DESC LIMIT 10",
+            "match": false,
+            "length_difference": -9,
+            "first_difference_position": 8,
+            "first_difference_context": {
+              "ground_truth": "SELECT m.nome AS m",
+              "predicted": "SELECT mu.nome, CO"
+            },
+            "word_count_difference": -2,
+            "differing_words": [
+              {
+                "position": 1,
+                "ground_truth": "m.nome",
+                "predicted": "mu.nome,"
+              },
+              {
+                "position": 2,
+                "ground_truth": "AS",
+                "predicted": "COUNT(i.\"N_AIH\")"
+              },
+              {
+                "position": 3,
+                "ground_truth": "municipio,",
+                "predicted": "AS"
+              },
+              {
+                "position": 4,
+                "ground_truth": "COUNT(i.\"N_AIH\")",
+                "predicted": "total_internacoes"
+              },
+              {
+                "position": 5,
+                "ground_truth": "AS",
+                "predicted": "FROM"
+              }
+            ],
+            "common_errors": []
+          }
+        },
+        "Component Matching (CM)": {
+          "score": 0.625,
+          "is_correct": false,
+          "error": null,
+          "details": {
+            "overall_score": 0.625,
+            "component_scores": {
+              "select": 0.5,
+              "from": 1.0,
+              "where": 1.0,
+              "joins": 0.0,
+              "group_by": 0.0,
+              "order_by": 1.0,
+              "having": 1.0,
+              "limit": 1.0
+            },
+            "component_details": {
+              "select": {
+                "jaccard_similarity": 0.5,
+                "gt_items": [
+                  "m . nome AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "pred_items": [
+                  "mu . AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "gt_normalized": [
+                  "m . nome AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "pred_normalized": [
+                  "mu . AS <alias>",
+                  "COUNT ( i . \"N_AIH\" ) AS <alias>"
+                ],
+                "exact_match": false
+              },
+              "from": {
+                "gt_tables": [
+                  "internacoes"
+                ],
+                "pred_tables": [
+                  "internacoes"
+                ],
+                "intersection_count": 1,
+                "union_count": 1,
+                "jaccard_similarity": 1.0
+              },
+              "where": {
+                "match": "both_empty"
+              },
+              "joins": {
+                "gt_normalized": "municipios m i . \"MUNIC_RES\" = m . codigo_6d",
+                "pred_normalized": "municipios mu i . \"MUNIC_RES\" = mu . codigo_6d",
+                "exact_match": false
+              },
+              "group_by": {
+                "gt_normalized": "m . nome",
+                "pred_normalized": "mu . nome",
+                "exact_match": false
+              },
+              "order_by": {
+                "gt_normalized": "total_internacoes",
+                "pred_normalized": "total_internacoes",
+                "exact_match": true
+              },
+              "having": {
+                "match": "both_empty"
+              },
+              "limit": {
+                "gt_numbers": [
+                  "10"
+                ],
+                "pred_numbers": [
+                  "10"
+                ],
+                "match": true
+              }
+            },
+            "ground_truth_components": {
+              "select": "m . nome municipio , COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "internacoes i",
+              "where": "",
+              "group_by": "m . nome",
+              "having": "",
+              "order_by": "total_internacoes",
+              "limit": "10 ;",
+              "joins": "municipios m i . \"MUNIC_RES\" = m . codigo_6d"
+            },
+            "predicted_components": {
+              "select": "mu . nome , COUNT ( i . \"N_AIH\" ) total_internacoes",
+              "from": "internacoes i",
+              "where": "",
+              "group_by": "mu . nome",
+              "having": "",
+              "order_by": "total_internacoes",
+              "limit": "10 ;",
+              "joins": "municipios mu i . \"MUNIC_RES\" = mu . codigo_6d"
+            },
+            "clause_weights": {
+              "select": 0.25,
+              "from": 0.2,
+              "where": 0.2,
+              "joins": 0.15,
+              "group_by": 0.1,
+              "order_by": 0.05,
+              "having": 0.03,
+              "limit": 0.02
+            }
+          }
+        },
+        "Execution Accuracy (EX)": {
+          "score": 1.0,
+          "is_correct": true,
+          "error": null,
+          "details": {
+            "ground_truth_executed": true,
+            "predicted_executed": true,
+            "ground_truth_rows": 10,
+            "predicted_rows": 10,
+            "results_match": true,
+            "comparison_details": {
+              "gt_size": 10,
+              "pred_size": 10,
+              "normalized_match": true
+            }
           }
         }
       }
