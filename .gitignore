@@ -1,16 +1,12 @@
-# Log files
-*.log
-*.log.*
-logs/
-txt2sql_errors.log
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 build/
+develop-eggs/
+dist/
 downloads/
 eggs/
 .eggs/
@@ -20,40 +16,82 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
-.venv/
 venv/
-ENV/
+.venv/
 env/
-.env/
+ENV/
+env.bak/
+venv.bak/
 
-# IDEs
+# PyCharm
 .idea/
+
+# VS Code
 .vscode/
-*.swp
-*.swo
 
 # Claude Code
 .claude/
-.CLAUDE.md
 
-# LangGraph cache and checkpoints
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Documentation (generated)
+docs/
+contents/
+tests/
+# LangGraph API
 .langgraph_api/
 
-# Database and file backups
-*.db.backup
-*.db.bak
-*.backup
+# Jupyter Notebooks
+.ipynb_checkpoints/
+notebooks/
 
-# Temporary files
-*.tmp
-*.temp
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
 .DS_Store
 Thumbs.db
-# Ignorar toda a pasta contents
-contents/
-notebooks/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Evaluation results (optional - uncomment if you don't want to track results)
+# evaluation/results/
+# evaluation/archive/
+
+# Local configuration
+config.local.py
+config.local.json

@@ -258,13 +258,6 @@ tests/
 
 ### Additional Testing Resources
 
-#### Evaluation Framework
-The project includes an extensive evaluation system in `/evaluation/` directory:
-- Database structure analysis
-- Agent extraction testing  
-- Query execution validation
-- Table selection metrics generation
-
 #### Test Notebooks
 - `/notebooks/test.ipynb`: Database connection testing and table listing
 
@@ -303,6 +296,64 @@ Areas for additional test coverage:
 - CLI interface tests
 - Performance and load tests
 - Logging system validation tests
+
+## Evaluation System
+
+The project includes a comprehensive evaluation framework for measuring Text-to-SQL performance using standard metrics.
+
+### Metrics
+
+The evaluation implements three standard Text-to-SQL metrics:
+- **Exact Match (EM)**: Binary score requiring perfect syntactic match
+- **Component Matching (CM)**: Weighted score (0.0-1.0) evaluating individual SQL clauses
+- **Execution Accuracy (EX)**: Binary score comparing query results on real database
+
+### Ground Truth Dataset
+
+The system uses a curated dataset of 55 healthcare management queries covering:
+- **Easy** (19 queries): Single table, basic operations
+- **Medium** (18 queries): Filtering, aggregation, temporal analysis
+- **Hard** (18 queries): Multi-table JOINs, complex calculations
+
+All queries focus on real-world scenarios for DATASUS/SIH-RS healthcare data analysis.
+
+### Running Evaluation
+
+Execute complete evaluation on all 55 queries using DAG-based pipeline:
+
+```bash
+# Run full evaluation
+python evaluation/run_dag_evaluation.py
+
+# With DAG visualization
+python evaluation/run_dag_evaluation.py --save-dag-visualization
+
+# Verbose mode
+python evaluation/run_dag_evaluation.py --verbose
+```
+
+Results are saved to `evaluation/results/`:
+- `dag_evaluation_YYYYMMDD_HHMMSS.json` - Complete results with all metrics
+- `dag_evaluation_report_YYYYMMDD_HHMMSS.txt` - Summary report
+
+### Evaluation Architecture
+
+```
+evaluation/
+├── dag/                       # DAG-based pipeline
+│   ├── base.py               # DAG implementation
+│   ├── tasks.py              # Pipeline tasks
+│   └── pipeline.py           # Pipeline definition
+├── metrics/                  # Metric implementations
+│   ├── exact_match.py        # EM metric
+│   ├── component_matching.py # CM metric
+│   └── execution_accuracy.py # EX metric
+├── ground_truth.json         # 55 evaluation queries
+├── run_dag_evaluation.py     # Main runner
+└── README.md                 # Detailed documentation
+```
+
+For more details, see `evaluation/README.md`.
 
 ## Migration from V2
 

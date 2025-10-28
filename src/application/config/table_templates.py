@@ -26,6 +26,16 @@ TABLE_TEMPLATES = {
         - → mortes: internacoes."N_AIH" = mortes."N_AIH"
         - → uti_detalhes: internacoes."N_AIH" = uti_detalhes."N_AIH"
 
+        CRITICAL DISEASE LOOKUP RULE - ALWAYS JOIN WITH CID10 TABLE:
+        - For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
+        - NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN)
+        - ALWAYS use the cid10 table to get proper disease descriptions and search there
+        - Pattern: JOIN cid10 c ON internacoes."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
+
+        DIABETES EXAMPLE (CRITICAL):
+        - WRONG: WHERE "DIAG_PRINC" ILIKE '%diabetes%' (searches code field)
+        - CORRECT: JOIN cid10 c ON "DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%' (searches description)
+
         DIAGNOSIS DESCRIPTION RULES (CID LOOKUPS):
         - When a query asks for diagnosis names, rankings, "diagnósticos mais comuns", or any output involving disease names,
           ALWAYS JOIN with the cid10 table on internacoes."DIAG_PRINC" = cid10."CID"
@@ -52,6 +62,11 @@ TABLE_TEMPLATES = {
         WHERE "DT_INTER" IS NOT NULL 
         GROUP BY EXTRACT(YEAR FROM "DT_INTER");
 
+        -- People with diabetes (CORRECT APPROACH):
+        SELECT COUNT(*) FROM internacoes i
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
+
         -- Top 3 most common diagnoses in winter with descriptions
         SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total
         FROM internacoes i
@@ -74,45 +89,65 @@ TABLE_TEMPLATES = {
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH" (hospitalization ID), "CID_MORTE" (death cause code)
 
+        CRITICAL DISEASE LOOKUP RULE - ALWAYS JOIN WITH CID10 TABLE:
+        - For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
+        - NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN, CID_MORTE)
+        - ALWAYS use the cid10 table to get proper disease descriptions and search there
+        - Pattern: JOIN cid10 c ON [table]."[CID_FIELD]" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
+
+        DIABETES EXAMPLE (CRITICAL):
+        - WRONG: WHERE i."DIAG_PRINC" ILIKE '%diabetes%' (searches code field)
+        - CORRECT: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%' (searches description)
+
         MEDICAL CID-10 APPROACH (USE cid10 TABLE FOR DISEASE CLASSIFICATION):
-        - CARDIOVASCULAR DEATHS: Use cid10 table to find all cardiovascular-related codes
-          Keywords: cardiovascular, cardíaca, coração, infarto, AVC, derrame, circulatório
-          APPROACH: JOIN mortes with cid10 and search description for cardiovascular terms
-          PRIMARY: I00-I99 codes (main cardiovascular category)
-          ADDITIONAL: Search cid10."CD_DESCRICAO" for 'cardiovascular' to find other codes
+        - DIABETES: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
+        - CARDIOVASCULAR DISEASES: Use flexible medical search combining CID codes AND description patterns
+          INTELLIGENT APPROACH: Combine I00-I99 codes with medical terms you know are related
+          EXAMPLE SQL: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%', '%arterial%', '%circulatorio%']))
           NEVER use 'C%' for cardiovascular - that's cancer!
-        - CANCER DEATHS: "CID_MORTE" LIKE 'Cancer%' (C00-D48)
-          Keywords: câncer, tumor, neoplasia, oncologia
-        - RESPIRATORY DEATHS: "CID_MORTE" LIKE 'J%' (J00-J99)
-          Keywords: respiratória, pulmão, pneumonia, asma
-        - INFECTIOUS DEATHS: "CID_MORTE" LIKE 'A%' OR "CID_MORTE" LIKE 'B%'
-          Keywords: infecção, infecciosa, COVID, vírus, bactéria
+        - CANCER/NEOPLASM DISEASES: Use flexible search for cancer-related conditions
+          INTELLIGENT APPROACH: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'C%' OR c."CID" LIKE 'D0%' OR c."CID" LIKE 'D1%' OR c."CID" LIKE 'D2%' OR c."CID" LIKE 'D3%' OR c."CID" LIKE 'D4%'
+                                       OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cancer%', '%tumor%', '%neoplasia%', '%carcinoma%', '%sarcoma%']))
+        - RESPIRATORY DISEASES: Use flexible search for lung/breathing conditions
+          INTELLIGENT APPROACH: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'J%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%respir%', '%pulm%', '%pneum%', '%bronqu%', '%asma%']))
+        - INFECTIOUS DISEASES: Use flexible search for infections
+          INTELLIGENT APPROACH: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE ((c."CID" LIKE 'A%' OR c."CID" LIKE 'B%') OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%infec%', '%virus%', '%bacter%', '%covid%']))
         - EXTERNAL CAUSES: "CID_MORTE" LIKE 'V%' OR "CID_MORTE" LIKE 'W%' OR "CID_MORTE" LIKE 'X%' OR "CID_MORTE" LIKE 'Y%'
           Keywords: acidente, violência, suicídio, trauma
-        - External causes: "CID_MORTE" LIKE 'V%' OR "CID_MORTE" LIKE 'W%'
-        
+
         EXACT QUERY EXAMPLES:
         -- Total deaths
         SELECT COUNT(*) FROM mortes;
 
-        -- CARDIOVASCULAR DEATHS (EXAMPLE - JOIN WITH CID10 FOR COMPLETE SEARCH):
-        question: "Quantas mortes foram por causas cardiovasculares?"
-        SELECT COUNT(*) FROM mortes m
-        JOIN cid10 c ON m."CID_MORTE" = c."CID"
-        WHERE LOWER(c."CD_DESCRICAO") LIKE '%cardiovascular%';
+        -- DIABETES DEATHS (CORRECT APPROACH):
+        SELECT COUNT(*) FROM mortes mo
+        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
 
-        
+        -- DIABETES DEATHS (ALTERNATIVE WITH DEATH CAUSE):
+        SELECT COUNT(*) FROM mortes mo
+        JOIN cid10 c ON mo."CID_MORTE" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
+
+        -- CARDIOVASCULAR DISEASES (INTELLIGENT MEDICAL SEARCH EXAMPLE):
+        SELECT COUNT(*) FROM mortes mo
+        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%', '%arterial%', '%circulatorio%']));
+
         -- Deaths with hospitalization data
-        SELECT COUNT(DISTINCT m."N_AIH") 
-        FROM mortes m 
+        SELECT COUNT(DISTINCT m."N_AIH")
+        FROM mortes m
         JOIN internacoes i ON m."N_AIH" = i."N_AIH";
-        
-        -- Death causes ranking
-        SELECT "CID_MORTE", COUNT(*) as total_deaths
-        FROM mortes 
-        WHERE "CID_MORTE" IS NOT NULL 
-        GROUP BY "CID_MORTE" 
-        ORDER BY total_deaths DESC 
+
+        -- Death causes ranking WITH DESCRIPTIONS
+        SELECT c."CID", c."CD_DESCRICAO", COUNT(*) as total_deaths
+        FROM mortes m
+        JOIN cid10 c ON m."CID_MORTE" = c."CID"
+        WHERE m."CID_MORTE" IS NOT NULL
+        GROUP BY c."CID", c."CD_DESCRICAO"
+        ORDER BY total_deaths DESC
         LIMIT 10;
 """,
 
