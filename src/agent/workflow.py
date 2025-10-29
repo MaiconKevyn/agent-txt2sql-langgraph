@@ -12,6 +12,7 @@ from .nodes import (
     list_tables_node,
     get_schema_node,
     generate_sql_node,
+    reflect_on_sql_node,
     repair_sql_node,
     validate_sql_node,
     execute_sql_node,
@@ -48,6 +49,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
     workflow.add_node("generate_sql", generate_sql_node)
+    workflow.add_node("reflect_on_sql", reflect_on_sql_node)  # Tier 2: Self-reflection
     workflow.add_node("repair_sql", repair_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
@@ -71,14 +73,15 @@ def create_langgraph_sql_workflow():
     # Database workflow path
     workflow.add_edge("list_tables", "get_schema")
     workflow.add_edge("get_schema", "generate_sql")
-    workflow.add_edge("repair_sql", "validate_sql")
+    workflow.add_edge("reflect_on_sql", "validate_sql")  # After reflection, go to validation
+    workflow.add_edge("repair_sql", "reflect_on_sql")    # After repair, reflect again
 
     # SQL generation with retry (LangGraph pattern)
     workflow.add_conditional_edges(
         "generate_sql",
         route_after_sql_generation,
         {
-            "validate": "validate_sql",
+            "validate": "reflect_on_sql",  # Changed: reflect before validating
             "retry": "generate_sql",
             "error": "generate_response"
         }

@@ -40,6 +40,80 @@ from typing import List
 logger = get_nodes_logger()
 
 
+def validate_cid_column_usage(sql: str, user_query: str) -> tuple[str, bool]:
+    """
+    Schema-aware validation to detect and correct CID vs CD_DESCRICAO column confusion.
+
+    This is a safety net for a known model limitation where LLMs confuse:
+    - cid10."CID" = CODE column (contains: 'J18', 'I21', 'C50', 'O80')
+    - cid10."CD_DESCRICAO" = TEXT column (contains: 'Pneumonia', 'Infarto', 'Cancer mama', 'Parto')
+
+    Pattern detected and corrected:
+    - WRONG: CD_DESCRICAO LIKE 'J%' (searches description text for code prefix)
+    - CORRECT: CID LIKE 'J%' (searches code column for disease category)
+
+    Args:
+        sql: Generated SQL query
+        user_query: Original user question (for logging context)
+
+    Returns:
+        tuple[str, bool]: (corrected_sql, was_corrected)
+
+    Note: This is a Tier 1 safety net. Long-term solution includes:
+          - Self-reflection loop (Tier 2)
+          - Schema-aware tools + model upgrade (Tier 3)
+    """
+    # Pattern: "CD_DESCRICAO" LIKE/ILIKE 'X%' where X is single uppercase letter
+    pattern = r'\"CD_DESCRICAO\"\s+(I?LIKE)\s+\'([A-Z])%?\''
+
+    # CID-10 category prefixes (all uppercase letters used in CID-10 classification)
+    cid10_categories = [
+        'A', 'B',  # Infectious diseases (A00-B99)
+        'C', 'D',  # Neoplasms (C00-D48)
+        'E',       # Endocrine/nutritional/metabolic (E00-E90)
+        'F',       # Mental and behavioral (F00-F99)
+        'G',       # Nervous system (G00-G99)
+        'H',       # Eye/ear diseases (H00-H95)
+        'I',       # Circulatory diseases (I00-I99)
+        'J',       # Respiratory diseases (J00-J99)
+        'K',       # Digestive diseases (K00-K93)
+        'L',       # Skin diseases (L00-L99)
+        'M',       # Musculoskeletal diseases (M00-M99)
+        'N',       # Genitourinary diseases (N00-N99)
+        'O',       # Pregnancy/childbirth (O00-O99)
+        'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+    ]
+
+    def replace_func(match):
+        operator = match.group(1)  # LIKE or ILIKE
+        letter = match.group(2)     # Single letter (J, I, C, etc.)
+
+        if letter in cid10_categories:
+            # This is a disease category search - should use CID column
+            return f'"CID" LIKE \'{letter}%\''
+        else:
+            # Not a known CID-10 category, keep original
+            return match.group(0)
+
+    # Apply correction
+    corrected_sql = re.sub(pattern, replace_func, sql)
+    was_corrected = (corrected_sql != sql)
+
+    # Transparency: Log all corrections
+    if was_corrected:
+        logger.info(
+            "Schema validation corrected CID column usage",
+            extra={
+                "original_pattern": sql[max(0, sql.find('CD_DESCRICAO')-20):sql.find('CD_DESCRICAO')+80] if 'CD_DESCRICAO' in sql else "",
+                "correction_type": "cd_descricao_to_cid",
+                "user_query": user_query[:100],
+                "validation_tier": "tier_1_safety_net"
+            }
+        )
+
+    return corrected_sql, was_corrected
+
+
 def _should_refresh_schema(error_message: str) -> bool:
     """Detect whether the error suggests missing columns/tables."""
     if not error_message:
@@ -829,10 +903,132 @@ Return ONLY the SQL query (no markdown, no explanation, just the query):""")
         return state
 
 
+def reflect_on_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+    """
+    Self-Reflection Node (Tier 2 Agentic Enhancement)
+
+    Agent reflects on its own generated SQL to catch semantic errors before execution.
+    This is a true agentic self-correction mechanism that reasons about output quality.
+
+    Detects common semantic errors:
+    - Disease category vs specific disease (CID vs CD_DESCRICAO)
+    - Unnecessary JOINs
+    - Demographic filters not requested
+    - Wrong column selection (IDADE vs NASC, DT_INTER vs DT_SAIDA)
+
+    Note: This is Tier 2 of the hybrid approach. Works alongside:
+          - Tier 1: Schema validation (safety net)
+          - Tier 3: Schema tools + model upgrade (long-term)
+    """
+    start_time = time.time()
+
+    try:
+        llm_manager = get_llm_manager()
+        generated_sql = state.get("generated_sql")
+        user_query = state.get("user_query", "")
+        schema_context = state.get("schema_context", "")
+
+        if not generated_sql:
+            # No SQL to reflect on, skip reflection
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+            return state
+
+        # Focused reflection prompt for semantic errors
+        reflection_prompt = f"""You generated this PostgreSQL query:
+{generated_sql}
+
+For the question: "{user_query}"
+
+Review your SQL for these SPECIFIC semantic errors:
+
+1. DISEASE QUERIES - Column Selection:
+   - Disease CATEGORY (respiratory, cardiac, cancer, etc.) → Must use cid10."CID" LIKE 'X%'
+   - Disease NAME (diabetes, pneumonia, etc.) → Must use cid10."CD_DESCRICAO" ILIKE '%name%'
+   - Check: Are you using the CORRECT column for the query type?
+   - Common error: Using CD_DESCRICAO LIKE 'J%' instead of CID LIKE 'J%'
+
+2. JOIN NECESSITY:
+   - Did you add unnecessary JOINs?
+   - Rule: Only JOIN when you need data from multiple tables
+   - Check: Is every JOIN table actually used in SELECT or WHERE?
+
+3. DEMOGRAPHIC FILTERS:
+   - Did you add filters (age, gender, time period) that weren't requested?
+   - Rule: Only filter on what's explicitly asked
+   - Common error: Adding "IDADE BETWEEN X AND Y" when question doesn't mention age
+
+4. COLUMN CONFUSION:
+   - IDADE (age in years) vs NASC (birth date)
+   - DT_INTER (admission date) vs DT_SAIDA (discharge/death date)
+   - Check: Are you using the correct date/demographic column?
+
+RESPOND IN THIS FORMAT:
+- If SQL is correct: "REFLECTION: SQL is correct."
+- If SQL has issues: "REFLECTION: [Describe the specific issue]\\n\\nCORRECTED_SQL:\\n[corrected SQL only, no explanations after]"
+
+Schema context available:
+{schema_context[:500]}...
+
+Reflect now:"""
+
+        llm = llm_manager._llm
+        response = llm.invoke([HumanMessage(content=reflection_prompt)])
+        reflection = response.content.strip()
+
+        # Parse reflection
+        if "CORRECTED_SQL:" in reflection:
+            # Extract corrected SQL
+            parts = reflection.split("CORRECTED_SQL:")
+            issue_description = parts[0].replace("REFLECTION:", "").strip()
+            corrected_sql_section = parts[1].strip()
+
+            # Clean corrected SQL
+            corrected_sql = llm_manager._clean_sql_query(corrected_sql_section)
+
+            if corrected_sql and corrected_sql != generated_sql:
+                # Apply correction
+                state["generated_sql"] = corrected_sql
+                state = add_ai_message(state, f"Self-reflection detected issue: {issue_description[:200]}...")
+
+                logger.info(
+                    "Agent self-corrected SQL through reflection",
+                    extra={
+                        "original_sql": generated_sql[:200],
+                        "corrected_sql": corrected_sql[:200],
+                        "issue": issue_description[:300],
+                        "user_query": user_query[:100],
+                        "tier": "tier_2_self_reflection"
+                    }
+                )
+            else:
+                # Reflection suggested correction but parsing failed
+                logger.warning("Reflection suggested correction but parsing failed", extra={
+                    "reflection": reflection[:500]
+                })
+                state = add_ai_message(state, "Self-reflection completed (no changes)")
+        else:
+            # SQL passed reflection
+            state = add_ai_message(state, "Self-reflection validated SQL")
+            logger.debug("SQL passed self-reflection check")
+
+        execution_time = time.time() - start_time
+        state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+
+        return state
+
+    except Exception as e:
+        # Reflection failure shouldn't block workflow
+        logger.warning(f"SQL reflection failed: {e}", extra={"error": str(e)})
+        execution_time = time.time() - start_time
+        state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+        return state
+
+
 def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Validate SQL Node - Using SQLDatabaseToolkit query checker
-    
+
     Uses the sql_db_query_checker tool from SQLDatabaseToolkit
     Following official LangGraph SQL agent patterns
     """
@@ -873,8 +1069,17 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         # Update state based on validation
         if validation_passed:
-            state["validated_sql"] = generated_sql
-            ai_response = f"SQL query validated successfully: {generated_sql}"
+            # Apply schema-aware CID column validation (Tier 1 safety net)
+            user_query = state.get("user_query", "")
+            corrected_sql, was_corrected = validate_cid_column_usage(generated_sql, user_query)
+
+            if was_corrected:
+                state["validated_sql"] = corrected_sql
+                ai_response = f"SQL validated with schema correction applied: {corrected_sql}"
+                logger.info(f"CID validation corrected SQL from:\n{generated_sql}\nto:\n{corrected_sql}")
+            else:
+                state["validated_sql"] = generated_sql
+                ai_response = f"SQL query validated successfully: {generated_sql}"
         else:
             state = add_error(state, validation_message, "sql_validation_error", ExecutionPhase.SQL_VALIDATION)
             ai_response = f"SQL validation failed: {validation_message}"
