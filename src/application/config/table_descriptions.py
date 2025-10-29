@@ -27,7 +27,13 @@ TABLE_DESCRIPTIONS = {
             "\"CID\"": "Código CID-10 (ex: F190, J44, I25)",
             "\"CD_DESCRICAO\"": "Descrição completa da doença/condição"
         },
-        "critical_notes": ["LOOKUP TABLE ONLY - Never use for counting!", "\"CID\" é chave primária", "Use for JOINs: internacoes.\"DIAG_PRINC\" = cid10.\"CID\"", "Do NOT use for: 'Quantos códigos', 'Quantas doenças'"],
+        "critical_notes": [
+            "LOOKUP TABLE ONLY - Never use for counting!",
+            "\"CID\" é chave primária",
+            "Use for JOINs: internacoes.\"DIAG_PRINC\" = cid10.\"CID\" e mortes.\"CID_MORTE\" = cid10.\"CID\"",
+            "Use descrições para localizar grupos clínicos (ex.: cardiovascular) e aplicar os códigos resultantes em mortes/internacoes",
+            "Do NOT use for: 'Quantos códigos', 'Quantas doenças'"
+        ],
         "relationships": ["← internacoes(\"DIAG_PRINC\")", "← mortes(\"CID_MORTE\")"]
     },
     
@@ -73,7 +79,7 @@ TABLE_DESCRIPTIONS = {
             "\"N_AIH\"": "Número da AIH (link com internacoes)",
             "\"CID_MORTE\"": "Código CID-10 da causa da morte"
         },
-        "critical_notes": ["USE THIS TABLE FOR: 'Quantas mortes', 'óbitos registrados', 'mortality'", "\"N_AIH\" é chave primária", "569,405 death records available", "JOIN com internacoes via \"N_AIH\"", "JOIN com cid10 via \"CID_MORTE\""],
+        "critical_notes": ["USE THIS TABLE FOR: 'Quantas mortes', 'óbitos registrados', 'mortality'", "\"N_AIH\" é chave primária", "569,405 death records available", "JOIN com internacoes via \"N_AIH\"", "JOIN com cid10 via \"CID_MORTE\" para causas específicas por descrição (evite depender apenas de prefixos de código)"],
         "relationships": ["→ internacoes(\"N_AIH\")", "→ cid10(\"CID_MORTE\")"]
     },
     
@@ -128,8 +134,13 @@ TABLE_DESCRIPTIONS = {
         "key_columns": ["\"N_AIH\"", "\"INSC_PN\""],
         "value_mappings": {
             "\"N_AIH\"": "Número da AIH (link com internacoes)",
-            "\"INSC_PN\"": "Inscrição/dados de pré-natal"
+            "\"INSC_PN\"": "Inscrição/dados de pré-natal; quando preenchido (não nulo/não vazio) indica acompanhamento pré-natal"
         },
+        "critical_notes": [
+            "Para 'acompanhamento pré-natal' use SEMPRE obstetricos.\"INSC_PN\" (não procurar em DIAG_PRINC/DIAG_SECUN)",
+            "Junte com internacoes (via \"N_AIH\") apenas se precisar de datas/sexo/hospital",
+            "Use ILIKE/EXTRACT somente quando cruzar com textos/datas em outras tabelas"
+        ],
         "critical_notes": ["\"N_AIH\" é chave primária", "Apenas internações obstétricas"],
         "relationships": ["→ internacoes(\"N_AIH\")"]
     },
@@ -191,19 +202,21 @@ TABLE_DESCRIPTIONS = {
     },
     
     "uti_detalhes": {
-        "title": "Detalhes de UTI (PRIMARY FOR ICU STATISTICS)",
-        "description": "TABELA PRIMÁRIA PARA ESTATÍSTICAS DE UTI/ICU - Use esta tabela para contar registros de UTI, tempo de permanência e custos de terapia intensiva. Registra informações detalhadas sobre internações em UTI.",
-        "purpose": "PRIMARY TABLE FOR UTI/ICU STATISTICS AND ANALYSIS",
-        "use_cases": ["Quantos registros de UTI existem", "UTI statistics", "Intensive care analysis", "Tempo médio de UTI", "Custos de UTI"],
-        "key_columns": ["\"N_AIH\"", "\"UTI_MES_TO\"", "\"MARCA_UTI\"", "\"UTI_INT_TO\"", "\"VAL_UTI\""],
+        "title": "Detalhes de UTI (PRIMARY FOR ICU COSTS/MARKERS)",
+        "description": "TABELA PARA CUSTOS E MARCADORES DE UTI/ICU - Use esta tabela para estatísticas de UTI (presença, custo, marcação). NÃO usar para cálculos de dias de permanência em UTI.",
+        "purpose": "UTI/ICU statistics focusing on costs and markers",
+        "use_cases": ["Quantos registros de UTI existem", "Custos de UTI", "Análise de marcadores de UTI"],
+        "key_columns": ["\"N_AIH\"", "\"MARCA_UTI\"", "\"VAL_UTI\""],
         "value_mappings": {
             "\"N_AIH\"": "Número da AIH (link com internacoes)",
-            "\"UTI_MES_TO\"": "Tempo total em UTI (meses)",
-            "\"UTI_INT_TO\"": "Tempo total internação UTI",
             "\"VAL_UTI\"": "Valor pago pela UTI",
             "\"MARCA_UTI\"": "Marcador de UTI"
         },
-        "critical_notes": ["USE THIS TABLE FOR: 'UTI', 'ICU', 'terapia intensiva' queries", "\"N_AIH\" é chave primária", "81,287 UTI records available", "Apenas internações com UTI"],
+        "critical_notes": [
+            "NÃO usar para dias/permanência de UTI (use internacoes.\"QT_DIARIAS\")",
+            "USE THIS TABLE FOR: 'UTI', 'ICU', custos e marcadores",
+            "\"N_AIH\" é chave primária"
+        ],
         "relationships": ["→ internacoes(\"N_AIH\")"]
     },
     
@@ -267,5 +280,6 @@ CRITICAL POSTGRESQL SYNTAX RULES:
 - For geographic queries: JOIN internacoes with municipios
 - For disease descriptions: JOIN with cid10 table
 - For hospital info: JOIN with hospital table via CNES
+ - ICU permanence (tempo médio em UTI): compute via internacoes."QT_DIARIAS" (use > 0); do NOT use uti_detalhes for days
 """
 }

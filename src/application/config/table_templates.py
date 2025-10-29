@@ -82,6 +82,13 @@ TABLE_TEMPLATES = {
         ORDER BY total DESC
         LIMIT 3;
 
+        -- Average ICU stay time (days) using hospital daily charges (QT_DIARIAS)
+        -- Question: "Qual o tempo médio de permanência em UTI?"
+        -- Use internacoes only; uti_detalhes does not provide days length
+        SELECT AVG("QT_DIARIAS") AS tempo_medio_uti
+        FROM internacoes
+        WHERE "QT_DIARIAS" > 0;
+
         -- AGE GROUPS (FAIXA ETÁRIA) - CRITICAL EXAMPLE:
         -- Count hospitalizations by age group (NOT by year!)
         SELECT
@@ -225,11 +232,17 @@ TABLE_TEMPLATES = {
         JOIN cid10 c ON mo."CID_MORTE" = c."CID"
         WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
 
-        -- CARDIOVASCULAR DISEASES (INTELLIGENT MEDICAL SEARCH EXAMPLE):
-        SELECT COUNT(*) FROM mortes mo
-        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        -- CARDIOVASCULAR DEATHS (USING DEATH CAUSE DESCRIPTION VIA CID10)
+        SELECT COUNT(*) AS mortes_cardiovasculares
+        FROM mortes mo
+        JOIN cid10 c ON mo."CID_MORTE" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']);
+
+        -- CARDIOVASCULAR (ALTERNATIVE USING DIAGNOSIS IN ADMISSIONS - NOT DEATH CAUSE)
+        SELECT COUNT(*)
+        FROM internacoes i
         JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
-        WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%', '%arterial%', '%circulatorio%']));
+        WHERE (c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']));
 
         -- Deaths with hospitalization data
         SELECT COUNT(DISTINCT m."N_AIH")
@@ -272,6 +285,11 @@ TABLE_TEMPLATES = {
         SELECT "CID", "CD_DESCRICAO" 
         FROM cid10 
         WHERE "CID" LIKE 'E1%' AND "CID" >= 'E10' AND "CID" <= 'E14';
+        
+        -- Cardiovascular-related codes by description
+        SELECT "CID", "CD_DESCRICAO"
+        FROM cid10
+        WHERE "CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']);
     
 """,
 
@@ -398,18 +416,17 @@ TABLE_TEMPLATES = {
          UTI_DETALHES TABLE RULES - INTENSIVE CARE UNIT DATA:
         
         MANDATORY USAGE RULES:
-        - PRIMARY TABLE for UTI/ICU statistics and costs
-        - Use for: "UTI", "ICU", "terapia intensiva", UTI costs, ICU duration
+        - PRIMARY TABLE for UTI/ICU statistics and costs (NOT for days of stay)
+        - Use for: "UTI", "ICU", "terapia intensiva", UTI costs, ICU markers/flags
         - Links to internacoes via "N_AIH"
         
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH", "UTI_MES_TO", "MARCA_UTI", "UTI_INT_TO", "VAL_UTI"
         
         CRITICAL DATA FIELDS:
-        - "UTI_MES_TO" = Total UTI time (months)
-        - "UTI_INT_TO" = Total intermediate UTI time  
         - "VAL_UTI" = UTI cost/value
         - "MARCA_UTI" = UTI marker/type
+        - Duration in days (permanência) should be computed from internacoes."QT_DIARIAS" (not from this table)
         
         EXACT QUERY EXAMPLES:
         -- Total UTI records
@@ -418,8 +435,7 @@ TABLE_TEMPLATES = {
         -- Average UTI cost
         SELECT AVG("VAL_UTI") FROM uti_detalhes WHERE "VAL_UTI" IS NOT NULL;
         
-        -- Average UTI stay time
-        SELECT AVG("UTI_MES_TO") FROM uti_detalhes WHERE "UTI_MES_TO" > 0;
+        -- Do NOT use this table to compute UTI stay in days; use internacoes."QT_DIARIAS"
         
         -- UTI cost by patient gender
         SELECT i."SEXO", AVG(u."VAL_UTI") as avg_uti_cost
@@ -471,12 +487,22 @@ TABLE_TEMPLATES = {
         LIMIT 10;
 
         -- Most common procedures performed (from internacoes)
-        SELECT p."NOME_PROC", COUNT(*) as frequency
+        -- Based on procedure NAMES (join for readability)
+        SELECT p."NOME_PROC", COUNT(*) AS frequency
         FROM internacoes i
         JOIN procedimentos p ON i."PROC_REA" = p."PROC_REA"
         WHERE i."PROC_REA" IS NOT NULL
         GROUP BY p."NOME_PROC"
-        ORDER BY frequency DESC LIMIT 10;
+        ORDER BY frequency DESC
+        LIMIT 10;
+
+        -- GENERAL RULE (frequency by categorical code):
+        -- SELECT code_col, COUNT(*) AS total
+        -- FROM <table>
+        -- WHERE code_col IS NOT NULL
+        -- GROUP BY code_col
+        -- ORDER BY total DESC
+        -- LIMIT N;
 
         -- Procedure with highest average cost
         SELECT p."NOME_PROC", AVG(i."VAL_TOT") as avg_cost
@@ -491,6 +517,8 @@ TABLE_TEMPLATES = {
         - ✅ WHERE "NOME_PROC" ILIKE '%cirurgia%' (correct)
         - ❌ SELECT COUNT(*) FROM procedimentos WHERE nome_proc... (lowercase fails)
         - ✅ SELECT COUNT(*) FROM procedimentos WHERE "NOME_PROC"... (correct)
+        - ❌ COUNT(DISTINCT code_col) together with GROUP BY code_col (returns 1 per group)
+        - ✅ COUNT(*) with GROUP BY code_col for frequency rankings
 """,
 
     "obstetricos": """
@@ -498,15 +526,21 @@ TABLE_TEMPLATES = {
         
         MANDATORY USAGE RULES:
         - Use for: Pregnancy, childbirth, maternity, obstetric cases
-        - Keywords: "grávidas", "gestantes", "parto", "obstetric", "prenatal"
+        - Keywords: "grávidas", "gestantes", "parto", "obstétrico", "obstetric", "pré-natal", "pre natal", "prenatal", "acompanhamento pré-natal"
         - Links to internacoes via "N_AIH"
         
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH", "INSC_PN"
         
         CRITICAL DATA FIELDS:
-        - "INSC_PN" = Prenatal registration/inscription
-        - Non-null "INSC_PN" indicates prenatal care
+        - "INSC_PN" = Prenatal registration/inscription (inscrição no pré-natal)
+        - Non-null and non-empty "INSC_PN" indicates the case had prenatal care/acompanhamento
+
+        CRITICAL RULES (Pré-natal):
+        - For ANY query mentioning "pré-natal"/"pre natal"/"prenatal"/"acompanhamento pré-natal":
+          ALWAYS use obstetricos."INSC_PN" to identify cases with prenatal care
+        - Do NOT search for the phrase in diagnostic code/description fields ("DIAG_PRINC", "DIAG_SECUN")
+        - Join to other tables (hospital, municipios) via internacoes only when additional attributes are required
         
         EXACT QUERY EXAMPLES:
         -- Total obstetric cases
@@ -515,6 +549,14 @@ TABLE_TEMPLATES = {
         -- Obstetric cases with prenatal care
         SELECT COUNT(*) FROM obstetricos 
         WHERE "INSC_PN" IS NOT NULL AND "INSC_PN" != '';
+        
+        -- Obstetric cases with prenatal care by year (if needed)
+        SELECT EXTRACT(YEAR FROM i."DT_INTER") AS ano, COUNT(*) AS total
+        FROM obstetricos o
+        JOIN internacoes i ON o."N_AIH" = i."N_AIH"
+        WHERE o."INSC_PN" IS NOT NULL AND o."INSC_PN" != '' AND i."DT_INTER" IS NOT NULL
+        GROUP BY EXTRACT(YEAR FROM i."DT_INTER")
+        ORDER BY ano;
         
         -- Pregnant women in public hospitals
         SELECT COUNT(DISTINCT i."N_AIH") 

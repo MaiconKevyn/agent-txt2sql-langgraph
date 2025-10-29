@@ -384,7 +384,7 @@ Difficulty: MEDIUM
 ================================================================================
 
 Ground Truth SQL:
-  SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;
+  SELECT nome_municipio FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;
 
 Ground Truth Results:
   Row 1: ['MaceiÃ³', 957.92]

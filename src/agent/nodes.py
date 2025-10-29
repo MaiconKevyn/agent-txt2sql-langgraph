@@ -589,6 +589,7 @@ Use internal step-by-step reasoning but do NOT include it in the output.
 - Do not include explanations, comments, or markdown
 - Do not include words like 'SQL', 'Answer:', or any prose
 - Quote all case-sensitive identifiers with double quotes
+- Do NOT add demographic or implicit filters (e.g., "SEXO", "IDADE") unless explicitly requested by the user
 - End with semicolon
 
 === CRITICAL SCHEMA LINKING (APPLY BEFORE GENERATING) ===
@@ -652,6 +653,15 @@ GROUP BY c."CD_DESCRICAO"
 ORDER BY total DESC
 LIMIT 3;
 
+    -- GENERAL RULE: For top-N frequency of any categorical code
+    -- Pattern: SELECT code_col, COUNT(*) AS total FROM <table> WHERE code_col IS NOT NULL GROUP BY code_col ORDER BY total DESC LIMIT N;
+
+-- EASY: Obstetric prenatal care (no extra filters)
+-- Question: "Quantos casos obstétricos tiveram acompanhamento pré-natal?"
+SELECT COUNT(*)
+FROM obstetricos
+WHERE "INSC_PN" IS NOT NULL AND "INSC_PN" != '';
+
 -- MEDIUM: Join for geographic analysis
 -- Question: "Cidade com mais mortes masculinas"
 SELECT mu.nome, COUNT(m."N_AIH") AS total
@@ -713,6 +723,7 @@ FROM internacoes i LEFT JOIN mortes m ...
 □ JOIN type correct?
   - Rate/proportion → LEFT JOIN (keep all from main table)
   - Filtering/matching → INNER JOIN (only matches)
+  - Counting entities with at least one related record (e.g., hospitals with deaths) → INNER JOIN to the event table OR LEFT JOIN with WHERE event IS NOT NULL
 
 □ All columns quoted?
   - "SEXO", "IDADE", "N_AIH", "DT_INTER", "MUNIC_RES"
@@ -773,9 +784,11 @@ Return ONLY the SQL query (no markdown, no explanation, just the query):""")
         
         # Extract SQL query from response
         sql_query = response.content.strip() if hasattr(response, 'content') else str(response)
-        
+
         # Clean SQL query
         sql_query = llm_manager._clean_sql_query(sql_query)
+
+        # No post-generation semantic rewrite; validation handled by rules and repair steps
         
         if sql_query:
             state["generated_sql"] = sql_query
@@ -1800,7 +1813,30 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
             logger.debug("Added 'internacoes' for mortality rate calculation")
-    
+
+    # Rule 4b: ICU length-of-stay/permanence queries should use internacoes only (QT_DIARIAS)
+    if any(k in query_lower for k in ['permanência', 'permanencia', 'tempo médio', 'tempo medio', 'diária', 'diarias', 'diária', 'qt_diarias']) and 'uti' in query_lower:
+        if 'internacoes' in available_tables and 'internacoes' not in validated_tables:
+            validated_tables.append('internacoes')
+            logger.debug("Added 'internacoes' for ICU permanence query")
+        if 'uti_detalhes' in validated_tables:
+            validated_tables.remove('uti_detalhes')
+            logger.debug("Removed 'uti_detalhes' for ICU permanence query (use QT_DIARIAS from internacoes)")
+
+    # Rule 4c: Prenatal/acompanhamento pré-natal queries should rely on obstetricos.INSC_PN
+    prenatal_terms = ['pré-natal', 'pre natal', 'prenatal', 'acompanhamento pré-natal']
+    if any(term in query_lower for term in prenatal_terms):
+        # Prefer obstetricos; remove unnecessary internacoes unless additional breakdown requested
+        if 'obstetricos' in available_tables and 'obstetricos' not in validated_tables:
+            validated_tables.append('obstetricos')
+            logger.debug("Added 'obstetricos' for prenatal query")
+        # If the user didn't ask for breakdown by time/place/hospital, keep only obstetricos
+        extra_dims_terms = ['ano', 'hospital', 'município', 'municipio', 'cidade', 'estado', 'por ', 'group', 'agrupar']
+        if not any(t in query_lower for t in extra_dims_terms):
+            if 'internacoes' in validated_tables:
+                validated_tables.remove('internacoes')
+                logger.debug("Removed 'internacoes' for simple prenatal count (use obstetricos.INSC_PN)")
+
     # Rule 5: Remove unnecessary over-selections for simple counting
     if len(validated_tables) > 1:
         simple_counting_patterns = [

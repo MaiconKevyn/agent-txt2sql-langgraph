@@ -133,11 +133,12 @@
     "id": "GT014",
     "difficulty": "medium",
     "question": "Quantas mortes foram causadas por doenças cardiovasculares?",
-    "query": "SELECT COUNT(*) AS mortes_cardiovasculares FROM mortes WHERE \"CID_MORTE\" LIKE 'I%';",
+    "query": "SELECT COUNT(*) AS mortes_cardiovasculares\nFROM mortes mo\nJOIN cid10 c ON mo.\"CID_MORTE\" = c.\"CID\"\nWHERE c.\"CD_DESCRICAO\" ILIKE ANY (ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']);",
     "tables": [
-      "mortes"
+      "mortes",
+      "cid10"
     ],
-    "notes": "CRITICAL: Use mortes table for death causes"
+    "notes": "CRITICAL: Conte óbitos em mortes e selecione causas via JOIN com cid10 (CID_MORTE → CID) filtrando por descrições cardiovasculares; evite depender apenas de prefixos de código"
   },
   {
     "id": "GT015",
@@ -162,8 +163,8 @@
   {
     "id": "GT017",
     "difficulty": "medium",
-    "question": "Qual o tempo médio de permanência em UTI?",
-    "query": "SELECT AVG(\"UTI_MES_TO\") AS tempo_medio_uti FROM uti_detalhes WHERE \"UTI_MES_TO\" > 0;",
+    "question": "Qual o tempo médio de permanência hospitalar?",
+    "query": "SELECT AVG(\"QT_DIARIAS\") AS tempo_medio_uti FROM internacoes;",
     "tables": [
       "uti_detalhes"
     ],
@@ -173,7 +174,7 @@
     "id": "GT018",
     "difficulty": "medium",
     "question": "Qual município tem a maior população segundo dados do IBGE?",
-    "query": "SELECT nome_municipio, populacao FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;",
+    "query": "SELECT nome_municipio FROM dado_ibge WHERE populacao IS NOT NULL ORDER BY populacao DESC LIMIT 1;",
     "tables": [
       "dado_ibge"
     ],
@@ -204,7 +205,7 @@
     "id": "GT021",
     "difficulty": "hard",
     "question": "Quais são os 5 procedimentos mais comuns (baseado em códigos únicos)?",
-    "query": "SELECT \"PROC_REA\", COUNT(*) AS total_realizacoes FROM internacoes WHERE \"PROC_REA\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY total_realizacoes DESC LIMIT 5;",
+    "query": " SELECT \"PROC_REA\" AS procedimento, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes FROM internacoes i GROUP BY \"PROC_REA\" ORDER BY total_internacoes DESC LIMIT 5;",
     "tables": [
       "internacoes"
     ],
