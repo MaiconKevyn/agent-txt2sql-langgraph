@@ -120,7 +120,8 @@ def create_evaluation_pipeline() -> EvaluationDAG:
             "aggregate_results",
             "generate_report",
             "load_configuration",
-            "initialize_agent"
+            "initialize_agent",
+            "initialize_database"
         ],
         description="Save results to JSON and print report"
     )

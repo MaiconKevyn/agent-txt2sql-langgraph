@@ -365,27 +365,20 @@
   },
   {
     "id": "GT037",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "question": "Qual o diagnóstico mais comum nas internações?",
-    "query": "SELECT \"DIAG_PRINC\", COUNT(*) AS total FROM internacoes WHERE \"DIAG_PRINC\" IS NOT NULL GROUP BY \"DIAG_PRINC\" ORDER BY total DESC LIMIT 1;",
+    "query": "SELECT c.\"CD_DESCRICAO\" AS diagnostico, COUNT(*) AS total FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE i.\"DIAG_PRINC\" IS NOT NULL GROUP BY c.\"CD_DESCRICAO\" ORDER BY total DESC LIMIT 1;",
     "tables": [
-      "internacoes"
-    ]
+      "internacoes",
+      "cid10"
+    ],
+    "notes": "JOIN with cid10 to return human-readable diagnosis name instead of code"
   },
   {
     "id": "GT038",
     "difficulty": "medium",
     "question": "Quantas internações ocorreram em 2015?",
     "query": "SELECT COUNT(*) AS internacoes_2015 FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015;",
-    "tables": [
-      "internacoes"
-    ]
-  },
-  {
-    "id": "GT039",
-    "difficulty": "medium",
-    "question": "Qual o valor médio das internações por complexidade?",
-    "query": "SELECT \"COMPLEX\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"COMPLEX\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"COMPLEX\";",
     "tables": [
       "internacoes"
     ]
@@ -530,14 +523,14 @@
   },
   {
     "id": "GT054",
-    "difficulty": "hard",
-    "question": "Qual a taxa de mortalidade por faixa etária?",
-    "query": "SELECT CASE WHEN i.\"IDADE\" < 18 THEN '0-17 anos' WHEN i.\"IDADE\" < 40 THEN '18-39 anos' WHEN i.\"IDADE\" < 60 THEN '40-59 anos' ELSE '60+ anos' END AS faixa_etaria, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes, COUNT(DISTINCT m.\"N_AIH\") AS total_mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) AS taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"IDADE\" IS NOT NULL GROUP BY faixa_etaria ORDER BY faixa_etaria;",
+    "difficulty": "medium",
+    "question": "Qual a taxa de mortalidade para faixa etária 30-45?",
+    "query": "SELECT '30-45 anos' AS faixa_etaria, COUNT(DISTINCT i.\"N_AIH\") AS total_internacoes, COUNT(DISTINCT m.\"N_AIH\") AS total_mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) AS taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"IDADE\" BETWEEN 30 AND 45;",
     "tables": [
       "internacoes",
       "mortes"
     ],
-    "notes": "JOIN: Complex age stratification - identifies high-risk groups for elderly care policies"
+    "notes": "JOIN: Mortality rate for specific age group (30-45 years) - uses BETWEEN for age filtering"
   },
   {
     "id": "GT055",

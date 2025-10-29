@@ -5,9 +5,9 @@ TEXT-TO-SQL EVALUATION REPORT
 OVERALL SUMMARY
 --------------------------------------------------------------------------------
 Total Questions: 55
-Agent Success Rate: 92.7%
-Total Execution Time: 652.9s
-Avg Time per Question: 11.87s
+Agent Success Rate: 94.5%
+Total Execution Time: 667.4s
+Avg Time per Question: 12.13s
 
 METRICS PERFORMANCE
 --------------------------------------------------------------------------------
@@ -15,40 +15,40 @@ METRICS PERFORMANCE
 Exact Match (EM):
   Average Score: 0.000
   Accuracy (≥0.8): 0.0%
-  Perfect Matches: 0/51
+  Perfect Matches: 0/52
 
 Component Matching (CM):
-  Average Score: 0.531
-  Accuracy (≥0.8): 23.5%
-  Perfect Matches: 0/51
+  Average Score: 0.545
+  Accuracy (≥0.8): 25.0%
+  Perfect Matches: 0/52
 
 Execution Accuracy (EX):
-  Average Score: 0.686
-  Accuracy (≥0.8): 68.6%
-  Perfect Matches: 35/51
+  Average Score: 0.712
+  Accuracy (≥0.8): 71.2%
+  Perfect Matches: 37/52
 
 DIFFICULTY BREAKDOWN
 --------------------------------------------------------------------------------
 
 EASY:
-  Questions: 19
-  Agent Success: 18/19 (94.7%)
+  Questions: 18
+  Agent Success: 18/18 (100.0%)
   Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.740 (50.0%)
-  Execution Accuracy (EX): 0.944 (94.4%)
+  Component Matching (CM): 0.789 (55.6%)
+  Execution Accuracy (EX): 1.000 (100.0%)
 
 HARD:
   Questions: 18
   Agent Success: 16/18 (88.9%)
   Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.352 (6.2%)
-  Execution Accuracy (EX): 0.562 (56.2%)
+  Component Matching (CM): 0.334 (6.2%)
+  Execution Accuracy (EX): 0.500 (50.0%)
 
 MEDIUM:
-  Questions: 18
-  Agent Success: 17/18 (94.4%)
+  Questions: 19
+  Agent Success: 18/19 (94.7%)
   Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.477 (11.8%)
-  Execution Accuracy (EX): 0.529 (52.9%)
+  Component Matching (CM): 0.489 (11.1%)
+  Execution Accuracy (EX): 0.611 (61.1%)
 
 ================================================================================

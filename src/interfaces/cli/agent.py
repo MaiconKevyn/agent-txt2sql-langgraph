@@ -24,6 +24,32 @@ from src.agent.orchestrator import (
 from src.utils.logging_config import get_cli_logger
 
 
+def _print_llm_configuration(orchestrator: LangGraphOrchestrator):
+    """Print a concise summary of configured LLMs (SQL + conversational)."""
+    try:
+        cfg = orchestrator.app_config
+        sql_provider = getattr(cfg, "llm_provider", "unknown")
+        sql_model = getattr(cfg, "llm_model", "unknown")
+        sql_temp = getattr(cfg, "llm_temperature", None)
+        sql_timeout = getattr(cfg, "llm_timeout", None)
+
+        conv_model = getattr(cfg, "conversational_llm_model", sql_model)
+        conv_temp = getattr(cfg, "conversational_llm_temperature", None)
+        conv_timeout = getattr(cfg, "conversational_llm_timeout", None)
+
+        same_model = (str(sql_model) == str(conv_model))
+
+        print(" LLM Configuration")
+        print("-" * 70)
+        print(f" SQL generation LLM : {sql_provider}/{sql_model}  (temp={sql_temp}, timeout={sql_timeout}s)")
+        print(f" Conversational LLM : {conv_model}  (temp={conv_temp}, timeout={conv_timeout}s)"
+              + ("  [same as SQL]" if same_model else ""))
+        print("-" * 70)
+    except Exception:
+        # Do not break execution if any attribute is missing
+        pass
+
+
 def create_app_config(args) -> ApplicationConfig:
     """Create application configuration from command line arguments"""
     # Use defaults from ApplicationConfig and override with command line args when explicitly provided
@@ -36,7 +62,8 @@ def create_app_config(args) -> ApplicationConfig:
         config.database_path = args.db_url
     
     # LLM model
-    if hasattr(args, 'model') and args.model and args.model != config.llm_model:
+    # Only override if --model was explicitly provided
+    if hasattr(args, 'model') and args.model:
         config.llm_model = args.model
     if hasattr(args, 'timeout') and args.timeout != 120:
         config.llm_timeout = args.timeout
@@ -77,6 +104,8 @@ def debug_query_execution(orchestrator, user_query: str):
     print("=" * 70)
     print(f" Query: {user_query}")
     print("=" * 70)
+    # Show configured LLMs for transparency
+    _print_llm_configuration(orchestrator)
     
     # Track debug data
     debug_data = {
@@ -346,6 +375,7 @@ def start_interactive_debug_session(orchestrator):
     print("Digite 'exit', 'quit' ou 'sair' para sair")
     print("Cada query será executada com debug detalhado")
     print("=" * 60)
+    _print_llm_configuration(orchestrator)
     
     while True:
         try:
@@ -413,15 +443,23 @@ def main():
     
     # LLM options
     parser.add_argument(
-        "--model", 
-        default="llama3.1:8b",
-        help="Modelo LLM para SQL (padrão: llama3.1:8b)"
+        "--model",
+        default=None,
+        help=(
+            "Modelo LLM para SQL. Se omitido, usa o padrão do ApplicationConfig. "
+            "Ex.: --model mistral"
+        )
     )
     parser.add_argument(
         "--timeout", 
         type=int, 
         default=120,
         help="Timeout para requisições LLM em segundos (padrão: 120)"
+    )
+    parser.add_argument(
+        "--show-models",
+        action="store_true",
+        help="Exibe os modelos LLM configurados (SQL e conversacional)"
     )
     
     # Interface options: --interactive removido (modo interativo é padrão)
@@ -522,6 +560,10 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         # Create orchestrator directly with configurations (LangGraph V3)
         orchestrator = LangGraphOrchestrator(app_config, orchestrator_config)
         
+        # Optionally display configured LLMs up-front
+        if args.show_models:
+            _print_llm_configuration(orchestrator)
+        
         # Health check mode
         if args.health_check:
             logger.info("Starting system health check")
@@ -594,6 +636,8 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
                 # Normal mode with LangSmith tracing
                 logger.info("Processing single query", extra={"query": args.query})
                 print(f" Processando consulta: {args.query}")
+                if args.show_models:
+                    _print_llm_configuration(orchestrator)
                 session_id = f"cli_{hash(args.query) % 10000}"
                 result = orchestrator.process_query(
                     user_query=args.query,
@@ -628,6 +672,8 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
             start_interactive_debug_session(orchestrator)
         else:
             logger.info("Starting interactive session")
+            if args.show_models:
+                _print_llm_configuration(orchestrator)
             orchestrator.start_interactive_session()
         
     except KeyboardInterrupt:
