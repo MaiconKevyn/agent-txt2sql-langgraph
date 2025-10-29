@@ -13,6 +13,12 @@ TABLE_TEMPLATES = {
         - Age queries: Use "IDADE" column (numeric, in years)
         - Financial queries: "VAL_TOT", "VAL_SH", "VAL_SP" (total, hospital, professional values)
         - Duration queries: "DIAS_PERM" (days of stay), "QT_DIARIAS" (daily charges)
+
+        CRITICAL: AGE GROUPS (FAIXA ETÁRIA) vs TIME PERIODS:
+        - "faixa etária" = AGE GROUPS of patients (use "IDADE" column with CASE WHEN)
+        - "ano" / "período" = TIME PERIODS (use "DT_INTER" or "DT_SAIDA" with EXTRACT)
+        - NEVER confuse patient age with calendar years!
+        - Common age groups: 0-17 (children), 18-39 (young adults), 40-59 (middle-aged), 60+ (elderly)
         
         POSTGRESQL COLUMN QUOTING:
         - ALL columns MUST use double quotes: "SEXO", "IDADE", "VAL_TOT", "N_AIH"
@@ -75,16 +81,105 @@ TABLE_TEMPLATES = {
         GROUP BY c."CID", c."CD_DESCRICAO"
         ORDER BY total DESC
         LIMIT 3;
+
+        -- AGE GROUPS (FAIXA ETÁRIA) - CRITICAL EXAMPLE:
+        -- Count hospitalizations by age group (NOT by year!)
+        SELECT
+          CASE
+            WHEN "IDADE" < 18 THEN '0-17 anos'
+            WHEN "IDADE" < 40 THEN '18-39 anos'
+            WHEN "IDADE" < 60 THEN '40-59 anos'
+            ELSE '60+ anos'
+          END AS faixa_etaria,
+          COUNT(*) AS total
+        FROM internacoes
+        WHERE "IDADE" IS NOT NULL
+        GROUP BY faixa_etaria
+        ORDER BY faixa_etaria;
+
+        -- MORTALITY RATE by AGE GROUP (FAIXA ETÁRIA) - CRITICAL EXAMPLE:
+        -- Question: "Qual a taxa de mortalidade por faixa etária?"
+        SELECT
+          CASE
+            WHEN i."IDADE" < 18 THEN '0-17 anos'
+            WHEN i."IDADE" < 40 THEN '18-39 anos'
+            WHEN i."IDADE" < 60 THEN '40-59 anos'
+            ELSE '60+ anos'
+          END AS faixa_etaria,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+        WHERE i."IDADE" IS NOT NULL
+        GROUP BY faixa_etaria
+        ORDER BY faixa_etaria;
+
+        CRITICAL: MORTALITY RATE CALCULATION - MOST COMMON MISTAKES:
+
+        For ANY query asking "taxa de mortalidade" (mortality rate), you MUST follow this structure:
+
+        ❌ WRONG APPROACH (Returns 100% - only counts deaths):
+        SELECT COUNT(mo."N_AIH") * 100 / COUNT(*)
+        FROM mortes mo                              -- WRONG: Starting from deaths table
+        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        WHERE i."IDADE" BETWEEN 30 AND 45;
+        Problem: Only processes records that have deaths (INNER JOIN), returns 100%!
+
+        ✅ CORRECT APPROACH (Returns actual rate like 1.87%):
+        -- Question: "Qual a taxa de mortalidade para faixa etária 30-45?"
+        SELECT '30-45 anos' AS faixa_etaria,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,    -- Denominator: ALL hospitalizations
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,         -- Numerator: Deaths only
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i                           -- CORRECT: Start from hospitalizations table
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH" -- CRITICAL: LEFT JOIN to keep ALL hospitalizations
+        WHERE i."IDADE" BETWEEN 30 AND 45;
+        -- NO GROUP BY needed (single age range)
+        -- NO ORDER BY needed (single result)
+        -- Result: 1 row with 1.87% (37,626 deaths / 2,017,361 hospitalizations)
+
+        CRITICAL RULES FOR MORTALITY RATES:
+        1. ALWAYS use internacoes as FROM table (not mortes)
+        2. ALWAYS use LEFT JOIN with mortes (not INNER JOIN)
+        3. Denominator = COUNT(DISTINCT i."N_AIH") - all hospitalizations
+        4. Numerator = COUNT(DISTINCT m."N_AIH") - only deaths (will be NULL for survivors)
+        5. Include descriptive columns: faixa_etaria, total_internacoes, total_mortes, taxa
+        6. Use DISTINCT to avoid duplicates from potential multiple joins
+
+        JOIN TYPE SELECTION GUIDE:
+        - LEFT JOIN: When you want ALL records from main table (e.g., all hospitalizations including survivors)
+        - INNER JOIN: Only when BOTH tables must have matching records (rare for mortality queries)
+
+        For "taxa de mortalidade" queries:
+        - Main table (FROM): internacoes (all cases)
+        - Secondary table (LEFT JOIN): mortes (subset with deaths)
+        - This gives you: deaths/total ratio
 """,
 
     "mortes": """
         MORTES TABLE RULES - DEATH RECORDS DURING HOSPITALIZATION:
 
         MANDATORY USAGE RULES:
-        - PRIMARY TABLE for ALL death counts and mortality statistics
-        - Use for: "mortes", "óbitos", "deaths", "mortality", "taxa de mortalidade"
+        - This table contains ONLY death records (subset of hospitalizations)
         - "N_AIH" links to internacoes table
         - "CID_MORTE" contains death cause (ICD-10 code)
+
+        CRITICAL: WHEN TO USE AS MAIN TABLE vs JOIN TABLE:
+
+        ❌ USE AS MAIN TABLE (FROM mortes) - ONLY when:
+        - Counting ONLY deaths: "Quantas mortes?" "Quantos óbitos?"
+        - Death cause analysis: "Principais causas de morte"
+        - Death demographics: "Mortes por sexo/idade" (deaths only, not rates)
+
+        ✅ USE AS SECONDARY TABLE (LEFT JOIN mortes) - ALWAYS when:
+        - Calculating RATES: "taxa de mortalidade" (needs total hospitalizations as denominator)
+        - Comparing deaths vs survivors: "proporção de óbitos"
+        - ANY query mentioning "taxa" or "proporção"
+
+        Example decision tree:
+        - "Quantas mortes cardiovasculares?" → FROM mortes (counting deaths only)
+        - "Qual a taxa de mortalidade cardiovascular?" → FROM internacoes LEFT JOIN mortes (rate calculation)
 
         POSTGRESQL COLUMN QUOTING:
         - "N_AIH" (hospitalization ID), "CID_MORTE" (death cause code)
@@ -341,35 +436,48 @@ TABLE_TEMPLATES = {
 
     "procedimentos": """
          PROCEDIMENTOS TABLE RULES - MEDICAL PROCEDURES REFERENCE:
-        
+
         MANDATORY USAGE RULES:
         - Reference table for procedure codes and descriptions
         - Use for: Procedure counts, procedure names, procedure analysis
-        - "PROC_REA" = Procedure code (primary key)
-        - "NOME_PROC" = Procedure description/name
-        
-        POSTGRESQL COLUMN QUOTING:
-        - "PROC_REA", "NOME_PROC"
-        
+        - Links to internacoes via "PROC_REA"
+
+        POSTGRESQL COLUMN QUOTING (CRITICAL):
+        - ALWAYS use double quotes: "PROC_REA", "NOME_PROC"
+        - NEVER use: PROC_REA or NOME_PROC (will fail with "column does not exist")
+
+        KEY COLUMNS:
+        - "PROC_REA" = Procedure code (primary key, links to internacoes)
+        - "NOME_PROC" = Procedure description/name (text field for searches)
+
         CRITICAL SEARCH PATTERNS:
         - Procedure name search: WHERE "NOME_PROC" ILIKE '%cirurgia%'
+        - Case-insensitive search: ALWAYS use ILIKE (not LIKE)
         - Specific procedure: WHERE "PROC_REA" = '0404010032'
-        
+
         EXACT QUERY EXAMPLES:
-        -- Total procedures available
-        SELECT COUNT(*) FROM procedimentos;
-        
-        -- Find surgery procedures
-        SELECT COUNT(*) FROM procedimentos WHERE "NOME_PROC" ILIKE '%cirurgia%';
-        
-        -- Most common procedures (from internacoes)
+        -- Total procedures in reference table
+        SELECT COUNT(*) AS total_procedimentos FROM procedimentos;
+
+        -- Count procedures containing "CIRURGIA" (CRITICAL EXAMPLE)
+        SELECT COUNT(*) AS procedimentos_cirurgia
+        FROM procedimentos
+        WHERE "NOME_PROC" ILIKE '%CIRURGIA%';
+
+        -- List surgery procedures with names
+        SELECT "PROC_REA", "NOME_PROC"
+        FROM procedimentos
+        WHERE "NOME_PROC" ILIKE '%cirurgia%'
+        LIMIT 10;
+
+        -- Most common procedures performed (from internacoes)
         SELECT p."NOME_PROC", COUNT(*) as frequency
         FROM internacoes i
         JOIN procedimentos p ON i."PROC_REA" = p."PROC_REA"
         WHERE i."PROC_REA" IS NOT NULL
         GROUP BY p."NOME_PROC"
         ORDER BY frequency DESC LIMIT 10;
-        
+
         -- Procedure with highest average cost
         SELECT p."NOME_PROC", AVG(i."VAL_TOT") as avg_cost
         FROM internacoes i
@@ -377,6 +485,12 @@ TABLE_TEMPLATES = {
         WHERE i."VAL_TOT" IS NOT NULL
         GROUP BY p."NOME_PROC"
         ORDER BY avg_cost DESC LIMIT 5;
+
+        COMMON MISTAKES TO AVOID:
+        - ❌ WHERE NOME_PROC LIKE '%cirurgia%' (missing quotes + wrong LIKE)
+        - ✅ WHERE "NOME_PROC" ILIKE '%cirurgia%' (correct)
+        - ❌ SELECT COUNT(*) FROM procedimentos WHERE nome_proc... (lowercase fails)
+        - ✅ SELECT COUNT(*) FROM procedimentos WHERE "NOME_PROC"... (correct)
 """,
 
     "obstetricos": """

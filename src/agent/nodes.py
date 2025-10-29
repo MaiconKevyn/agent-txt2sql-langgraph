@@ -577,43 +577,182 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             table_rules = build_table_specific_prompt(selected_tables)
             logger.debug("Table-specific rules applied", extra={"tables": selected_tables})
         
-        # Create ChatPromptTemplate with dynamic table rules
+        # Create ChatPromptTemplate with state-of-the-art prompt engineering
         sql_prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
-         CORE POSTGRESQL INSTRUCTIONS:
-        1. Generate syntactically correct PostgreSQL queries
-        2. Use proper table and column names with double quotes: "COLUMN_NAME"
-        3. Handle Portuguese language questions appropriately
-        4. Return only the SQL query, no explanation
-        5. Use appropriate WHERE clauses for filtering
-        6. Include LIMIT clauses when appropriate (default LIMIT 100)
-        7. Use proper JOINs when querying multiple tables
-        8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+=== DELIBERATE REASONING (HIDDEN) ===
+Use internal step-by-step reasoning but do NOT include it in the output.
 
-         CRITICAL DISEASE LOOKUP RULE - ALWAYS JOIN WITH CID10 TABLE:
-        9. For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
-        10. NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN, CID_MORTE)
-        11. ALWAYS use the cid10 table to get proper disease descriptions and search there
-        12. Pattern: JOIN cid10 c ON [table]."[CID_FIELD]" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
+=== OUTPUT CONSTRAINTS (MANDATORY) ===
+- Respond with a single SQL statement only
+- Do not include explanations, comments, or markdown
+- Do not include words like 'SQL', 'Answer:', or any prose
+- Quote all case-sensitive identifiers with double quotes
+- End with semicolon
 
-         INTELLIGENT MEDICAL SEARCH RULES:
-        13. When user asks about diseases, USE YOUR MEDICAL KNOWLEDGE to expand search terms
-        14. For diabetes: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
-        15. For cardiovascular diseases: combine CID codes (I00-I99) AND flexible patterns ('%card%', '%miocardio%', '%arterial%', '%vascular%', '%circulatorio%')
-        16. For respiratory diseases: combine CID codes (J00-J99) AND patterns ('%respir%', '%pulm%', '%pneum%', '%bronqu%')
-        17. For cancer/neoplasms: combine CID codes (C00-D48) AND patterns ('%cancer%', '%tumor%', '%neoplasia%', '%carcinoma%')
-        18. For infectious diseases: combine CID codes (A00-B99) AND patterns ('%infec%', '%virus%', '%bacter%')
-        19. ALWAYS use OR conditions to capture related terms that you know are medically equivalent
-        20. Don't be literal - use your medical training to find ALL relevant conditions
-        21. Example: "doença cardiovascular" should search: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%']))
-        
-         DATABASE SCHEMA:
-        {schema_context}"""),
-            
+=== CRITICAL SCHEMA LINKING (APPLY BEFORE GENERATING) ===
+Map question concepts to database elements:
+
+DECISION TREE - WHEN TO USE mortes TABLE:
+
+1. "Quantas mortes" / "Quantos óbitos" / "Número de mortes"
+   → FROM mortes (counting deaths only)
+   → Filter by "CID_MORTE" for death causes
+
+2. "Taxa de mortalidade" / "Proporção de óbitos" / "Percentual de mortes"
+   → FROM internacoes LEFT JOIN mortes (deaths/total ratio)
+   → COUNT(DISTINCT m."N_AIH") / COUNT(DISTINCT i."N_AIH") * 100
+
+3. "Mortes por X" where X is a demographic (idade, sexo, município)
+   → FROM mortes JOIN internacoes (need demographics from internacoes)
+   → Filter deaths, get demographics via JOIN
+
+Other schema mappings:
+
+- "faixa etária" / "idade X-Y" / "grupo de idade"
+  → "IDADE" column with BETWEEN or CASE WHEN (NOT date extraction!)
+
+- "evolução" / "por ano" / "ao longo do tempo" / "tendência"
+  → GROUP BY EXTRACT(YEAR FROM "DT_INTER")
+  → ORDER BY ano
+
+- "município" / "cidade"
+  → JOIN municipios ON i."MUNIC_RES" = mu.codigo_6d
+
+- "diagnóstico" / "doença" / "condição médica"
+  → JOIN cid10 ON i."DIAG_PRINC" = c."CID" for description search
+
+- "ano" / "período" / "mês"
+  → EXTRACT(YEAR FROM "DT_INTER") or EXTRACT(MONTH FROM "DT_INTER")
+
+- "hospital"
+  → JOIN hospital ON i."CNES" = h."CNES"
+
+- "UTI" / "terapia intensiva"
+  → JOIN uti_detalhes ON i."N_AIH" = u."N_AIH"
+
+=== PROGRESSIVE FEW-SHOT EXAMPLES (FOLLOW THESE PATTERNS) ===
+
+-- EASY: Simple count
+-- Question: "Quantos homens foram internados?"
+SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 1;
+
+-- EASY: Count with filter
+-- Question: "Quantas mortes cardiovasculares?"
+SELECT COUNT(*) FROM mortes WHERE "CID_MORTE" LIKE 'I%';
+
+-- MEDIUM: Join with lookup for descriptions
+-- Question: "Top 3 diagnósticos mais comuns"
+SELECT c."CD_DESCRICAO", COUNT(*) AS total
+FROM internacoes i
+JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+WHERE i."DIAG_PRINC" IS NOT NULL
+GROUP BY c."CD_DESCRICAO"
+ORDER BY total DESC
+LIMIT 3;
+
+-- MEDIUM: Join for geographic analysis
+-- Question: "Cidade com mais mortes masculinas"
+SELECT mu.nome, COUNT(m."N_AIH") AS total
+FROM mortes m
+JOIN internacoes i ON m."N_AIH" = i."N_AIH"
+JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+WHERE i."SEXO" = 1
+GROUP BY mu.nome
+ORDER BY total DESC
+LIMIT 1;
+
+-- HARD: Mortality rate calculation (CRITICAL PATTERN FOR RATES)
+-- Question: "Qual a taxa de mortalidade para faixa etária 30-45?"
+SELECT '30-45 anos' AS faixa_etaria,
+  COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+  COUNT(DISTINCT m."N_AIH") AS total_mortes,
+  ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+FROM internacoes i
+LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+WHERE i."IDADE" BETWEEN 30 AND 45;
+-- Key: FROM internacoes (denominator), LEFT JOIN mortes (numerator), NO GROUP BY for single range
+
+=== COMMON MISTAKES (ERROR-AWARE PROMPTING) ===
+
+❌ WRONG: Mortality rate from deaths table
+FROM mortes mo JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+WHERE i."IDADE" BETWEEN 30 AND 45
+→ Problem: Returns 100% (only counts deaths, denominator = numerator)
+
+✅ CORRECT: Mortality rate from hospitalizations table
+FROM internacoes i LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+WHERE i."IDADE" BETWEEN 30 AND 45
+→ Result: Actual rate (deaths / all hospitalizations)
+
+❌ WRONG: Using dates for age groups
+WHERE EXTRACT(YEAR FROM "DT_SAIDA") BETWEEN 30 AND 45
+
+✅ CORRECT: Using age column
+WHERE "IDADE" BETWEEN 30 AND 45
+
+❌ WRONG: Unnecessary GROUP BY for single result
+SELECT COUNT(*) ... GROUP BY EXTRACT(YEAR FROM "DT_INTER")
+
+✅ CORRECT: No GROUP BY when not requested
+SELECT COUNT(*) ... WHERE "IDADE" BETWEEN 30 AND 45
+
+❌ WRONG: INNER JOIN for rates (excludes survivors)
+FROM internacoes i JOIN mortes m ...
+
+✅ CORRECT: LEFT JOIN for rates (includes all)
+FROM internacoes i LEFT JOIN mortes m ...
+
+=== SELF-VERIFICATION (BEFORE OUTPUT) ===
+
+□ FROM table = main entity of question?
+  - "taxa de mortalidade" → FROM internacoes (total), not FROM mortes
+  - "quantas mortes" → FROM mortes (deaths only)
+
+□ JOIN type correct?
+  - Rate/proportion → LEFT JOIN (keep all from main table)
+  - Filtering/matching → INNER JOIN (only matches)
+
+□ All columns quoted?
+  - "SEXO", "IDADE", "N_AIH", "DT_INTER", "MUNIC_RES"
+
+□ Gender values correct?
+  - Male = 1, Female = 3 (NEVER use 2)
+
+□ Age vs Time distinction clear?
+  - Patient age → "IDADE" column
+  - Time periods → "DT_INTER" or "DT_SAIDA" columns
+
+□ GROUP BY only when needed?
+  - Multiple categories requested → GROUP BY explicit dimensions
+  - Single result → NO GROUP BY
+
+□ Disease description searches?
+  - ALWAYS JOIN cid10 for disease names/descriptions
+
+DATABASE SCHEMA:
+{schema_context}"""),
+
             ("system", "{table_specific_rules}"),
-            
-            ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
+
+            ("human", """USER QUERY: {user_query}
+
+INSTRUCTIONS:
+1. Use internal deliberate reasoning (hidden - don't show it)
+2. Apply schema linking to map concepts to database elements
+3. Check few-shot examples for similar patterns
+4. Verify against common mistakes
+5. Self-verify before finalizing
+6. Output ONLY the SQL query
+
+CRITICAL REMINDERS:
+- "taxa de mortalidade" → FROM internacoes LEFT JOIN mortes (not FROM mortes!)
+- "faixa etária" → "IDADE" column (not EXTRACT(YEAR FROM ...))
+- Single result query → NO GROUP BY unless explicitly requested
+- All identifiers → double quotes: "SEXO", "IDADE", "N_AIH"
+
+Return ONLY the SQL query (no markdown, no explanation, just the query):""")
         ])
         
         # Format the prompt with dynamic content

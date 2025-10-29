@@ -670,12 +670,137 @@ def generate_report(
     }
 
 
+def _generate_execution_outputs_file(
+    detailed_results: List[Dict],
+    output_path: Path,
+    db_connection
+) -> None:
+    """
+    Generate a text file showing execution outputs for manual validation
+
+    For each ground truth question, shows:
+    - Question ID and text
+    - Ground truth SQL and execution results
+    - Predicted SQL and execution results
+    - Execution Accuracy (EX) metric
+
+    Args:
+        detailed_results: List of evaluation results from evaluate_questions
+        output_path: Path where to save the outputs file
+        db_connection: Database connection to execute queries
+    """
+    lines = []
+    lines.append("="*80)
+    lines.append("QUERY EXECUTION OUTPUTS - MANUAL VALIDATION")
+    lines.append("="*80)
+    lines.append("")
+    lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"Total Questions: {len(detailed_results)}")
+    lines.append("")
+
+    for i, result in enumerate(detailed_results, 1):
+        lines.append("="*80)
+        lines.append(f"{result['question_id']}: {result['question']}")
+        lines.append(f"Difficulty: {result['difficulty'].upper()}")
+        lines.append("="*80)
+        lines.append("")
+
+        # Ground Truth SQL
+        lines.append("Ground Truth SQL:")
+        lines.append("  " + result['ground_truth_sql'])
+        lines.append("")
+
+        # Execute ground truth query
+        gt_results, gt_error = db_connection.execute_query(result['ground_truth_sql'])
+
+        lines.append("Ground Truth Results:")
+        if gt_error:
+            lines.append(f"  ERROR: {gt_error}")
+        elif gt_results is not None:
+            if len(gt_results) == 0:
+                lines.append("  [Empty result set]")
+            else:
+                for idx, row in enumerate(gt_results[:10], 1):  # Show first 10 rows
+                    lines.append(f"  Row {idx}: {list(row)}")
+                if len(gt_results) > 10:
+                    lines.append(f"  ... ({len(gt_results) - 10} more rows)")
+                lines.append(f"  Total rows: {len(gt_results)}")
+        else:
+            lines.append("  [No results available]")
+        lines.append("")
+
+        # Predicted SQL
+        if result['agent_success']:
+            lines.append("Predicted SQL:")
+            lines.append("  " + result['predicted_sql'])
+            lines.append("")
+
+            # Execute predicted query
+            pred_results, pred_error = db_connection.execute_query(result['predicted_sql'])
+
+            lines.append("Predicted Results:")
+            if pred_error:
+                lines.append(f"  ERROR: {pred_error}")
+            elif pred_results is not None:
+                if len(pred_results) == 0:
+                    lines.append("  [Empty result set]")
+                else:
+                    for idx, row in enumerate(pred_results[:10], 1):  # Show first 10 rows
+                        lines.append(f"  Row {idx}: {list(row)}")
+                    if len(pred_results) > 10:
+                        lines.append(f"  ... ({len(pred_results) - 10} more rows)")
+                    lines.append(f"  Total rows: {len(pred_results)}")
+            else:
+                lines.append("  [No results available]")
+        else:
+            lines.append("Predicted SQL:")
+            lines.append("  [AGENT FAILED - No SQL generated]")
+            lines.append("")
+            lines.append("Predicted Results:")
+            lines.append("  [Agent failed - no SQL to execute]")
+        lines.append("")
+
+        # EX Metric
+        ex_metric = result['metrics'].get('execution_accuracy', {})
+
+        if ex_metric:
+            score = ex_metric.get('score', 0.0)
+            is_correct = ex_metric.get('is_correct', False)
+            error = ex_metric.get('error')
+
+            lines.append(f"Execution Accuracy (EX): {score:.1f}")
+            if is_correct:
+                lines.append("Status: ✓ CORRECT (Results match)")
+            else:
+                lines.append("Status: ✗ INCORRECT (Results differ)")
+
+            if error:
+                lines.append(f"Error: {error}")
+        else:
+            lines.append("Execution Accuracy: [Not available]")
+
+        lines.append("")
+
+        # Add separator between questions
+        if i < len(detailed_results):
+            lines.append("")
+
+    lines.append("="*80)
+    lines.append("END OF REPORT")
+    lines.append("="*80)
+
+    # Write to file
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write("\n".join(lines))
+
+
 def save_results(
     evaluate_questions: Dict[str, Any],
     aggregate_results: Dict[str, Any],
     generate_report: Dict[str, Any],
     load_configuration: Dict[str, Any],
     initialize_agent: Dict[str, Any],
+    initialize_database: Dict[str, Any],
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -687,6 +812,7 @@ def save_results(
         generate_report: Report text
         load_configuration: Configuration data
         initialize_agent: Agent configuration
+        initialize_database: Database connection
 
     Returns:
         Dict containing output paths
@@ -722,9 +848,18 @@ def save_results(
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(generate_report['report_text'])
 
+    # Generate execution outputs file for manual validation
+    outputs_path = output_dir / f"dag_execution_outputs_{timestamp}.txt"
+    _generate_execution_outputs_file(
+        detailed_results=evaluate_questions['detailed_results'],
+        output_path=outputs_path,
+        db_connection=initialize_database['db_connection']
+    )
+
     print(f"    Results saved:")
     print(f"      JSON: {json_path}")
     print(f"      Report: {report_path}")
+    print(f"      Execution Outputs: {outputs_path}")
 
     # Print report to console
     print("\n")
@@ -733,6 +868,7 @@ def save_results(
     return {
         'json_path': str(json_path),
         'report_path': str(report_path),
+        'outputs_path': str(outputs_path),
         'saved_successfully': True
     }
 
