@@ -5,18 +5,7 @@ from typing import List, Dict, Optional
 TABLE_TEMPLATES = {
     "internacoes": """
          INTERNACOES TABLE RULES - MAIN HOSPITALIZATION DATA:
-
-        ⚠️⚠️⚠️ CRITICAL TABLE STRUCTURE - READ THIS FIRST ⚠️⚠️⚠️
-
-        When joining with cid10 table, understand these TWO SEPARATE columns:
-
-        cid10."CID" = CODE column (contains: 'J18', 'I21', 'C50', 'O80')
-        cid10."CD_DESCRICAO" = TEXT column (contains: 'Pneumonia', 'Infarto', 'Cancer mama', 'Parto')
-
-        NEVER confuse them:
-        - Disease CATEGORY (respiratory, cardiac): Use c."CID" LIKE 'J%'
-        - Disease NAME (pneumonia, diabetes): Use c."CD_DESCRICAO" ILIKE '%pneum%'
-
+        
         MANDATORY VALUE MAPPINGS (NEVER MAKE MISTAKES):
         - For questions about MEN/HOMENS/MASCULINO: ALWAYS use "SEXO" = 1
         - For questions about WOMEN/MULHERES/FEMININO: ALWAYS use "SEXO" = 3
@@ -90,42 +79,11 @@ TABLE_TEMPLATES = {
         - For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
         - NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN)
         - ALWAYS use the cid10 table to get proper disease descriptions and search there
+        - Pattern: JOIN cid10 c ON internacoes."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
 
-        TWO APPROACHES FOR DISEASE FILTERING:
-
-        1. SPECIFIC DISEASE (by name):
-           Pattern: WHERE c."CD_DESCRICAO" ILIKE '%[disease_name]%'
-           Example: WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
-
-        2. DISEASE CATEGORY (by CID code range):
-           Pattern: WHERE c."CID" LIKE '[letter]%' OR c."CD_DESCRICAO" ILIKE '%[keywords]%'
-           Examples:
-           - Cardiovascular: c."CID" LIKE 'I%' (I00-I99)
-           - Respiratory: c."CID" LIKE 'J%' (J00-J99)
-           - Cancer: c."CID" LIKE 'C%' (C00-D48)
-           - Infectious: c."CID" LIKE 'A%' OR c."CID" LIKE 'B%' (A00-B99)
-
-        CRITICAL: NEVER use c."CD_DESCRICAO" LIKE 'J%' - codes go in CID column, not DESCRICAO!
-
-        WRONG EXAMPLES (COMMON MISTAKES):
-        - ❌ WHERE "DIAG_PRINC" ILIKE '%diabetes%'
-          Problem: Searches code field (e.g., 'E14') for disease name - won't work!
-
-        - ❌ WHERE c."CD_DESCRICAO" LIKE 'J%'
-          Problem: Searches description (e.g., 'Pneumonia') for code prefix - will match 'Jerusalem syndrome' not respiratory!
-
-        - ❌ WHERE c."CD_DESCRICAO" LIKE 'P%' for respiratory
-          Problem: Will match 'Parto' (childbirth, code O80) AND 'Pneumonia' (code J18) - wrong category!
-
-        CORRECT EXAMPLES:
-        - ✅ WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
-          Reason: Searches description text for specific disease name
-
-        - ✅ WHERE c."CID" LIKE 'J%'
-          Reason: Searches CID code column for respiratory category (J00-J99)
-
-        - ✅ WHERE c."CD_DESCRICAO" ILIKE '%pneum%'
-          Reason: Searches description text for keyword (catches Pneumonia, Pneumonite, etc.)
+        DIABETES EXAMPLE (CRITICAL):
+        - WRONG: WHERE "DIAG_PRINC" ILIKE '%diabetes%' (searches code field)
+        - CORRECT: JOIN cid10 c ON "DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%' (searches description)
 
         DIAGNOSIS DESCRIPTION RULES (CID LOOKUPS):
         - When a query asks for diagnosis names, rankings, "diagnósticos mais comuns", or any output involving disease names,
@@ -133,57 +91,49 @@ TABLE_TEMPLATES = {
         - SELECT both the code cid10."CID" and the description cid10."CD_DESCRICAO" in the result set, together with the metric (e.g., COUNT(*))
         - Use ILIKE for case-insensitive description searches; use proper GROUP BY over both code and description
         - Seasonal filter (Southern Hemisphere): Inverno (winter) months are 6, 7, and 8 (June, July, August)
-
-        === FEW-SHOT EXAMPLES (PROGRESSIVE DIFFICULTY) ===
-
-        --- EASY EXAMPLES (Single table, simple filters, basic aggregations) ---
-
-        -- Q: "Quantos pacientes foram hospitalizados?"
-        SELECT COUNT(*) FROM internacoes;
-
-        -- Q: "Quantos homens foram hospitalizados?"
+        
+        EXACT QUERY EXAMPLES:
+        -- Men count
         SELECT COUNT(*) FROM internacoes WHERE "SEXO" = 1;
-
-        -- Q: "Qual a idade média dos pacientes?"
-        SELECT AVG("IDADE") FROM internacoes WHERE "IDADE" IS NOT NULL;
-
-        -- Q: "Qual o total de gastos hospitalares?"
+        
+        -- Women average age
+        SELECT AVG("IDADE") FROM internacoes WHERE "SEXO" = 3 AND "IDADE" IS NOT NULL;
+        
+        -- Total financial values
         SELECT SUM("VAL_TOT") FROM internacoes WHERE "VAL_TOT" IS NOT NULL;
+        
+        -- Long stays (>30 days)
+        SELECT COUNT(*) FROM internacoes WHERE "DIAS_PERM" > 30;
+        
+        -- Admissions by year
+        SELECT EXTRACT(YEAR FROM "DT_INTER") as year, COUNT(*) 
+        FROM internacoes 
+        WHERE "DT_INTER" IS NOT NULL 
+        GROUP BY EXTRACT(YEAR FROM "DT_INTER");
 
-        --- MEDIUM EXAMPLES (2-3 tables, JOINs, GROUP BY, filtering) ---
-
-        -- Q: "Quantos pacientes tiveram diabetes como diagnóstico principal?"
+        -- People with diabetes (CORRECT APPROACH):
         SELECT COUNT(*) FROM internacoes i
         JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
         WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
 
-        -- Q: "Quantas internações por doenças cardiovasculares?"
-        -- CRITICAL: For disease CATEGORIES, search in CID column (codes), NOT in CD_DESCRICAO
-        -- c."CID" contains codes like 'I21', 'I50', 'J18' (search with LIKE 'letter%')
-        -- c."CD_DESCRICAO" contains text like 'Infarto', 'Pneumonia' (search with ILIKE '%word%')
-        SELECT COUNT(*) FROM internacoes i
-        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
-        WHERE c."CID" LIKE 'I%';  -- Search CID column for code range I00-I99
-
-        -- Q: "Quais os 5 diagnósticos mais comuns?"
+        -- Top 3 most common diagnoses in winter with descriptions
         SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total
         FROM internacoes i
         JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
-        WHERE i."DIAG_PRINC" IS NOT NULL
+        WHERE EXTRACT(MONTH FROM i."DT_INTER") IN (6,7,8)
         GROUP BY c."CID", c."CD_DESCRICAO"
         ORDER BY total DESC
-        LIMIT 5;
+        LIMIT 3;
 
-        -- Q: "Quantas internações por ano?"
-        SELECT EXTRACT(YEAR FROM "DT_INTER") as ano, COUNT(*) AS total
+        -- Average ICU stay time (days) using hospital daily charges (QT_DIARIAS)
+        -- Question: "Qual o tempo médio de permanência em UTI?"
+        -- Use internacoes only; uti_detalhes does not provide days length
+        SELECT AVG("QT_DIARIAS") AS tempo_medio_uti
         FROM internacoes
-        WHERE "DT_INTER" IS NOT NULL
-        GROUP BY EXTRACT(YEAR FROM "DT_INTER")
-        ORDER BY ano;
+        WHERE "QT_DIARIAS" > 0;
 
-        --- HARD EXAMPLES (Multiple JOINs, CASE WHEN, complex calculations) ---
-
-        -- Q: "Quantas internações por faixa etária?"
+        -- AGE GROUPS (FAIXA ETÁRIA) - CRITICAL EXAMPLE:
+        -- Count hospitalizations by age group (NOT by year!)
         SELECT
           CASE
             WHEN "IDADE" < 18 THEN '0-17 anos'
@@ -197,57 +147,131 @@ TABLE_TEMPLATES = {
         GROUP BY faixa_etaria
         ORDER BY faixa_etaria;
 
-        -- Q: "Qual o custo médio de internação por hospital?"
-        SELECT h."CNES", h."NATUREZA", AVG(i."VAL_TOT") AS custo_medio
-        FROM internacoes i
-        JOIN hospital h ON i."CNES" = h."CNES"
-        WHERE i."VAL_TOT" IS NOT NULL
-        GROUP BY h."CNES", h."NATUREZA"
-        ORDER BY custo_medio DESC
-        LIMIT 10;
-
-        === MORTALITY RATE CALCULATION (CRITICAL SECTION) ===
-
-        For ANY query asking "taxa de mortalidade" (mortality rate), follow this structure:
-
-        CRITICAL RULES:
-        1. FROM table = internacoes (all cases, not mortes)
-        2. LEFT JOIN mortes (to include survivors with NULL)
-        3. Denominator = COUNT(DISTINCT i."N_AIH") → all hospitalizations
-        4. Numerator = COUNT(DISTINCT m."N_AIH") → only deaths
-        5. Formula: ROUND((numerator / denominator) * 100, 2)
-
-        ❌ WRONG (Returns 100%):
-        FROM mortes mo JOIN internacoes i  -- Only counts death records!
-
-        ✅ CORRECT:
-        FROM internacoes i LEFT JOIN mortes m  -- Counts ALL, deaths show as non-NULL
-
-        --- Example: General mortality rate ---
-        -- Q: "Qual a taxa de mortalidade geral?"
-        SELECT
-          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
-          COUNT(DISTINCT m."N_AIH") AS total_mortes,
-          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
-        FROM internacoes i
-        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH";
-
-        --- Example: Mortality by category (hospital type) ---
-        -- Q: "Qual a taxa de mortalidade em hospitais públicos vs privados?"
+        -- MORTALITY RATE by AGE GROUP (FAIXA ETÁRIA) - CRITICAL EXAMPLE:
+        -- Question: "Qual a taxa de mortalidade por faixa etária?"
         SELECT
           CASE
-            WHEN h."NATUREZA" ILIKE '%public%' THEN 'Público'
-            WHEN h."NATUREZA" ILIKE '%privad%' THEN 'Privado'
-            ELSE 'Outro'
-          END AS tipo_hospital,
+            WHEN i."IDADE" < 18 THEN '0-17 anos'
+            WHEN i."IDADE" < 40 THEN '18-39 anos'
+            WHEN i."IDADE" < 60 THEN '40-59 anos'
+            ELSE '60+ anos'
+          END AS faixa_etaria,
           COUNT(DISTINCT i."N_AIH") AS total_internacoes,
           COUNT(DISTINCT m."N_AIH") AS total_mortes,
           ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
         FROM internacoes i
         LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
-        JOIN hospital h ON i."CNES" = h."CNES"
-        WHERE h."NATUREZA" IS NOT NULL
-        GROUP BY tipo_hospital;
+        WHERE i."IDADE" IS NOT NULL
+        GROUP BY faixa_etaria
+        ORDER BY faixa_etaria;
+
+        CRITICAL: MORTALITY RATE CALCULATION - MOST COMMON MISTAKES:
+
+        For ANY query asking "taxa de mortalidade" (mortality rate), you MUST follow this structure:
+
+        ❌ WRONG APPROACH (Returns 100% - only counts deaths):
+        SELECT COUNT(mo."N_AIH") * 100 / COUNT(*)
+        FROM mortes mo                              -- WRONG: Starting from deaths table
+        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        WHERE i."IDADE" BETWEEN 30 AND 45;
+        Problem: Only processes records that have deaths (INNER JOIN), returns 100%!
+
+        ✅ CORRECT APPROACH (Returns actual rate like 1.87%):
+        -- Question: "Qual a taxa de mortalidade para faixa etária 30-45?"
+        SELECT '30-45 anos' AS faixa_etaria,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,    -- Denominator: ALL hospitalizations
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,         -- Numerator: Deaths only
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i                           -- CORRECT: Start from hospitalizations table
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH" -- CRITICAL: LEFT JOIN to keep ALL hospitalizations
+        WHERE i."IDADE" BETWEEN 30 AND 45;
+        -- NO GROUP BY needed (single age range)
+        -- NO ORDER BY needed (single result)
+        -- Result: 1 row with 1.87% (37,626 deaths / 2,017,361 hospitalizations)
+
+        CRITICAL RULES FOR MORTALITY RATES:
+        1. ALWAYS use internacoes as FROM table (not mortes)
+        2. ALWAYS use LEFT JOIN with mortes (not INNER JOIN)
+        3. Denominator = COUNT(DISTINCT i."N_AIH") - all hospitalizations
+        4. Numerator = COUNT(DISTINCT m."N_AIH") - only deaths (will be NULL for survivors)
+        5. Include descriptive columns: category, total_internacoes, total_mortes, taxa
+        6. Use DISTINCT to avoid duplicates from potential multiple joins
+
+        JOIN TYPE SELECTION GUIDE:
+        - LEFT JOIN: When you want ALL records from main table (e.g., all hospitalizations including survivors)
+        - INNER JOIN: Only when BOTH tables must have matching records (rare for mortality queries)
+
+        For "taxa de mortalidade" queries:
+        - Main table (FROM): internacoes (all cases)
+        - Secondary table (LEFT JOIN): mortes (subset with deaths)
+        - This gives you: deaths/total ratio
+
+        GENERIC PATTERN FOR MORTALITY RATE BY CATEGORY (procedure, municipality, hospital, etc.):
+        -- Question: "Quais [categorias] têm maior taxa de mortalidade?"
+        -- Replace [category_table] and [category_key] with appropriate values
+
+        SELECT
+          i."[CATEGORY_KEY]" AS categoria,  -- The category column (e.g., "PROC_REA", "MUNIC_RES", "CNES")
+          ref."[DESCRIPTION]" AS descricao,  -- Optional: description from reference table
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+        LEFT JOIN [reference_table] ref ON i."[CATEGORY_KEY]" = ref."[KEY]"  -- Optional: for descriptions
+        WHERE i."[CATEGORY_KEY]" IS NOT NULL
+        GROUP BY i."[CATEGORY_KEY]", ref."[DESCRIPTION]"  -- Group by both code and description
+        HAVING COUNT(DISTINCT m."N_AIH") > 0  -- Optional: only categories with at least 1 death
+        ORDER BY taxa_mortalidade DESC
+        LIMIT [N];
+
+        EXAMPLES BY CATEGORY:
+
+        -- Mortality rate by PROCEDURE (procedimentos)
+        SELECT
+          i."PROC_REA" AS procedimento,
+          p."NOME_PROC" AS nome_procedimento,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+        LEFT JOIN procedimentos p ON i."PROC_REA" = p."PROC_REA"
+        WHERE i."PROC_REA" IS NOT NULL
+        GROUP BY i."PROC_REA", p."NOME_PROC"
+        HAVING COUNT(DISTINCT m."N_AIH") > 0
+        ORDER BY taxa_mortalidade DESC
+        LIMIT 5;
+
+        -- Mortality rate by HOSPITAL (hospital)
+        SELECT
+          i."CNES" AS hospital,
+          h."NATUREZA" AS tipo_hospital,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+        LEFT JOIN hospital h ON i."CNES" = h."CNES"
+        WHERE i."CNES" IS NOT NULL
+        GROUP BY i."CNES", h."NATUREZA"
+        ORDER BY taxa_mortalidade DESC
+        LIMIT 10;
+
+        -- Mortality rate by MUNICIPALITY (municipios)
+        SELECT
+          i."MUNIC_RES" AS municipio_codigo,
+          mu."nome" AS municipio_nome,
+          COUNT(DISTINCT i."N_AIH") AS total_internacoes,
+          COUNT(DISTINCT m."N_AIH") AS total_mortes,
+          ROUND(COUNT(DISTINCT m."N_AIH")::numeric / COUNT(DISTINCT i."N_AIH") * 100, 2) AS taxa_mortalidade
+        FROM internacoes i
+        LEFT JOIN mortes m ON i."N_AIH" = m."N_AIH"
+        LEFT JOIN municipios mu ON i."MUNIC_RES" = mu."codigo_6d"
+        WHERE i."MUNIC_RES" IS NOT NULL
+        GROUP BY i."MUNIC_RES", mu."nome"
+        ORDER BY taxa_mortalidade DESC
+        LIMIT 10;
 """,
 
     "mortes": """
@@ -303,41 +327,46 @@ TABLE_TEMPLATES = {
         - EXTERNAL CAUSES: "CID_MORTE" LIKE 'V%' OR "CID_MORTE" LIKE 'W%' OR "CID_MORTE" LIKE 'X%' OR "CID_MORTE" LIKE 'Y%'
           Keywords: acidente, violência, suicídio, trauma
 
-        === FEW-SHOT EXAMPLES (PROGRESSIVE DIFFICULTY) ===
-
-        --- EASY EXAMPLES (Simple counts from mortes table) ---
-
-        -- Q: "Quantos óbitos ocorreram no total?"
+        EXACT QUERY EXAMPLES:
+        -- Total deaths
         SELECT COUNT(*) FROM mortes;
 
-        -- Q: "Quantos pacientes morreram?"
-        SELECT COUNT(DISTINCT "N_AIH") FROM mortes;
+        -- DIABETES DEATHS (CORRECT APPROACH):
+        SELECT COUNT(*) FROM mortes mo
+        JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
 
-        --- MEDIUM EXAMPLES (JOINs for death causes and descriptions) ---
+        -- DIABETES DEATHS (ALTERNATIVE WITH DEATH CAUSE):
+        SELECT COUNT(*) FROM mortes mo
+        JOIN cid10 c ON mo."CID_MORTE" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE '%diabetes%';
 
-        -- Q: "Quantas mortes por problemas cardiovasculares?"
+        -- CARDIOVASCULAR DEATHS (USING DEATH CAUSE DESCRIPTION VIA CID10)
         SELECT COUNT(*) AS mortes_cardiovasculares
-        FROM mortes m
-        JOIN cid10 c ON m."CID_MORTE" = c."CID"
-        WHERE c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%miocard%','%vascular%','%arterial%']);
+        FROM mortes mo
+        JOIN cid10 c ON mo."CID_MORTE" = c."CID"
+        WHERE c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']);
 
-        -- Q: "Quais as 10 principais causas de morte?"
-        SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total_mortes
+        -- CARDIOVASCULAR (ALTERNATIVE USING DIAGNOSIS IN ADMISSIONS - NOT DEATH CAUSE)
+        SELECT COUNT(*)
+        FROM internacoes i
+        JOIN cid10 c ON i."DIAG_PRINC" = c."CID"
+        WHERE (c."CD_DESCRICAO" ILIKE ANY(ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']));
+
+        -- Deaths with hospitalization data
+        SELECT COUNT(DISTINCT m."N_AIH")
+        FROM mortes m
+        JOIN internacoes i ON m."N_AIH" = i."N_AIH";
+
+        -- Death causes ranking WITH DESCRIPTIONS
+        SELECT c."CID", c."CD_DESCRICAO", COUNT(*) as total_deaths
         FROM mortes m
         JOIN cid10 c ON m."CID_MORTE" = c."CID"
         WHERE m."CID_MORTE" IS NOT NULL
         GROUP BY c."CID", c."CD_DESCRICAO"
-        ORDER BY total_mortes DESC
+        ORDER BY total_deaths DESC
         LIMIT 10;
-
-        --- HARD EXAMPLES (Multiple JOINs, demographics, temporal analysis) ---
-
-        -- Q: "Quantos óbitos ocorreram em 2022?"
-        -- Note: Use DT_SAIDA (discharge/death date), not DT_INTER (admission date)
-        SELECT COUNT(*) AS mortes_2022
-        FROM mortes m
-        JOIN internacoes i ON m."N_AIH" = i."N_AIH"
-        WHERE EXTRACT(YEAR FROM i."DT_SAIDA") = 2022;
 """,
 
     "cid10": """
