@@ -132,10 +132,11 @@
   {
     "id": "GT014",
     "difficulty": "medium",
-    "question": "Quantas mortes foram causadas por doenças cardiovasculares?",
-    "query": "SELECT COUNT(*) AS mortes_cardiovasculares\nFROM mortes mo\nJOIN cid10 c ON mo.\"CID_MORTE\" = c.\"CID\"\nWHERE c.\"CD_DESCRICAO\" ILIKE ANY (ARRAY['%cardi%','%cardí%','%miocard%','%vascular%','%arterial%','%circulat%']);",
+    "question": "Quantas internações por meningite ocasionaram em morte?",
+    "query": "SELECT COUNT(mo.\"N_AIH\") FROM mortes mo JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" JOIN cid10 c ON mo.\"CID_MORTE\" = c.\"CID\" WHERE c.\"CD_DESCRICAO\" ILIKE '%meningite%' AND mo.\"N_AIH\" IS NOT NULL;",
     "tables": [
       "mortes",
+      "internacoes",
       "cid10"
     ],
     "notes": "CRITICAL: Conte óbitos em mortes e selecione causas via JOIN com cid10 (CID_MORTE → CID) filtrando por descrições cardiovasculares; evite depender apenas de prefixos de código"
@@ -183,10 +184,12 @@
   {
     "id": "GT019",
     "difficulty": "medium",
-    "question": "Quantos casos obstétricos tiveram acompanhamento pré-natal?",
-    "query": "SELECT COUNT(*) AS com_prenatal FROM obstetricos WHERE \"INSC_PN\" IS NOT NULL AND \"INSC_PN\" != '';",
+    "question": "\"Quais os cinco municípios com mais internações obstétricas registradas?",
+    "query": " SELECT mu.nome, COUNT(o.\"N_AIH\") AS total_internacoes FROM obstetricos o JOIN internacoes i ON o.\"N_AIH\" = i.\"N_AIH\" JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome ORDER BY total_internacoes DESC LIMIT 5;",
     "tables": [
-      "obstetricos"
+      "obstetricos",
+      "internacoes",
+      "municipios"
     ],
     "notes": "Obstetric-specific filtering"
   },
@@ -376,19 +379,22 @@
   {
     "id": "GT041",
     "difficulty": "medium",
-    "question": "Qual município tem o maior salário médio?",
-    "query": "SELECT nome_municipio, salario_medio FROM dado_ibge WHERE salario_medio IS NOT NULL ORDER BY salario_medio DESC LIMIT 1;",
+    "question": "Qual município teve o maior número de internações masculinas em 2020?",
+    "query": "SELECT mu.nome, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d WHERE EXTRACT(YEAR FROM i.\"DT_INTER\") = 2020 AND i.\"SEXO\" = 1 GROUP BY mu.nome ORDER BY total_internacoes DESC LIMIT 1;",
     "tables": [
-      "dado_ibge"
+      "municipios",
+      "internacoes"
     ]
   },
   {
     "id": "GT042",
     "difficulty": "medium",
-    "question": "Quantas internações tiveram diagnóstico de diabetes (E10-E14)?",
-    "query": "SELECT COUNT(*) AS internacoes_diabetes FROM internacoes WHERE \"DIAG_PRINC\" LIKE 'E1%' AND \"DIAG_PRINC\" >= 'E10' AND \"DIAG_PRINC\" <= 'E14Z';",
+    "question": "Quais são as três causas de morte mais frequentes entre mulheres?",
+    "query": "SELECT c.\"CD_DESCRICAO\", COUNT(mo.\"N_AIH\") AS total_mortes FROM cid10 c JOIN mortes mo ON c.\"CID\" = mo.\"CID_MORTE\" JOIN internacoes i ON mo.\"N_AIH\" = i.\"N_AIH\" WHERE i.\"SEXO\" = 3 AND mo.\"CID_MORTE\" IS NOT NULL GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_mortes DESC LIMIT 3;",
     "tables": [
-      "internacoes"
+      "internacoes",
+      "mortes",
+      "cid10"
     ]
   },
   {
@@ -415,10 +421,12 @@
   {
     "id": "GT045",
     "difficulty": "medium",
-    "question": "Qual o procedimento com maior valor médio?",
-    "query": "SELECT \"PROC_REA\", AVG(\"VAL_TOT\") AS valor_medio FROM internacoes WHERE \"PROC_REA\" IS NOT NULL AND \"VAL_TOT\" IS NOT NULL GROUP BY \"PROC_REA\" ORDER BY valor_medio DESC LIMIT 1;",
+    "question": "Quantas internações de pacientes com mais de 70 anos ocorreram no inverno (junho a agosto)?",
+    "query": " SELECT COUNT(i.\"N_AIH\") FROM internacoes i JOIN cid10 c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE EXTRACT(MONTH FROM i.\"DT_INTER\") BETWEEN 6 AND 8 AND i.\"IDADE\" > 70;",
     "tables": [
-      "internacoes"
+      "internacoes",
+      "municipios",
+      "dados_ibge"
     ]
   },
   {

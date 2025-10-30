@@ -4,51 +4,51 @@ TEXT-TO-SQL EVALUATION REPORT
 
 OVERALL SUMMARY
 --------------------------------------------------------------------------------
-Total Questions: 55
-Agent Success Rate: 94.5%
-Total Execution Time: 667.4s
-Avg Time per Question: 12.13s
+Total Questions: 51
+Agent Success Rate: 92.2%
+Total Execution Time: 690.3s
+Avg Time per Question: 13.54s
 
 METRICS PERFORMANCE
 --------------------------------------------------------------------------------
 
 Exact Match (EM):
-  Average Score: 0.000
-  Accuracy (≥0.8): 0.0%
-  Perfect Matches: 0/52
+  Average Score: 0.128
+  Accuracy (≥0.8): 12.8%
+  Perfect Matches: 6/47
 
 Component Matching (CM):
-  Average Score: 0.545
-  Accuracy (≥0.8): 25.0%
-  Perfect Matches: 0/52
+  Average Score: 0.635
+  Accuracy (≥0.8): 36.2%
+  Perfect Matches: 6/47
 
 Execution Accuracy (EX):
-  Average Score: 0.712
-  Accuracy (≥0.8): 71.2%
-  Perfect Matches: 37/52
+  Average Score: 0.872
+  Accuracy (≥0.8): 87.2%
+  Perfect Matches: 41/47
 
 DIFFICULTY BREAKDOWN
 --------------------------------------------------------------------------------
 
 EASY:
-  Questions: 18
-  Agent Success: 18/18 (100.0%)
-  Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.789 (55.6%)
+  Questions: 17
+  Agent Success: 17/17 (100.0%)
+  Exact Match (EM): 0.059 (5.9%)
+  Component Matching (CM): 0.778 (52.9%)
   Execution Accuracy (EX): 1.000 (100.0%)
 
 HARD:
-  Questions: 18
-  Agent Success: 16/18 (88.9%)
+  Questions: 15
+  Agent Success: 12/15 (80.0%)
   Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.334 (6.2%)
-  Execution Accuracy (EX): 0.500 (50.0%)
+  Component Matching (CM): 0.367 (0.0%)
+  Execution Accuracy (EX): 0.667 (66.7%)
 
 MEDIUM:
   Questions: 19
   Agent Success: 18/19 (94.7%)
-  Exact Match (EM): 0.000 (0.0%)
-  Component Matching (CM): 0.489 (11.1%)
-  Execution Accuracy (EX): 0.611 (61.1%)
+  Exact Match (EM): 0.278 (27.8%)
+  Component Matching (CM): 0.678 (44.4%)
+  Execution Accuracy (EX): 0.889 (88.9%)
 
 ================================================================================
