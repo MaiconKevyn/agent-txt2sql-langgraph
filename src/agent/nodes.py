@@ -1051,7 +1051,7 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
 
         # Reset error context so downstream routing treats this as a fresh attempt
         state["current_error"] = None
-        state["retry_count"] = 0
+        # state["retry_count"] = 0
         logger.info("Repaired SQL generated", extra={
             "new_sql": repaired_sql[:200]
         })

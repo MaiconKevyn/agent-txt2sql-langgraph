@@ -131,7 +131,7 @@ class MessagesStateTXT2SQL(TypedDict):
 def create_initial_messages_state(
     user_query: str,
     session_id: str,
-    max_retries: int = 3
+    max_retries: int = 5
 ) -> MessagesStateTXT2SQL:
     """
     Create initial state following LangGraph MessagesState pattern
@@ -314,13 +314,13 @@ def should_retry(
     
     # Smart retry limits per error type
     retry_limits = {
-        "sql_syntax_error": 2,
-        "sql_validation_error": 2, 
-        "tool_execution_error": 3,
+        "sql_syntax_error": 3,
+        "sql_validation_error": 3,
+        "tool_execution_error": 5,
         "llm_timeout": 1,
         "database_connection_error": 3,
         "classification_error": 1,
-        "schema_error": 2
+        "schema_error": 3
     }
     
     # Get specific limit for this error type
