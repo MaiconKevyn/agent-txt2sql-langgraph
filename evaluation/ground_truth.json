@@ -284,7 +284,7 @@
   {
     "id": "GT028",
     "difficulty": "hard",
-    "question": "Qual a taxa de mortalidade por município (top 10)?",
+    "question": "Quais sao os 10 municípios com a maior taxa de mortalidade?",
     "query": "SELECT i.\"MUNIC_RES\", COUNT(DISTINCT i.\"N_AIH\") as internacoes, COUNT(DISTINCT m.\"N_AIH\") as mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) as taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"MUNIC_RES\" IS NOT NULL GROUP BY i.\"MUNIC_RES\" HAVING COUNT(DISTINCT i.\"N_AIH\") > 100 ORDER BY taxa_mortalidade DESC LIMIT 10;",
     "tables": [
       "internacoes",
@@ -409,14 +409,14 @@
   {
     "id": "GT044",
     "difficulty": "hard",
-    "question": "Quantos hospitais ficam em municípios com mais de 100k habitantes?",
-    "query": "SELECT COUNT(DISTINCT h.\"CNES\") AS hospitais_grandes_municipios FROM hospital h JOIN internacoes i ON h.\"CNES\" = i.\"CNES\" JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d JOIN dado_ibge d ON m.codigo_ibge = d.codigo_municipio_completo WHERE d.populacao > 100;",
+    "question": "Quantos hospitais atenderam casos de UTI em 2020?",
+    "query": "SELECT COUNT(DISTINCT i.\"CNES\") FROM internacoes i JOIN uti_detalhes u ON i.\"N_AIH\" = u.\"N_AIH\" WHERE EXTRACT(YEAR FROM i.\"DT_INTER\") = 2020;",
     "tables": [
       "hospital",
       "internacoes",
-      "municipios",
-      "dado_ibge"
-    ]
+      "uti_detalhes"
+    ],
+    "notes": "JOIN: ICU capacity analysis with temporal filtering - critical care infrastructure in 2020 (expected: 90 hospitals)"
   },
   {
     "id": "GT045",
@@ -492,13 +492,15 @@
   {
     "id": "GT053",
     "difficulty": "hard",
-    "question": "Qual a taxa de mortalidade hospitalar geral do Rio Grande do Sul?",
-    "query": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\";",
+    "question": "Qual a taxa de mortalidade no estado do Rio Grande do Sul em 2021?",
+    "query": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" LEFT JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d LEFT JOIN dado_ibge d ON mu.codigo_ibge = d.codigo_municipio_completo WHERE EXTRACT(YEAR FROM i.\"DT_INTER\") = 2021 AND d.sigla_uf = 'RS';",
     "tables": [
       "internacoes",
-      "mortes"
+      "mortes",
+      "municipios",
+      "dado_ibge"
     ],
-    "notes": "JOIN: Key healthcare quality indicator - overall hospital mortality rate"
+    "notes": "JOIN: Mortality rate for RS state in 2021 - requires 4-table join with temporal and geographic filtering"
   },
   {
     "id": "GT054",
@@ -521,5 +523,85 @@
       "municipios"
     ],
     "notes": "JOIN: Regional equity analysis - infrastructure planning"
+  },
+    {
+    "id": "GT056",
+    "difficulty": "easy",
+    "question": "Quantos códigos cid 10  distintos existem?",
+    "query": " SELECT COUNT(DISTINCT \"CID\") FROM cid10;",
+    "tables": [
+      "cid10"
+    ],
+    "notes": "Reference table count - distinct CID-10 codes"
+  },
+  {
+    "id": "GT058",
+    "difficulty": "easy",
+    "question": "Qual o valor total gasto em internações?",
+    "query": "SELECT SUM(\"VAL_TOT\") FROM internacoes;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple aggregation - total healthcare expenditure"
+  },
+  {
+    "id": "GT059",
+    "difficulty": "easy",
+    "question": "Qual o maior valor de internação registrado?",
+    "query": "SELECT MAX(\"VAL_TOT\") FROM internacoes;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple aggregation - maximum cost"
+  },
+  {
+    "id": "GT060",
+    "difficulty": "easy",
+    "question": "Quantos registros de raça/cor estão cadastrados?",
+    "query": "SELECT COUNT(*) FROM internacoes WHERE \"RACA_COR\" IS NOT NULL;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple filtering - records with race/ethnicity data"
+  },
+  {
+    "id": "GT061",
+    "difficulty": "easy",
+    "question": "Quantas internações ocorreram em 2020?",
+    "query": "SELECT COUNT(*) FROM internacoes WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2020;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple temporal filtering - year 2020"
+  },
+  {
+    "id": "GT062",
+    "difficulty": "easy",
+    "question": "Qual a menor idade registrada nas internações?",
+    "query": "SELECT MIN(\"IDADE\") FROM internacoes;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple aggregation - minimum age"
+  },
+  {
+    "id": "GT063",
+    "difficulty": "easy",
+    "question": "Qual o total de diárias registradas em todas as internações?",
+    "query": "SELECT SUM(\"QT_DIARIAS\") FROM internacoes;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple aggregation - total hospital days"
+  },
+  {
+    "id": "GT064",
+    "difficulty": "easy",
+    "question": "Qual a maior idade registrada nas internações?",
+    "query": "SELECT MAX(\"IDADE\") FROM internacoes;",
+    "tables": [
+      "internacoes"
+    ],
+    "notes": "Simple aggregation - maximum age"
   }
 ]

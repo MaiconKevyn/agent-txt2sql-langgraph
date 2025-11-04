@@ -105,10 +105,13 @@ def initialize_database(load_configuration: Dict[str, Any], **kwargs) -> Dict[st
                 cursor.execute(sql)
                 try:
                     results = cursor.fetchall()
+                    self.connection.commit()  # Commit successful query
                     return results, None
                 except Exception:
+                    self.connection.commit()  # Commit even if no results (e.g., INSERT)
                     return [], None
             except Exception as e:
+                self.connection.rollback()  # Rollback on error to prevent transaction abort
                 return None, str(e)
 
         def get_raw_connection(self):

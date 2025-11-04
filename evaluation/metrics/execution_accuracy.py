@@ -160,9 +160,11 @@ class ExecutionAccuracyMetric(BaseMetric):
                 # Fetch results
                 try:
                     results = cursor.fetchall()
+                    conn.commit()  # Commit successful query
                     return results, None
                 except Exception:
                     # Query doesn't return results (e.g., INSERT, UPDATE)
+                    conn.commit()  # Commit even if no results
                     return [], None
 
             # Direct connection usage (fallback)
@@ -178,13 +180,23 @@ class ExecutionAccuracyMetric(BaseMetric):
                 # Fetch results
                 try:
                     results = cursor.fetchall()
+                    db_connection.commit()  # Commit successful query
                     return results, None
                 except Exception:
                     # Query doesn't return results (e.g., INSERT, UPDATE)
+                    db_connection.commit()  # Commit even if no results
                     return [], None
 
         except Exception as e:
-            return None, f"Query execution error: {str(e)}"
+            # Rollback on error to prevent transaction abort
+            try:
+                if hasattr(db_connection, 'get_raw_connection'):
+                    db_connection.get_raw_connection().rollback()
+                elif hasattr(db_connection, 'rollback'):
+                    db_connection.rollback()
+            except:
+                pass  # Ignore rollback errors
+            return None, str(e)
 
     def _compare_results(self, gt_results: List, pred_results: List) -> Tuple[bool, Dict[str, Any]]:
         """
