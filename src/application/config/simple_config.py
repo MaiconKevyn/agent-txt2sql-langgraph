@@ -28,7 +28,7 @@ class ApplicationConfig:
     llm_provider: str = "ollama"  # Fallback to Ollama
     llm_model: str = "llama3.1:8b"  # llama3.1:8b with tool calling support
     # llm_model: str = "defog/sqlcoder-7b-2"  # Heavy model - causes IDE crashes
-    llm_temperature: float = 0.1  # Optimized for fine-tuned model
+    llm_temperature: float = 0  # Optimized for fine-tuned model
     llm_timeout: int = 120
     llm_max_retries: int = 3
     

@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 from typing import Dict, Any, List, Literal
 import re
+import difflib
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
@@ -39,6 +40,91 @@ from typing import List
 # Initialize logger
 logger = get_nodes_logger()
 
+
+def _parse_schema_columns(schema_text: str) -> Dict[str, List[str]]:
+    """Parse schema_context into {table: [columns]} using a lightweight parser."""
+    if not schema_text:
+        return {}
+    tables: Dict[str, List[str]] = {}
+    create_re = re.compile(r"CREATE\s+TABLE\s+([a-zA-Z_][\w]*)\s*\((.*?)\);", re.S | re.I)
+    col_re = re.compile(r'^\s*(?:"(?P<qcol>[^"]+)"|(?P<col>[A-Za-z_][A-Za-z0-9_]*))\s+', re.M)
+    for m in create_re.finditer(schema_text):
+        table = (m.group(1) or "").strip()
+        body = m.group(2) or ""
+        cols: List[str] = []
+        for cm in col_re.finditer(body):
+            cname = cm.group('qcol') or cm.group('col')
+            if cname and cname.upper() != 'CONSTRAINT':
+                cols.append(cname)
+        if cols:
+            tables[table.lower()] = cols
+    return tables
+
+
+def _extract_alias_map(sql: str) -> Dict[str, str]:
+    """Map aliases to base table names using FROM/JOIN clauses."""
+    alias_map: Dict[str, str] = {}
+    text = sql or ""
+    for m in re.finditer(r"\bfrom\s+([a-zA-Z_][\w]*)\s+(?:as\s+)?([a-zA-Z_][\w]*)", text, flags=re.I):
+        alias_map[m.group(2)] = m.group(1)
+    for m in re.finditer(r"\bjoin\s+([a-zA-Z_][\w]*)\s+(?:as\s+)?([a-zA-Z_][\w]*)", text, flags=re.I):
+        alias_map[m.group(2)] = m.group(1)
+    return alias_map
+
+
+def _extract_alias_columns(sql: str) -> List[tuple]:
+    """Extract occurrences like alias.col or alias."COL"."""
+    pairs: List[tuple] = []
+    for m in re.finditer(r'\b([A-Za-z_][\w]*)\s*\.\s*(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))', sql or ""):
+        alias = m.group(1)
+        col = m.group(2) or m.group(3)
+        pairs.append((alias, col))
+    return pairs
+
+
+def _best_column_suggestions(missing_col: str, candidates: List[str], k: int = 3) -> List[str]:
+    """Suggest k similar columns using difflib ratio and substring bonus."""
+    if not candidates:
+        return []
+    target = (missing_col or "").lower()
+    def score(c: str) -> float:
+        c0 = (c or "").lower()
+        r = difflib.SequenceMatcher(None, target, c0).ratio()
+        if target in c0 or c0 in target:
+            r += 0.1
+        return r
+    ranked = sorted(candidates, key=score, reverse=True)
+    out, seen = [], set()
+    for c in ranked:
+        if c not in seen:
+            out.append(c)
+            seen.add(c)
+        if len(out) >= k:
+            break
+    return out
+
+
+def _check_columns_against_schema(schema_text: str, sql: str) -> Dict[str, Any]:
+    """Check alias.column references against schema_context content."""
+    schema_map = _parse_schema_columns(schema_text)
+    alias_map = _extract_alias_map(sql)
+    alias_cols = _extract_alias_columns(sql)
+    missing = []
+    suggestions: Dict[str, List[str]] = {}
+    for alias, col in alias_cols:
+        base = alias_map.get(alias)
+        if not base:
+            key = f"alias:{alias}"
+            if key not in suggestions:
+                missing.append((alias, col, None))
+                suggestions[key] = []
+            continue
+        cols = schema_map.get((base or "").lower(), [])
+        # compare case-insensitive
+        if col not in cols and col.upper() not in [c.upper() for c in cols]:
+            missing.append((alias, col, base))
+            suggestions[f"{alias}.{col}"] = _best_column_suggestions(col, cols)
+    return {"ok": len(missing) == 0, "issues": missing, "suggestions": suggestions, "alias_map": alias_map, "schema_map": schema_map}
 
 def _should_refresh_schema(error_message: str) -> bool:
     """Detect whether the error suggests missing columns/tables."""
@@ -171,10 +257,41 @@ def _refresh_schema_context(
 # Global LLM manager instance (singleton pattern)
 _llm_manager: HybridLLMManager = None
 
+def set_global_llm_manager(manager: HybridLLMManager):
+    """
+    Set global LLM manager instance (called by orchestrator)
+
+    This allows the orchestrator to inject its configured LLM manager
+    into the nodes, ensuring consistency across the workflow.
+
+    Args:
+        manager: HybridLLMManager instance to use globally
+    """
+    global _llm_manager
+    _llm_manager = manager
+    logger.info("Global LLM manager updated", extra={
+        "provider": manager.config.llm_provider,
+        "model": manager.config.llm_model
+    })
+
 def get_llm_manager() -> HybridLLMManager:
-    """Get singleton LLM manager instance"""
+    """
+    Get singleton LLM manager instance
+
+    Returns the global LLM manager that was set by the orchestrator.
+    If not set, creates a default instance (fallback behavior).
+
+    Returns:
+        HybridLLMManager instance
+    """
     global _llm_manager
     if _llm_manager is None:
+        # Fallback: create default instance
+        # This happens if nodes are used without orchestrator
+        logger.warning(
+            "LLM Manager not initialized by orchestrator, using default config",
+            extra={"fallback": True}
+        )
         config = ApplicationConfig()
         _llm_manager = HybridLLMManager(config)
     return _llm_manager
@@ -640,6 +757,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         if sql_query:
             state["generated_sql"] = sql_query
+            # Clear previous errors on successful generation
+            state["current_error"] = None
             
             # Add AI message with generated SQL
             ai_response = f"Generated SQL query: {sql_query}"
@@ -651,6 +770,9 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             # Handle empty SQL generation
             error_message = "Failed to generate SQL query - empty response"
             state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
+            # Persist retry counters at node level
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            state["generation_retry_count"] = state.get("generation_retry_count", 0) + 1
             logger.warning("SQL generation failed: empty response")
         
         # Update phase
@@ -665,6 +787,9 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         # Handle SQL generation errors
         error_message = f"SQL generation failed: {str(e)}"
         state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
+        # Persist retry counters at node level
+        state["retry_count"] = state.get("retry_count", 0) + 1
+        state["generation_retry_count"] = state.get("generation_retry_count", 0) + 1
         
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
@@ -699,32 +824,45 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         
         validation_passed = True
         validation_message = "SQL query is valid"
+        checker_msg = None
         
+        # Run LLM-based checker if available
         if checker_tool:
             try:
-                # Execute query checker tool
                 checker_result = checker_tool.invoke(generated_sql)
-                validation_message = str(checker_result)
-                
-                # Simple validation - if no error message, consider it valid
-                if "error" in validation_message.lower() or "invalid" in validation_message.lower():
+                checker_msg = str(checker_result)
+                if "error" in checker_msg.lower() or "invalid" in checker_msg.lower():
                     validation_passed = False
-                    
+                    validation_message = checker_msg
             except Exception as checker_error:
                 validation_passed = False
                 validation_message = f"Query checker failed: {str(checker_error)}"
-        else:
-            # Fallback validation using HybridLLMManager
-            validation_result = llm_manager.validate_sql_query(generated_sql)
-            validation_passed = validation_result["is_valid"]
-            validation_message = validation_result.get("error", "Validation completed")
+
+        # Always run DB EXPLAIN validation and give precedence to it
+        db_val = llm_manager.validate_sql_query(generated_sql)
+        if not db_val.get("is_valid", False):
+            validation_passed = False
+            validation_message = db_val.get("error", "DB validation failed")
+        elif validation_passed is False and db_val.get("is_valid", False):
+            # LLM checker invalid but DB valid: trust DB
+            validation_passed = True
+            validation_message = "DB validation passed"
         
         # Update state based on validation
         if validation_passed:
             state["validated_sql"] = generated_sql
+            # Clear previous errors on successful validation
+            state["current_error"] = None
             ai_response = f"SQL query validated successfully: {generated_sql}"
         else:
             state = add_error(state, validation_message, "sql_validation_error", ExecutionPhase.SQL_VALIDATION)
+            # Persist retry counters at node level
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            state["validation_retry_count"] = state.get("validation_retry_count", 0) + 1
+            # Expose errors for debug CLI
+            errs = state.get("validation_errors", []) or []
+            errs.append(validation_message)
+            state["validation_errors"] = errs
             ai_response = f"SQL validation failed: {validation_message}"
         
         # Add AI message
@@ -735,8 +873,8 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             tool_call_result = ToolCallResult(
                 tool_name="sql_db_query_checker",
                 tool_input={"query": generated_sql},
-                tool_output=validation_message,
-                success=validation_passed,
+                tool_output=checker_msg or validation_message,
+                success=(checker_msg is None) or ("error" not in (checker_msg or "").lower() and "invalid" not in (checker_msg or "").lower()),
                 execution_time=time.time() - start_time
             )
             state = add_tool_call_result(state, tool_call_result)
@@ -751,6 +889,9 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         # Handle validation errors
         error_message = f"SQL validation failed: {str(e)}"
         state = add_error(state, error_message, "sql_validation_error", ExecutionPhase.SQL_VALIDATION)
+        # Persist retry counters at node level
+        state["retry_count"] = state.get("retry_count", 0) + 1
+        state["validation_retry_count"] = state.get("validation_retry_count", 0) + 1
         
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
@@ -779,9 +920,50 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         if not ok:
             error_message = f"SQL execution blocked: {reason}"
             state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
+            # Persist retry counters at node level
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            state["execution_retry_count"] = state.get("execution_retry_count", 0) + 1
             execution_time = time.time() - start_time
             state = update_phase(state, ExecutionPhase.SQL_EXECUTION, execution_time)
             return state
+        
+        # Column existence check: skip if query was validated by DB (validated_sql set)
+        if state.get("validated_sql") is None:
+            schema_context = state.get("schema_context", "")
+            col_check = _check_columns_against_schema(schema_context, validated_sql)
+            if not col_check.get("ok", True):
+                missing_items = col_check.get("issues", [])
+                sugg = col_check.get("suggestions", {})
+                parts = []
+                for alias, col, base in missing_items:
+                    key = f"{alias}.{col}"
+                    cand = sugg.get(key, [])
+                    base_info = f" na tabela {base}" if base else ""
+                    if cand:
+                        parts.append(f"Coluna ausente {key}{base_info}; candidatos: {', '.join(cand)}")
+                    else:
+                        parts.append(f"Coluna/alias ausente {key}{base_info}")
+                msg = "; ".join(parts)
+                error_message = f"SQL validation failed (schema check): {msg}"
+                state = add_error(state, error_message, "sql_validation_error", ExecutionPhase.SQL_VALIDATION)
+                # Persist retry counters at node level
+                state["retry_count"] = state.get("retry_count", 0) + 1
+                state["validation_retry_count"] = state.get("validation_retry_count", 0) + 1
+                # Attach hints for repair
+                meta = state.get("response_metadata", {}) or {}
+                meta["column_check_suggestions"] = {
+                    "missing": missing_items,
+                    "suggestions": sugg,
+                    "alias_map": col_check.get("alias_map", {}),
+                    "schema_map": col_check.get("schema_map", {})
+                }
+                state["response_metadata"] = meta
+                # Surface as AI message
+                state = add_ai_message(state, f"SQL schema check falhou: {msg}")
+                # Update phase and return early
+                execution_time = time.time() - start_time
+                state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+                return state
 
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -853,6 +1035,9 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         if not execution_success:
             # Set error in state to trigger retry routing
             state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
+            # Persist retry counters at node level
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            state["execution_retry_count"] = state.get("execution_retry_count", 0) + 1
 
             # Create failed tool call result
             tool_call_result = ToolCallResult(
@@ -926,6 +1111,9 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             "error": str(e)
         })
         state = add_error(state, error_message, "sql_execution_error", ExecutionPhase.SQL_EXECUTION)
+        # Persist retry counters at node level
+        state["retry_count"] = state.get("retry_count", 0) + 1
+        state["execution_retry_count"] = state.get("execution_retry_count", 0) + 1
 
         # Record failed execution result for downstream logic
         sql_execution_result = SQLExecutionResult(
@@ -1004,24 +1192,54 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         selected_tables = state.get("selected_tables", [])
         schema_context = state.get("schema_context", "") or ""
 
+        # Build whitelist and suggestions based on previous SQL and schema
+        col_check = _check_columns_against_schema(schema_context, previous_sql)
+        schema_map = col_check.get("schema_map", {})
+        alias_map = col_check.get("alias_map", {})
+        meta_for_suggestions = state.get("response_metadata", {}) or {}
+        column_hints = meta_for_suggestions.get("column_check_suggestions", {})
+        missing = column_hints.get("missing", [])
+        sugg_map = column_hints.get("suggestions", {})
+
         # Limit schema context to avoid excessively large prompts
         MAX_SCHEMA_CHARS = 4000
         if len(schema_context) > MAX_SCHEMA_CHARS:
             schema_context = schema_context[:MAX_SCHEMA_CHARS] + "\n... (schema truncado)"
 
+        # Prepare whitelist per alias (limit columns for brevity)
+        whitelist_lines = []
+        for alias, table in alias_map.items():
+            cols = schema_map.get((table or "").lower(), [])
+            if cols:
+                preview = ", ".join(cols[:50]) + (" ..." if len(cols) > 50 else "")
+                whitelist_lines.append(f"Alias {alias} → tabela {table}: {preview}")
+        whitelist_text = "\n".join(whitelist_lines) if whitelist_lines else "(não encontrado)"
+
+        # Suggestions for missing columns
+        suggestion_lines = []
+        for a, c, base in missing:
+            key = f"{a}.{c}"
+            cands = sugg_map.get(key, [])
+            if cands:
+                suggestion_lines.append(f"{key} → candidatos: {', '.join(cands)}")
+        suggestions_text = "\n".join(suggestion_lines) if suggestion_lines else "(sem sugestões)"
+
         system_prompt = (
             "Você é um especialista em PostgreSQL responsável por corrigir consultas SQL para o banco SUS. "
-            "Receba a consulta original que falhou, analise o erro retornado e gere UMA NOVA consulta corrigida. "
+            "Restrições obrigatórias: USE APENAS colunas da lista branca por alias/tabela; se uma coluna não existir, substitua por uma das sugeridas; "
+            "corrija os JOINs usando chaves que existam em ambas as tabelas. "
             "Responda apenas com a SQL válida, sem comentários, markdown ou texto adicional."
         )
 
         human_prompt = (
             f"Consulta do usuário (contexto):\n{user_query}\n\n"
             f"SQL anterior gerada:\n{previous_sql}\n\n"
-            f"Erro retornado pelo banco de dados:\n{error_message}\n\n"
+            f"Erro retornado pelo banco de dados/validação:\n{error_message}\n\n"
             f"Tabelas selecionadas: {', '.join(selected_tables) if selected_tables else 'N/D'}\n\n"
+            f"Lista branca de colunas por alias/tabela:\n{whitelist_text}\n\n"
+            f"Sugestões de substituição de colunas ausentes:\n{suggestions_text}\n\n"
             f"Schema disponível:\n{schema_context}\n\n"
-            "Reescreva a consulta corrigindo o problema identificado no erro."
+            "Reescreva a consulta corrigindo o problema identificado, usando SOMENTE colunas da lista branca e as sugestões quando necessário."
         )
 
         llm = llm_manager._llm
@@ -1035,6 +1253,29 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
 
         if not repaired_sql:
             raise ValueError("LLM returned empty SQL during repair")
+
+        # Early-exit if repeated same SQL across last two attempts
+        def _norm(s: str) -> str:
+            return re.sub(r"\s+", "", (s or "").lower()).rstrip(";")
+        meta = state.get("response_metadata", {}) or {}
+        history = meta.get("repair_attempts", [])
+        prevs = []
+        if history:
+            prevs.append(history[-1].get("previous_sql", ""))
+        prevs.append(previous_sql)
+        if len(prevs) >= 2 and all(_norm(p) == _norm(repaired_sql) for p in prevs):
+            diag = "Reparo produziu a mesma SQL das últimas tentativas. Use apenas colunas válidas conforme lista branca e sugestões."
+            state = add_error(state, diag, "sql_repair_error", ExecutionPhase.SQL_REPAIR)
+            state["retry_count"] = state.get("max_retries", 3)
+            meta["repair_early_exit"] = {
+                "reason": diag,
+                "whitelist": whitelist_lines,
+                "suggestions": suggestion_lines
+            }
+            state["response_metadata"] = meta
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_REPAIR, execution_time)
+            return state
 
         # Store previous SQL attempt for traceability
         metadata = state.get("response_metadata", {}) or {}
@@ -1684,7 +1925,19 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
                     validated_tables = [priority_table]
                     logger.debug("Simplified to single table for counting", extra={"table": priority_table})
                     break
-    
+
+    # Rule 6: JOIN dependency - hospital requires internacoes to connect to municipios/dado_ibge
+    if 'hospital' in validated_tables:
+        needs_internacoes = False
+
+        # If hospital + municipios selected, need internacoes as bridge
+        if 'municipios' in validated_tables or 'dado_ibge' in validated_tables:
+            needs_internacoes = True
+
+        if needs_internacoes and 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+            validated_tables.append('internacoes')
+            logger.info("Added 'internacoes' - required to join hospital → municipios/dado_ibge")
+
     if validated_tables != selected_tables:
         logger.debug("Table validation completed", extra={
             "original": selected_tables,

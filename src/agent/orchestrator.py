@@ -88,6 +88,20 @@ class LangGraphOrchestrator:
     def _initialize_workflow(self):
         """Initialize the appropriate workflow based on environment"""
         try:
+            # FIX: Create LLM manager FIRST using orchestrator's config
+            # This ensures nodes use the same config as the orchestrator
+            self._llm_manager = HybridLLMManager(self.app_config)
+
+            # Inject into global singleton used by nodes
+            from .nodes import set_global_llm_manager
+            set_global_llm_manager(self._llm_manager)
+
+            self.logger.info("LLM Manager created and injected into nodes", extra={
+                "provider": self.app_config.llm_provider,
+                "model": self.app_config.llm_model
+            })
+
+            # Now create workflow (nodes will use injected manager)
             if self.environment == "production":
                 self._workflow = create_production_sql_agent()
             elif self.environment == "development":
@@ -97,10 +111,7 @@ class LangGraphOrchestrator:
             else:
                 # Default to production
                 self._workflow = create_production_sql_agent()
-            
-            # Defer LLM manager initialization to first use (lazy init)
-            # This allows operations like workflow visualization without DB/LLM ready.
-            
+
             # Track current model
             self._current_model = ModelConfig(
                 provider=self.app_config.llm_provider,
@@ -109,13 +120,13 @@ class LangGraphOrchestrator:
                 timeout=self.app_config.llm_timeout,
                 max_retries=self.app_config.llm_max_retries
             )
-            
+
             self.logger.info("LangGraph Orchestrator initialized", extra={
                 "environment": self.environment,
                 "model": self._current_model.model_name,
                 "provider": self._current_model.provider
             })
-            
+
         except Exception as e:
             self.logger.error("Failed to initialize LangGraph Orchestrator", extra={"error": str(e)})
             raise
@@ -208,7 +219,11 @@ class LangGraphOrchestrator:
             # Update configuration and managers
             self.app_config = new_config
             self._llm_manager = new_llm_manager
-            
+
+            # FIX: Also update global singleton used by nodes
+            from .nodes import set_global_llm_manager
+            set_global_llm_manager(new_llm_manager)
+
             # Update current model tracking
             self._current_model = ModelConfig(
                 provider=provider,
@@ -217,8 +232,11 @@ class LangGraphOrchestrator:
                 timeout=timeout or self.app_config.llm_timeout,
                 max_retries=self.app_config.llm_max_retries
             )
-            
-            self.logger.info("Model switched successfully", extra={"model": model_name, "provider": provider})
+
+            self.logger.info("Model switched successfully (orchestrator + nodes)", extra={
+                "model": model_name,
+                "provider": provider
+            })
             return True
             
         except Exception as e:

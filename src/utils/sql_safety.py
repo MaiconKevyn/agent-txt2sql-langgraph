@@ -13,6 +13,25 @@ def _strip_sql_comments(sql: str) -> str:
     return no_line
 
 
+def _strip_string_literals(sql: str) -> str:
+    """Remove SQL string literals (single-quoted and dollar-quoted) for keyword scanning.
+
+    Note: This is a conservative stripper intended only for safety checks — it
+    avoids false positives from words inside string literals like 'do' in
+    'rio grande do sul'.
+    """
+    if not sql:
+        return ""
+    s = sql
+    # Remove single-quoted strings, including escaped single quotes '' inside
+    s = re.sub(r"'(?:''|[^'])*'", "''", s)
+    # Remove simple dollar-quoted strings (no tag) $$...$$
+    s = re.sub(r"\$\$(?:.|\n)*?\$\$", "$$ $$", s)
+    # Remove tagged dollar-quoted strings $tag$...$tag$
+    s = re.sub(r"\$[a-zA-Z0-9_]*\$(?:.|\n)*?\$[a-zA-Z0-9_]*\$", "$$ $$", s)
+    return s
+
+
 def is_select_only(sql: str) -> Tuple[bool, str]:
     """
     Check if the SQL statement is read-only (SELECT/CTE only).
@@ -41,8 +60,8 @@ def is_select_only(sql: str) -> Tuple[bool, str]:
     if ";" in tmp:
         return False, "Múltiplas instruções SQL não são permitidas"
 
-    # Lowercase for keyword checks
-    lowered = tmp.lower().lstrip()
+    # Lowercase for keyword checks and strip string literals to avoid false positives
+    lowered = _strip_string_literals(tmp).lower().lstrip()
 
     # Disallowed keywords (word boundary to avoid matching column/table names)
     disallowed = (
