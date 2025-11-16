@@ -90,7 +90,8 @@ def create_langgraph_sql_workflow():
         route_after_sql_validation,
         {
             "execute": "execute_sql",
-            "retry_generation": "generate_sql",
+            # Route regeneration requests through repair_sql to leverage error context
+            "retry_generation": "repair_sql",
             "retry_validation": "validate_sql",
             "error": "generate_response"
         }
@@ -166,6 +167,10 @@ def route_after_sql_generation(
     Following LangGraph retry patterns from the official tutorial
     """
     
+    # Emergency stop to avoid loops on generation
+    if state.get("total_workflow_cycles", 0) > 15 or state.get("generation_retry_count", 0) >= 2:
+        return "error"
+
     generated_sql = state.get("generated_sql")
     current_error = state.get("current_error")
     
@@ -179,8 +184,6 @@ def route_after_sql_generation(
         
         # Check if we should retry (LangGraph pattern)
         if should_retry(state, error_type):
-            # Increment retry count
-            state["retry_count"] = state.get("retry_count", 0) + 1
             return "retry"
     
     # Max retries reached or non-retryable error
@@ -196,6 +199,10 @@ def route_after_sql_validation(
     Following LangGraph validation patterns from the official tutorial
     """
     
+    # Emergency stop to avoid loops on validation
+    if state.get("total_workflow_cycles", 0) > 15 or state.get("validation_retry_count", 0) >= 3:
+        return "error"
+
     validated_sql = state.get("validated_sql")
     current_error = state.get("current_error")
     
@@ -209,7 +216,6 @@ def route_after_sql_validation(
         
         # Check if we should retry validation
         if should_retry(state, error_type):
-            state["retry_count"] = state.get("retry_count", 0) + 1
             
             # Determine retry type based on error
             error_message = current_error.lower()
@@ -233,25 +239,39 @@ def route_after_sql_execution(
 ) -> Literal["response", "retry_generation", "retry_validation", "retry_execution", "error"]:
     """
     Route after SQL execution with comprehensive retry logic
-    
+
     Following LangGraph execution patterns from the official tutorial
     """
-    
+
+    # EMERGENCY STOP: Hard limit on workflow cycles to prevent infinite loops
+    total_cycles = state.get("total_workflow_cycles", 0)
+    if total_cycles > 15:
+        import logging
+        logger = logging.getLogger("txt2sql.workflow")
+        logger.error(f"EMERGENCY STOP: Workflow exceeded 15 cycles. Forcing error exit.")
+        return "error"
+
     sql_execution_result = state.get("sql_execution_result")
-    
+
     # If execution succeeded, proceed to response generation
     if sql_execution_result and sql_execution_result.success:
         return "response"
-    
+
     # If execution failed, determine retry strategy
     current_error = state.get("current_error")
-    
+
     if current_error:
         error_type = "sql_execution_error"
-        
+
         # Check if we should retry
         if should_retry(state, error_type):
-            state["retry_count"] = state.get("retry_count", 0) + 1
+            # DEBUG LOG (read-only)
+            from src.utils.logging_config import get_logger
+            logger = get_logger(__name__)
+            logger.warning(
+                f"RETRY: count={state.get('retry_count', 0)}/{state.get('max_retries', 3)}, "
+                f"cycles={state.get('total_workflow_cycles', 0)}"
+            )
             
             # Determine retry type based on error
             error_message = current_error.lower()
@@ -279,8 +299,8 @@ def route_after_sql_execution(
                 # Validation errors - retry validation
                 return "retry_validation"
             else:
-                # Generic errors - retry execution
-                return "retry_execution"
+                # Generic errors - retry generation (repair SQL)
+                return "retry_generation"
     
     # Max retries reached or non-retryable error
     return "error"
@@ -315,39 +335,126 @@ def create_testing_sql_agent():
 # WORKFLOW EXECUTION HELPERS
 # =============================================================================
 
+def _estimate_query_complexity(user_query: str) -> str:
+    """
+    Estimate query complexity based on keywords and patterns
+
+    Args:
+        user_query: User's natural language question
+
+    Returns:
+        Complexity level: "simple", "medium", "hard", or "complex"
+    """
+    query_lower = user_query.lower()
+
+    # Complex indicators
+    complex_indicators = [
+        "taxa de mortalidade",
+        "top 10",
+        "top 5",
+        "ranking",
+        "por município",
+        "por cidade",
+        "múltiplos",
+        "comparar",
+        "evolução",
+        "tendência",
+        "proporção",
+        "percentual"
+    ]
+
+    # Hard indicators
+    hard_indicators = [
+        "join",
+        "múltiplas tabelas",
+        "habitantes",
+        "população",
+        "taxa",
+        "cálculo",
+        "agregação"
+    ]
+
+    # Medium indicators
+    medium_indicators = [
+        "ano",
+        "data",
+        "período",
+        "filtrar",
+        "grupo"
+    ]
+
+    # Count indicators
+    complex_count = sum(1 for indicator in complex_indicators if indicator in query_lower)
+    hard_count = sum(1 for indicator in hard_indicators if indicator in query_lower)
+    medium_count = sum(1 for indicator in medium_indicators if indicator in query_lower)
+
+    # Determine complexity
+    if complex_count >= 2 or "taxa de mortalidade por município" in query_lower:
+        return "complex"
+    elif complex_count >= 1 or hard_count >= 2:
+        return "hard"
+    elif hard_count >= 1 or medium_count >= 2:
+        return "medium"
+    else:
+        return "simple"
+
+
 def execute_sql_workflow(
     workflow,
     user_query: str,
     session_id: str = None,
-    config: dict = None
+    config: dict = None,
+    max_retries: int = 3
 ) -> dict:
     """
-    Execute SQL workflow with proper error handling
-    
+    Execute SQL workflow with proper error handling and adaptive recursion limit
+
     Args:
         workflow: Compiled LangGraph workflow
         user_query: User's natural language question
         session_id: Session identifier for checkpointing
         config: Additional configuration
-        
+        max_retries: Maximum retry attempts (default: 3)
+
     Returns:
         Execution result dictionary
     """
-    
+
     try:
         # Import here to avoid circular dependencies
         from .state import create_initial_messages_state, state_to_legacy_format
-        
+
         # Create initial state
         if session_id is None:
             session_id = f"session_{hash(user_query) % 10000}"
-        
+
         initial_state = create_initial_messages_state(
             user_query=user_query,
             session_id=session_id
         )
-        
+
         config = config or {}
+
+        # PHASE 1 IMPROVEMENT: Adaptive Recursion Limit
+        # Estimate query complexity and set appropriate recursion limit
+        if "recursion_limit" not in config:
+            complexity = _estimate_query_complexity(user_query)
+            recursion_limit_map = {
+                "simple": 50,
+                "medium": 75,
+                "hard": 150,      # Increased from 100
+                "complex": 200    # Increased from 150
+            }
+            config["recursion_limit"] = recursion_limit_map.get(complexity, 50)
+
+            # Store complexity in config for debugging
+            if "metadata" not in config:
+                config["metadata"] = {}
+            config["metadata"]["estimated_complexity"] = complexity
+            config["metadata"]["recursion_limit"] = config["recursion_limit"]
+
+        # Set max_retries for early stopping
+        initial_state["max_retries"] = max_retries
 
         # Execute workflow
         final_state = workflow.invoke(initial_state, config=config)

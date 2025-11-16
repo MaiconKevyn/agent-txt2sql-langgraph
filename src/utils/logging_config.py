@@ -219,6 +219,16 @@ def get_orchestrator_logger() -> logging.Logger:
     return TXT2SQLLogger.get_logger("orchestrator")
 
 
+# Generic access for dynamic component names (module-level API)
+def get_logger(component: str) -> logging.Logger:
+    """Get logger for an arbitrary component name.
+
+    Wrapper to keep compatibility with call sites that import
+    `get_logger` from this module.
+    """
+    return TXT2SQLLogger.get_logger(component)
+
+
 # Setup logging on module import
 def setup_default_logging():
     """Setup default logging configuration"""

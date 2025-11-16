@@ -118,6 +118,11 @@ class MessagesStateTXT2SQL(TypedDict):
     current_error: Optional[str]
     retry_count: int
     max_retries: int
+    # Retry/cycle tracking
+    total_workflow_cycles: int
+    generation_retry_count: int
+    validation_retry_count: int
+    execution_retry_count: int
     
     # Performance tracking
     execution_time_total: float
@@ -189,6 +194,10 @@ def create_initial_messages_state(
         current_error=None,
         retry_count=0,
         max_retries=max_retries,
+        total_workflow_cycles=0,
+        generation_retry_count=0,
+        validation_retry_count=0,
+        execution_retry_count=0,
         
         # Performance
         execution_time_total=0.0,
@@ -282,6 +291,8 @@ def add_error(
     
     state["errors"].append(error_entry)
     state["current_error"] = error_message
+    # Increment cycle counter to support router emergency stop
+    state["total_workflow_cycles"] = state.get("total_workflow_cycles", 0) + 1
     
     return state
 
@@ -308,24 +319,28 @@ def should_retry(
     state: MessagesStateTXT2SQL,
     error_type: str
 ) -> bool:
-    """Determine if operation should be retried with smart retry limits"""
+    """Determine if operation should be retried with smart retry limits - Phase 1 Enhanced"""
     current_retry = state["retry_count"]
     max_retries = state["max_retries"]
-    
-    # Smart retry limits per error type
+
+    # PHASE 1 IMPROVEMENT: More aggressive retry limits to prevent loops
     retry_limits = {
         "sql_syntax_error": 3,
         "sql_validation_error": 3,
+        "sql_execution_error": 2,         # More aggressive (was implicitly using max_retries)
+        "sql_generation_error": 2,        # More aggressive
+        "sql_repair_error": 2,            # More aggressive
         "tool_execution_error": 5,
         "llm_timeout": 1,
         "database_connection_error": 3,
         "classification_error": 1,
         "schema_error": 3
     }
-    
+
     # Get specific limit for this error type
     specific_limit = retry_limits.get(error_type, max_retries)
-    
+
+    # PHASE 1 IMPROVEMENT: Hard stop at max_retries regardless of error type
     return current_retry < min(specific_limit, max_retries)
 
 

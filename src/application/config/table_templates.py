@@ -79,6 +79,12 @@ TABLE_TEMPLATES = {
         - Date columns: "DT_INTER" (admission), "DT_SAIDA" (discharge), "NASC" (birth)
         - Municipality: "MUNIC_RES" (residence), "MUNIC_MOV" (movement)
         - Diagnosis: "DIAG_PRINC" (primary), "DIAG_SECUN" (secondary)
+        - Race/Ethnicity: "RACA_COR" (use for questions with 'raça', 'cor')
+
+        RACE/ETHNICITY MAPPINGS (EXAMPLES - CONFIRM IN SCHEMA):
+        - 1 = Branca, 2 = Preta, 3 = Parda, 4 = Amarela, 5 = Indígena, 9 = Ignorado
+        - Always group by "RACA_COR" to answer counts by race
+        - Example: SELECT "RACA_COR", COUNT(*) FROM internacoes GROUP BY "RACA_COR" ORDER BY 2 DESC
         
         CRITICAL JOIN RELATIONSHIPS:
         - → hospital: internacoes."CNES" = hospital."CNES"
@@ -382,6 +388,29 @@ TABLE_TEMPLATES = {
         - "CNES" = National Health Facility Registry code (primary key)
         - "NATUREZA" = Facility nature (public/private classification)
 
+        CRITICAL COUNTING RULES (DISTINCT HOSPITALS):
+        - To count hospitals, ALWAYS use COUNT(DISTINCT h."CNES")
+        - Do NOT count by admissions; admissions live in internacoes ("N_AIH")
+
+        MUNICIPALITY/STATE RESOLUTION (HOW TO GET CITY/UF FOR A HOSPITAL):
+
+        ⚠️ CRITICAL: The hospital table DOES NOT have a MUNIC_RES column!
+
+        To connect hospital → municipality demographics, you MUST use this JOIN chain:
+          1) hospital → internacoes: i."CNES" = h."CNES"
+          2) internacoes → municipios: i."MUNIC_RES" = mu.codigo_6d
+          3) municipios → dado_ibge (for population/UF): mu."codigo_ibge" = d."codigo_municipio_completo"
+
+        ❌ WRONG (WILL FAIL):
+           SELECT ... FROM hospital h JOIN municipios mu ON h."MUNIC_RES" = ...
+           ERROR: hospital table has NO MUNIC_RES column!
+
+        ✅ CORRECT:
+           SELECT ... FROM hospital h
+           JOIN internacoes i ON h."CNES" = i."CNES"
+           JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+           JOIN dado_ibge d ON mu."codigo_ibge" = d."codigo_municipio_completo"
+
         POSTGRESQL COLUMN QUOTING:
         - "CNES" (facility code), "NATUREZA" (nature), "GESTAO" (management), "NAT_JUR" (legal nature)
 
@@ -410,6 +439,14 @@ TABLE_TEMPLATES = {
         JOIN internacoes i ON h."CNES" = i."CNES" 
         GROUP BY h."CNES" 
         HAVING COUNT(i."N_AIH") > 1000;
+
+        -- Distinct hospitals in municipalities with population > 100k (via internacoes → municipios → IBGE)
+        SELECT COUNT(DISTINCT h."CNES") AS hospitais
+        FROM hospital h
+        JOIN internacoes i ON i."CNES" = h."CNES"
+        JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+        JOIN dado_ibge d ON mu."codigo_ibge" = d."codigo_municipio_completo"
+        WHERE d."populacao" > 100000;
 """,
 
     "municipios": """
@@ -963,6 +1000,7 @@ CRITICAL JOIN PATTERNS:
 - internacoes ↔ uti_detalhes: internacoes."N_AIH" = uti_detalhes."N_AIH"
 - municipios ↔ dado_ibge: municipios."codigo_ibge" = dado_ibge."codigo_municipio_completo"
 - internacoes ↔ municipios: internacoes."MUNIC_RES" = municipios.codigo_6d
+ - hospital ↔ municipios (via internacoes): hospital."CNES" = internacoes."CNES" AND internacoes."MUNIC_RES" = municipios.codigo_6d
 
 
 JOIN BEST PRACTICES:
@@ -970,6 +1008,7 @@ JOIN BEST PRACTICES:
 - Use INNER JOIN for exact matches, LEFT JOIN to include null records
 - Filter before joining when possible for better performance
 - Always quote column names with double quotes in PostgreSQL
+ - When counting hospitals, use COUNT(DISTINCT h."CNES")
 
 MULTI-TABLE EXAMPLES:
 
@@ -1010,6 +1049,14 @@ WHERE EXTRACT(MONTH FROM i."DT_INTER") IN (6,7,8)
 GROUP BY c."CID", c."CD_DESCRICAO"
 ORDER BY total DESC
 LIMIT 3;
+
+-- Distinct hospitals in municipalities with population > 100k
+SELECT COUNT(DISTINCT h."CNES") AS hospitais
+FROM hospital h
+JOIN internacoes i ON i."CNES" = h."CNES"
+JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+JOIN dado_ibge d ON mu."codigo_ibge" = d."codigo_municipio_completo"
+WHERE d."populacao" > 100000;
 """
 
 
