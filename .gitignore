@@ -95,3 +95,5 @@ temp/
 # Local configuration
 config.local.py
 config.local.json
+
+chroma_db/

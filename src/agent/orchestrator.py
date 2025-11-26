@@ -93,8 +93,9 @@ class LangGraphOrchestrator:
             self._llm_manager = HybridLLMManager(self.app_config)
 
             # Inject into global singleton used by nodes
-            from .nodes import set_global_llm_manager
-            set_global_llm_manager(self._llm_manager)
+            # LLM manager created
+            # from .nodes import set_global_llm_manager
+            # set_global_llm_manager(self._llm_manager)
 
             self.logger.info("LLM Manager created and injected into nodes", extra={
                 "provider": self.app_config.llm_provider,
@@ -221,8 +222,9 @@ class LangGraphOrchestrator:
             self._llm_manager = new_llm_manager
 
             # FIX: Also update global singleton used by nodes
-            from .nodes import set_global_llm_manager
-            set_global_llm_manager(new_llm_manager)
+            # Global singleton update removed - using dependency injection
+            # from .nodes import set_global_llm_manager
+            # set_global_llm_manager(new_llm_manager)
 
             # Update current model tracking
             self._current_model = ModelConfig(
@@ -317,7 +319,8 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=langsmith_config
+                    config=langsmith_config,
+                    llm_manager=self._llm_manager
                 ):
                     results.append(update)
                 
@@ -336,7 +339,8 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=langsmith_config
+                    config=langsmith_config,
+                    llm_manager=self._llm_manager
                 )
                 
                 # Calculate execution time
