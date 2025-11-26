@@ -648,7 +648,24 @@ class HybridLLMManager:
         
         # Remove markdown formatting
         sql_query = sql_query.replace("```sql", "").replace("```", "")
-
+        
+        # HOTFIX: Remove persistent hallucination of QT_DIARIAS > 0
+        # The model loves to add this filter for some reason.
+        import re
+        # Remove "AND QT_DIARIAS > 0" or "WHERE QT_DIARIAS > 0"
+        # Handles optional alias (i.), optional quotes, and case insensitivity
+        sql_query = re.sub(r'\s+(AND|WHERE)\s+(i\.)?"?QT_DIARIAS"?\s*>\s*0', ' ', sql_query, flags=re.IGNORECASE)
+        
+        # Cleanup potential broken SQL structure after removal
+        # Fix "WHERE GROUP BY" -> "GROUP BY"
+        sql_query = re.sub(r'WHERE\s+GROUP\s+BY', 'GROUP BY', sql_query, flags=re.IGNORECASE)
+        # Fix "WHERE ORDER BY" -> "ORDER BY"
+        sql_query = re.sub(r'WHERE\s+ORDER\s+BY', 'ORDER BY', sql_query, flags=re.IGNORECASE)
+        # Fix "WHERE ;" -> ";"
+        sql_query = re.sub(r'WHERE\s*;', ';', sql_query, flags=re.IGNORECASE)
+        # Fix trailing WHERE
+        sql_query = re.sub(r'WHERE\s*$', '', sql_query, flags=re.IGNORECASE)
+        
         # Remove comments and extra whitespace
         sql_query = sanitize_sql_for_execution(sql_query)
         

@@ -679,7 +679,8 @@ def reasoning_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Messa
             4. Do NOT write the SQL query yet. Just the logic.
             5. Keep it concise and clear.
             6. RESTRICT your plan to the selected tables: {selected_tables}. Do not hallucinate other tables.
-            7. OUTPUT MUST BE A VALID JSON OBJECT with keys: "steps" (list of strings) and "reasoning" (string summary).
+            7. DO NOT suggest filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested. Assume all records are valid.
+            8. OUTPUT MUST BE A VALID JSON OBJECT with keys: "steps" (list of strings) and "reasoning" (string summary).
             
             DATABASE SCHEMA:
             {schema_context}
@@ -811,6 +812,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         6. Include LIMIT clauses when appropriate (default LIMIT 100)
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+        9. DO NOT add filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested by the user. Assume all records are valid.
 
         
          DATABASE SCHEMA:
