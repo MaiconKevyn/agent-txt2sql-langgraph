@@ -8,6 +8,10 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from langchain_core.tools import BaseTool
 
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from ..memory.vector_store import VectorStoreManager
+import json
+import os
 
 from .state import (
     MessagesStateTXT2SQL,
@@ -254,50 +258,33 @@ def _refresh_schema_context(
         return False
 
 
-# Global LLM manager instance (singleton pattern)
-_llm_manager: HybridLLMManager = None
-
-def set_global_llm_manager(manager: HybridLLMManager):
+def get_llm_manager_from_config(config: RunnableConfig) -> HybridLLMManager:
     """
-    Set global LLM manager instance (called by orchestrator)
-
-    This allows the orchestrator to inject its configured LLM manager
-    into the nodes, ensuring consistency across the workflow.
-
+    Retrieve LLM manager from runtime config.
+    
     Args:
-        manager: HybridLLMManager instance to use globally
-    """
-    global _llm_manager
-    _llm_manager = manager
-    logger.info("Global LLM manager updated", extra={
-        "provider": manager.config.llm_provider,
-        "model": manager.config.llm_model
-    })
-
-def get_llm_manager() -> HybridLLMManager:
-    """
-    Get singleton LLM manager instance
-
-    Returns the global LLM manager that was set by the orchestrator.
-    If not set, creates a default instance (fallback behavior).
-
+        config: RunnableConfig containing 'configurable' key with 'llm_manager'
+        
     Returns:
         HybridLLMManager instance
     """
-    global _llm_manager
-    if _llm_manager is None:
+    configurable = config.get("configurable", {})
+    manager = configurable.get("llm_manager")
+    
+    if not manager:
         # Fallback: create default instance
         # This happens if nodes are used without orchestrator
         logger.warning(
-            "LLM Manager not initialized by orchestrator, using default config",
+            "LLM Manager not found in config, using default config",
             extra={"fallback": True}
         )
-        config = ApplicationConfig()
-        _llm_manager = HybridLLMManager(config)
-    return _llm_manager
+        config_app = ApplicationConfig()
+        manager = HybridLLMManager(config_app)
+        
+    return manager
 
 
-def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Query Classification Node - Official LangGraph Pattern
     
@@ -346,7 +333,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         if "user_query" not in state:
             state["user_query"] = user_query
         
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Heuristic pre-pass
         heur_route_str, heur_scores = heuristic_route(user_query)
@@ -378,8 +365,8 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
                 HumanMessage(content=user_query)
             ]
 
-            llm = llm_manager.get_bound_llm()
-            response = llm.invoke(messages)
+            # Use provider-agnostic invocation (supports chat models and HuggingFace)
+            response = llm_manager.invoke_chat(messages)
             content = getattr(response, "content", str(response))
             data = try_extract_json_block(content)
 
@@ -471,7 +458,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         return state
 
 
-def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     List Tables Node - Using SQLDatabaseToolkit
     
@@ -483,7 +470,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     logger.info("Table discovery node started")
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -511,7 +498,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             # If no pattern matches, fallback to basic parsing
             if not table_names:
                 # Try to extract from the database directly
-                llm_manager = get_llm_manager()
+                llm_manager = get_llm_manager_from_config(config)
                 db = llm_manager.get_database()
                 table_names = db.get_usable_table_names()
             
@@ -587,7 +574,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Get Schema Node - Using SQLDatabaseToolkit
     
@@ -599,7 +586,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     logger.info("Schema node started")
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -665,7 +652,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
     
@@ -679,10 +666,61 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     })
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         user_query = state["user_query"]
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
+        
+        # Initialize Vector Store and get examples
+        try:
+            # Singleton-like access could be improved with dependency injection in future
+            # For now, we initialize it here or get from config if available
+            vector_store = VectorStoreManager()
+            
+            # Check if we need to seed examples
+            if vector_store.count() == 0:
+                examples_path = os.path.join(os.path.dirname(__file__), "..", "memory", "examples.json")
+                if os.path.exists(examples_path):
+                    with open(examples_path, "r") as f:
+                        examples = json.load(f)
+                    vector_store.add_examples(examples)
+            
+            # Retrieve relevant examples
+            relevant_examples = vector_store.search_examples(user_query, k=3)
+
+            # Format examples for prompt
+            examples_text = "\n".join([
+                f"- User: {ex['question']}\n  SQL: {ex['sql']}"
+                for ex in relevant_examples
+            ])
+
+            logger.info(f"Retrieved {len(relevant_examples)} relevant examples for RAG")
+
+            # Log each example for debugging (visible in logs and LangSmith)
+            for i, ex in enumerate(relevant_examples, 1):
+                logger.debug(f"RAG Example {i}: Question='{ex['question'][:60]}...' | SQL='{ex['sql'][:80]}...'")
+            
+        except Exception as e:
+            logger.warning(f"Failed to use Vector Store for RAG: {e}")
+            examples_text = ""
+            
+        # Add examples to schema context or prompt
+        if examples_text:
+            schema_context += f"\n\nRELEVANT EXAMPLES:\n{examples_text}"
+            logger.info("RAG examples injected into schema context", extra={
+                "examples_preview": examples_text[:200] + "..." if len(examples_text) > 200 else examples_text
+            })
+            
+        # Enrich response metadata for LangSmith tracing
+        try:
+            meta = state.get("response_metadata", {}) or {}
+            meta.update({
+                "rag_retrieved_examples": relevant_examples if 'relevant_examples' in locals() else [],
+                "rag_examples_count": len(relevant_examples) if 'relevant_examples' in locals() else 0
+            })
+            state["response_metadata"] = meta
+        except Exception as e:
+            logger.warning(f"Failed to update metadata with RAG info: {e}")
         
         logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
         
@@ -708,22 +746,6 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         7. Use proper JOINs when querying multiple tables
         8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
 
-         CRITICAL DISEASE LOOKUP RULE - ALWAYS JOIN WITH CID10 TABLE:
-        9. For ANY query about specific diseases, conditions, or diagnosis names, ALWAYS JOIN with the cid10 table
-        10. NEVER search for disease names directly in diagnosis code fields (DIAG_PRINC, DIAG_SECUN, CID_MORTE)
-        11. ALWAYS use the cid10 table to get proper disease descriptions and search there
-        12. Pattern: JOIN cid10 c ON [table]."[CID_FIELD]" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%[disease]%'
-
-         INTELLIGENT MEDICAL SEARCH RULES:
-        13. When user asks about diseases, USE YOUR MEDICAL KNOWLEDGE to expand search terms
-        14. For diabetes: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE c."CD_DESCRICAO" ILIKE '%diabetes%'
-        15. For cardiovascular diseases: combine CID codes (I00-I99) AND flexible patterns ('%card%', '%miocardio%', '%arterial%', '%vascular%', '%circulatorio%')
-        16. For respiratory diseases: combine CID codes (J00-J99) AND patterns ('%respir%', '%pulm%', '%pneum%', '%bronqu%')
-        17. For cancer/neoplasms: combine CID codes (C00-D48) AND patterns ('%cancer%', '%tumor%', '%neoplasia%', '%carcinoma%')
-        18. For infectious diseases: combine CID codes (A00-B99) AND patterns ('%infec%', '%virus%', '%bacter%')
-        19. ALWAYS use OR conditions to capture related terms that you know are medically equivalent
-        20. Don't be literal - use your medical training to find ALL relevant conditions
-        21. Example: "doença cardiovascular" should search: JOIN cid10 c ON i."DIAG_PRINC" = c."CID" WHERE (c."CID" LIKE 'I%' OR c."CD_DESCRICAO" ILIKE ANY(ARRAY['%card%', '%miocardio%', '%vascular%']))
         
          DATABASE SCHEMA:
         {schema_context}"""),
@@ -745,9 +767,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             "rules_length": len(table_rules)
         })
         
-        # Use unbound LLM for direct SQL generation (bound LLM expects tool calls)
-        llm = llm_manager._llm
-        response = llm.invoke(formatted_messages)
+        # Use provider-agnostic chat invocation (supports chat models and HuggingFace)
+        response = llm_manager.invoke_chat(formatted_messages)
         
         # Extract SQL query from response
         sql_query = response.content.strip() if hasattr(response, 'content') else str(response)
@@ -802,7 +823,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Validate SQL Node - Using SQLDatabaseToolkit query checker
     
@@ -812,7 +833,7 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         generated_sql = state.get("generated_sql")
         
         if not generated_sql:
@@ -899,7 +920,7 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def execute_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Execute SQL Node - Using SQLDatabaseToolkit query tool
     
@@ -909,7 +930,7 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         validated_sql = state.get("validated_sql") or state.get("generated_sql")
         
         if not validated_sql:
@@ -1149,13 +1170,13 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """Repair SQL Node - regenerate SQL after execution failure."""
 
     start_time = time.time()
 
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         previous_sql = state.get("generated_sql")
 
         if not previous_sql:
@@ -1241,9 +1262,9 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             f"Schema disponível:\n{schema_context}\n\n"
             "Reescreva a consulta corrigindo o problema identificado, usando SOMENTE colunas da lista branca e as sugestões quando necessário."
         )
-
-        llm = llm_manager._llm
-        response = llm.invoke([
+        
+        # Use provider-agnostic chat invocation for SQL repair
+        response = llm_manager.invoke_chat([
             SystemMessage(content=system_prompt),
             HumanMessage(content=human_prompt)
         ])
@@ -1327,7 +1348,7 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Generate Response Node - Format final response
     
@@ -1337,7 +1358,7 @@ def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         user_query = state["user_query"]
         query_route = state.get("query_route", QueryRoute.DATABASE)
         
@@ -1727,11 +1748,9 @@ IMPORTANT: Respond with ONLY the table names separated by commas. No explanation
 
 TABLES:"""
 
-        # Usar LLM unbound para seleção
-        llm = llm_manager._llm
-        
+        # Usar invocação de chat agnóstica de provider para seleção
         from langchain_core.messages import HumanMessage
-        response = llm.invoke([HumanMessage(content=selection_prompt)])
+        response = llm_manager.invoke_chat([HumanMessage(content=selection_prompt)])
         
         # Parse response using simplified approach
         selected_tables_str = response.content.strip() if hasattr(response, 'content') else str(response)

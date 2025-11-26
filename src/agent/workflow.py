@@ -404,7 +404,8 @@ def execute_sql_workflow(
     user_query: str,
     session_id: str = None,
     config: dict = None,
-    max_retries: int = 3
+    max_retries: int = 3,
+    llm_manager = None
 ) -> dict:
     """
     Execute SQL workflow with proper error handling and adaptive recursion limit
@@ -434,6 +435,12 @@ def execute_sql_workflow(
         )
 
         config = config or {}
+        
+        # Inject LLM manager into config if provided
+        if llm_manager:
+            if "configurable" not in config:
+                config["configurable"] = {}
+            config["configurable"]["llm_manager"] = llm_manager
 
         # PHASE 1 IMPROVEMENT: Adaptive Recursion Limit
         # Estimate query complexity and set appropriate recursion limit
@@ -488,7 +495,8 @@ def stream_sql_workflow(
     workflow,
     user_query: str,
     session_id: str = None,
-    config: dict = None
+    config: dict = None,
+    llm_manager = None
 ):
     """
     Stream SQL workflow execution for real-time updates
@@ -517,6 +525,12 @@ def stream_sql_workflow(
         )
         
         config = config or {}
+
+        # Inject LLM manager into config if provided
+        if llm_manager:
+            if "configurable" not in config:
+                config["configurable"] = {}
+            config["configurable"]["llm_manager"] = llm_manager
 
         # Stream workflow execution
         for state_update in workflow.stream(initial_state, config=config):
