@@ -136,6 +136,10 @@ class MessagesStateTXT2SQL(TypedDict):
     success: bool
     completed: bool
 
+    # Clarification
+    needs_clarification: bool
+    clarification_question: Optional[str]
+
 
 def create_initial_messages_state(
     user_query: str,
@@ -212,7 +216,11 @@ def create_initial_messages_state(
         
         # Status
         success=False,
-        completed=False
+        completed=False,
+        
+        # Clarification
+        needs_clarification=False,
+        clarification_question=None
     )
 
 

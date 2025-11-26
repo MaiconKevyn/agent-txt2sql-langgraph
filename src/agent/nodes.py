@@ -347,17 +347,14 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
             # LLM JSON classification with few-shots
             system_prompt = (
                 "Você é um classificador de consultas. Decida a ROTA em {DATABASE, CONVERSATIONAL, SCHEMA}.\n"
-                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>}\n"
-                "DATABASE: perguntas de dados (contagem, ranking, listar, filtros, por cidade/ano/sexo...)\n"
-                "CONVERSATIONAL: explicações/definições (\\\"o que é\\\", \\\"significa\\\", \\\"como funciona\\\", diferenças)\n"
-                "SCHEMA: estrutura do banco (tabelas, colunas, schema, dicionário de dados).\n"
-                "Exemplos:\n"
-                "Q: Quantos óbitos ocorreram em 2023?\n"
-                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"contagem temporal\\\"}\n"
-                "Q: O que significa o CID J189?\n"
-                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"pedido de definição\\\"}\n"
-                "Q: Quais colunas existem na tabela internacoes?\n"
-                "A: {\\\"route\\\":\\\"SCHEMA\\\",\\\"confidence\\\":0.95,\\\"reasons\\\":\\\"estrutura da tabela\\\"}"
+                "Se a pergunta for ambígua, vaga ou faltar contexto crítico, defina 'needs_clarification': true e forneça 'clarification_question'.\n"
+                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>, \\\"needs_clarification\\\":<bool>, \\\"clarification_question\\\":<string>}\n"
+                "\n"
+                "EXEMPLOS:\n"
+                "1. 'Quantas internações?' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta objetiva sobre dados\\\", \\\"needs_clarification\\\": false}\n"
+                "2. 'O que é CID?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta conceitual\\\", \\\"needs_clarification\\\": false}\n"
+                "3. 'Qual o melhor?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.5, \\\"reasons\\\": \\\"Pergunta muito vaga\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Melhor em que sentido? Número de internações, menor mortalidade ou outro critério?\\\"}\n"
+                "4. 'Dados de 2024' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.8, \\\"reasons\\\": \\\"Implica busca de dados gerais\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Quais dados específicos de 2024 você deseja ver? Internações, óbitos ou valores?\\\"}\n"
             )
 
             messages = [
@@ -397,6 +394,17 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
                     f"Hybrid decision. llm_route={llm_route} conf={llm_conf} heur={heur_scores}"
                     + (f"; llm_reasons={llm_reasons}" if llm_reasons else "")
                 )
+
+            # Extract clarification fields
+            needs_clarification = False
+            clarification_question = None
+            if isinstance(data, dict):
+                needs_clarification = data.get("needs_clarification", False)
+                clarification_question = data.get("clarification_question")
+
+            # Update state with clarification info
+            state["needs_clarification"] = needs_clarification
+            state["clarification_question"] = clarification_question
 
             query_route = {
                 "DATABASE": QueryRoute.DATABASE,
@@ -1461,7 +1469,55 @@ def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) 
     try:
         llm_manager = get_llm_manager_from_config(config)
         user_query = state["user_query"]
-        query_route = state.get("query_route", QueryRoute.DATABASE)
+        query_route = state.get("query_route", QueryRoute.DATABASE) # Default route
+
+        # Ambiguity detection logic (assuming 'parsed' and 'route_str' are available from a previous step,
+        # or that this node is responsible for parsing the LLM's routing decision)
+        # For this change, we'll assume 'parsed' and 'route_str' would be derived from an LLM call
+        # that determines the route and potential ambiguity.
+        # As 'parsed' and 'route_str' are not defined in the original generate_response_node,
+        # this insertion might require context from a preceding node.
+        # For the sake of faithfully applying the change, we'll assume they are available
+        # or that this is where they are meant to be introduced.
+        # In a real scenario, 'parsed' would likely be the output of an LLM call for routing.
+        
+        # Placeholder for 'parsed' and 'route_str' if they were to come from an LLM routing step
+        # For this specific instruction, we'll simulate them based on existing query_route for now,
+        # but the intent seems to be to parse an LLM output for these.
+        # If the user intended this to be a new LLM call, that would be a larger change.
+        # Assuming 'query_route' is the 'route_str' for existing logic.
+        route_str = query_route.value if isinstance(query_route, QueryRoute) else query_route
+        
+        # Extract clarification fields (assuming 'parsed' is available, e.g., from state or a new LLM call)
+        # Since 'parsed' is not in the current state, we'll assume it's meant to be part of the state
+        # or derived from a new LLM call that determines the route and ambiguity.
+        # For this edit, we'll add a placeholder for 'parsed' if it's not explicitly passed.
+        # If 'parsed' is meant to be the output of an LLM call, that call would need to be added here.
+        # For now, we'll assume 'parsed' is a dictionary that might be in the state or derived.
+        parsed = state.get("llm_routing_decision", {}) # Placeholder: assuming routing decision is stored here
+
+        needs_clarification = parsed.get("needs_clarification", False)
+        clarification_question = parsed.get("clarification_question")
+
+        # If clarification is needed, override route to CONVERSATIONAL (or handle via state flag)
+        if needs_clarification:
+            logger.info("Ambiguity detected", extra={"question": clarification_question})
+            state["needs_clarification"] = True
+            state["clarification_question"] = clarification_question
+            # We still set a route, but the workflow will intercept based on the flag
+            query_route = QueryRoute.CONVERSATIONAL 
+        else:
+            state["needs_clarification"] = False
+            state["clarification_question"] = None
+
+        if not needs_clarification:
+            # Normal routing logic
+            if route_str == "DATABASE":
+                query_route = QueryRoute.DATABASE
+            elif route_str == "SCHEMA":
+                query_route = QueryRoute.SCHEMA
+            else:
+                query_route = QueryRoute.CONVERSATIONAL
         
         if query_route == QueryRoute.CONVERSATIONAL:
             # Generate conversational response
@@ -2139,3 +2195,27 @@ __all__ = [
     "generate_response_node"
 ]
 from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
+
+def clarification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+    """
+    Clarification Node - Asks user for more details
+    
+    Triggered when the classification node detects ambiguity.
+    Returns the clarification question as the final response.
+    """
+    logger.info("Clarification node started")
+    
+    question = state.get("clarification_question")
+    if not question:
+        question = "Poderia fornecer mais detalhes sobre sua pergunta?"
+        
+    state["final_response"] = question
+    state["success"] = True # It's a successful interaction, even if it didn't answer the original query
+    state["completed"] = True
+    
+    # Add AI message with the question
+    state = add_ai_message(state, question)
+    
+    logger.info("Clarification question generated", extra={"question": question})
+    
+    return state

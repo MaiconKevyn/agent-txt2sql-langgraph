@@ -16,7 +16,9 @@ from .nodes import (
     repair_sql_node,
     validate_sql_node,
     execute_sql_node,
-    generate_response_node
+    execute_sql_node,
+    generate_response_node,
+    clarification_node
 )
 
 
@@ -54,6 +56,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("generate_response", generate_response_node)
+    workflow.add_node("clarification", clarification_node)
     
     # Entry point
     workflow.add_edge(START, "classify_query")
@@ -66,6 +69,7 @@ def create_langgraph_sql_workflow():
             "database": "list_tables",
             "conversational": "generate_response",
             "schema": "list_tables",
+            "clarification": "clarification",
             "error": "generate_response"
         }
     )
@@ -135,6 +139,7 @@ def create_langgraph_sql_workflow():
     
     # Final response
     workflow.add_edge("generate_response", END)
+    workflow.add_edge("clarification", END)
     
     return workflow
 
@@ -145,7 +150,7 @@ def create_langgraph_sql_workflow():
 
 def route_after_classification(
     state: MessagesStateTXT2SQL
-) -> Literal["database", "conversational", "schema", "error"]:
+) -> Literal["database", "conversational", "schema", "clarification", "error"]:
     """
     Route after query classification following LangGraph patterns
     
@@ -158,6 +163,10 @@ def route_after_classification(
     
     query_route = state["query_route"]
     classification = state.get("classification")
+    
+    # Check for clarification need
+    if state.get("needs_clarification"):
+        return "clarification"
     
     # Route based on classification
     if query_route == QueryRoute.CONVERSATIONAL:
