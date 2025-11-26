@@ -652,6 +652,86 @@ def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
         return state
 
 
+def reasoning_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+    """
+    Reasoning (Chain-of-Thought) Node
+    
+    Generates a logical plan before SQL generation.
+    """
+    start_time = time.time()
+    logger.info("Reasoning node started")
+    
+    try:
+        llm_manager = get_llm_manager_from_config(config)
+        user_query = state["user_query"]
+        schema_context = state.get("schema_context", "")
+        selected_tables = state.get("selected_tables", [])
+        
+        # Create prompt for reasoning
+        reasoning_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a Data Analyst Expert.
+            Your task is to create a logical STEP-BY-STEP PLAN to answer the user's question using the provided database schema.
+            
+            GUIDELINES:
+            1. Analyze the user's request and the available tables/columns.
+            2. Break down the problem into logical steps (e.g., "Filter by date", "Join table X and Y", "Aggregate by Z").
+            3. Identify necessary filters, joins, and aggregations.
+            4. Do NOT write the SQL query yet. Just the logic.
+            5. Keep it concise and clear.
+            6. RESTRICT your plan to the selected tables: {selected_tables}. Do not hallucinate other tables.
+            7. OUTPUT MUST BE A VALID JSON OBJECT with keys: "steps" (list of strings) and "reasoning" (string summary).
+            
+            DATABASE SCHEMA:
+            {schema_context}
+            """),
+            ("human", "USER QUERY: {user_query}\n\nCreate the execution plan in JSON:")
+        ])
+        
+        messages = reasoning_prompt.format_messages(
+            schema_context=schema_context,
+            user_query=user_query,
+            selected_tables=", ".join(selected_tables)
+        )
+        
+        response = llm_manager.invoke_chat(messages)
+        content = response.content.strip() if hasattr(response, 'content') else str(response)
+        
+        # Parse JSON output
+        try:
+            plan_data = try_extract_json_block(content)
+            if isinstance(plan_data, dict) and "steps" in plan_data:
+                steps = plan_data["steps"]
+                reasoning_summary = plan_data.get("reasoning", "")
+                
+                # Format plan for SQL generator
+                formatted_plan = "\n".join([f"{i+1}. {step}" for i, step in enumerate(steps)])
+                if reasoning_summary:
+                    formatted_plan = f"SUMMARY: {reasoning_summary}\n\nSTEPS:\n{formatted_plan}"
+                
+                state["reasoning_plan"] = formatted_plan
+                logger.info("Reasoning plan generated (JSON parsed)", extra={"steps_count": len(steps)})
+            else:
+                # Strict JSON enforcement: Do not use raw text
+                state["reasoning_plan"] = None
+                logger.warning("Reasoning output was not valid JSON (missing 'steps'), skipping plan")
+        except Exception as parse_error:
+             state["reasoning_plan"] = None
+             logger.warning(f"Failed to parse reasoning JSON: {parse_error}")
+        
+        # Update phase
+        execution_time = time.time() - start_time
+        state = update_phase(state, ExecutionPhase.REASONING, execution_time)
+        
+        return state
+        
+    except Exception as e:
+        logger.warning(f"Reasoning failed: {e}")
+        # Continue without plan
+        state["reasoning_plan"] = None
+        state = update_phase(state, ExecutionPhase.REASONING, time.time() - start_time)
+        return state
+
+
 def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
@@ -707,20 +787,6 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         # Add examples to schema context or prompt
         if examples_text:
             schema_context += f"\n\nRELEVANT EXAMPLES:\n{examples_text}"
-            logger.info("RAG examples injected into schema context", extra={
-                "examples_preview": examples_text[:200] + "..." if len(examples_text) > 200 else examples_text
-            })
-            
-        # Enrich response metadata for LangSmith tracing
-        try:
-            meta = state.get("response_metadata", {}) or {}
-            meta.update({
-                "rag_retrieved_examples": relevant_examples if 'relevant_examples' in locals() else [],
-                "rag_examples_count": len(relevant_examples) if 'relevant_examples' in locals() else 0
-            })
-            state["response_metadata"] = meta
-        except Exception as e:
-            logger.warning(f"Failed to update metadata with RAG info: {e}")
         
         logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
         
@@ -748,18 +814,28 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
 
         
          DATABASE SCHEMA:
-        {schema_context}"""),
+        {schema_context}
+        
+        {reasoning_context}"""),
             
             ("system", "{table_specific_rules}"),
             
             ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
         ])
         
+        # Prepare reasoning context if available
+        reasoning_plan = state.get("reasoning_plan")
+        reasoning_context = ""
+        if reasoning_plan:
+            reasoning_context = f"FOLLOW THIS EXECUTION PLAN:\n{reasoning_plan}"
+            logger.info("Using reasoning plan for SQL generation")
+
         # Format the prompt with dynamic content
         formatted_messages = sql_prompt_template.format_messages(
             schema_context=schema_context,
             table_specific_rules=table_rules,
-            user_query=user_query
+            user_query=user_query,
+            reasoning_context=reasoning_context
         )
         
         logger.debug("Template prepared", extra={
@@ -838,6 +914,21 @@ def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         
         if not generated_sql:
             raise ValueError("No SQL query to validate")
+            
+        # SECURITY: Sanitize and check SQL safety
+        # 1. Sanitize (remove comments, excessive whitespace)
+        sanitized_sql = sanitize_sql_for_execution(generated_sql)
+        state["generated_sql"] = sanitized_sql  # Update state with clean SQL
+        
+        # 2. Safety Check (Block DDL/DML)
+        is_safe, safety_reason = is_select_only(sanitized_sql)
+        if not is_safe:
+            error_message = f"SQL Safety Violation: {safety_reason}"
+            state = add_error(state, error_message, "sql_safety_error", ExecutionPhase.SQL_VALIDATION)
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+            return state
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -1195,16 +1286,24 @@ def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
 
         if not error_message:
             error_message = "Erro desconhecido ao executar a consulta."  # fallback context
-
         user_query = state.get("user_query", "")
 
         # Refresh table/schema context when missing columns/relations are detected
         if _should_refresh_schema(error_message):
-            refreshed = _refresh_schema_context(state, error_message, llm_manager)
-            logger.info(
-                "Schema refresh attempted during repair",
+            if _refresh_schema_context(state, error_message, llm_manager):
+                # If schema changed, the previous reasoning plan might be invalid
+                # Clear it to force SQL generator to rely on new schema context
+                if state.get("reasoning_plan"):
+                    logger.info("Clearing stale reasoning plan after schema refresh")
+                    state["reasoning_plan"] = None
+                
+                # Flag for workflow routing to trigger re-planning
+                state["schema_refreshed"] = True
+                
+                logger.info(
+                "Schema refresh attempted during repair - Triggering Re-planning",
                 extra={
-                    "refreshed": refreshed,
+                    "refreshed": True,
                     "selected_tables": state.get("selected_tables", []),
                     "available_tables": state.get("available_tables", [])
                 }
@@ -1373,6 +1472,32 @@ def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) 
                 final_response = result["response"]
             else:
                 final_response = f"Desculpe, não consegui processar sua pergunta: {result.get('error', 'Erro desconhecido')}"
+                
+        elif query_route == QueryRoute.SCHEMA:
+            # Generate schema explanation
+            schema_context = state.get("schema_context", "")
+            
+            # Create prompt for schema explanation
+            schema_prompt = f"""Você é um especialista em banco de dados.
+            Responda à pergunta do usuário com base APENAS no schema fornecido.
+            
+            Pergunta: "{user_query}"
+            
+            Schema Disponível:
+            {schema_context}
+            
+            Responda de forma clara e concisa, listando tabelas ou colunas conforme solicitado.
+            """
+            
+            result = llm_manager.generate_conversational_response(
+                user_query=schema_prompt,
+                conversation_history=[]
+            )
+            
+            if result["success"]:
+                final_response = result["response"]
+            else:
+                final_response = "Não foi possível analisar o schema."
                 
         else:
             # Generate response based on SQL execution results
@@ -2005,8 +2130,10 @@ __all__ = [
     "list_tables_node", 
     "get_schema_node",
     "generate_sql_node",
+    "reasoning_node",
     "repair_sql_node",
     "validate_sql_node",
     "execute_sql_node",
     "generate_response_node"
 ]
+from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution

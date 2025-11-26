@@ -278,5 +278,25 @@
     {
         "question": "Mortes por COVID-19",
         "sql": "SELECT COUNT(*) FROM mortes m INNER JOIN cid10 c ON m.\"CID_MORTE\" = c.\"CID\" WHERE c.\"CID\" LIKE 'U07%' OR c.\"CD_DESCRICAO\" ILIKE '%covid%';"
+    },
+    {
+        "question": "Quais são os 10 municípios com mais internações?",
+        "sql": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10;"
+    },
+    {
+        "question": "Municípios com maior número de internações (sem filtros)",
+        "sql": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10;"
+    },
+    {
+        "question": "Ranking de internações por cidade",
+        "sql": "SELECT m.nome AS municipio, COUNT(i.\"N_AIH\") AS total_internacoes FROM internacoes i JOIN municipios m ON i.\"MUNIC_RES\" = m.codigo_6d GROUP BY m.nome ORDER BY total_internacoes DESC LIMIT 10;"
+    },
+    {
+        "question": "Qual a taxa de mortalidade no estado do Rio Grande do Sul em 2021?",
+        "sql": "SELECT ROUND((COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100), 2) AS taxa_mortalidade_perc FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" LEFT JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d LEFT JOIN dado_ibge d ON mu.codigo_ibge = d.codigo_municipio_completo WHERE EXTRACT(YEAR FROM i.\"DT_INTER\") = 2021 AND d.sigla_estado = 'rs';"
+    },
+    {
+        "question": "Qual a taxa de mortalidade por município?",
+        "sql": "SELECT i.\"MUNIC_RES\", COUNT(DISTINCT i.\"N_AIH\") as internacoes, COUNT(DISTINCT m.\"N_AIH\") as mortes, ROUND(COUNT(DISTINCT m.\"N_AIH\")::numeric / COUNT(DISTINCT i.\"N_AIH\") * 100, 2) as taxa_mortalidade FROM internacoes i LEFT JOIN mortes m ON i.\"N_AIH\" = m.\"N_AIH\" WHERE i.\"MUNIC_RES\" IS NOT NULL GROUP BY i.\"MUNIC_RES\" HAVING COUNT(DISTINCT i.\"N_AIH\") > 100 ORDER BY taxa_mortalidade DESC LIMIT 10;"
     }
 ]

@@ -227,23 +227,9 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["sql"] = sql
                     step_data["data"]["tables_used"] = selected_tables
                     
-                    # Extract RAG metadata
-                    rag_examples = []
-                    try:
-                        meta = node_state.get("response_metadata", {}) or {}
-                        rag_examples = meta.get("rag_retrieved_examples", [])
-                    except:
-                        pass
-                    
                     print(f" SQL Generated:")
                     print(f"     Query: {sql}")
                     print(f"      Using tables: {selected_tables}")
-                    
-                    if rag_examples:
-                        print(f"     RAG Context: Retrieved {len(rag_examples)} examples")
-                        for i, ex in enumerate(rag_examples):
-                            q_preview = ex.get('question', '')[:50]
-                            print(f"       {i+1}. {q_preview}...")
                     
                     # Validate SQL quality
                     if sql:

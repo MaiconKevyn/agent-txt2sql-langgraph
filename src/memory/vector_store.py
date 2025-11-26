@@ -9,9 +9,6 @@ from sentence_transformers import SentenceTransformer
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Disable ChromaDB telemetry to avoid error logs
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
 class VectorStoreManager:
     """
     Manages the Vector Store (ChromaDB) for Dynamic Few-Shot RAG.

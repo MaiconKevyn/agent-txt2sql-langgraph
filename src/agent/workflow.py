@@ -12,6 +12,7 @@ from .nodes import (
     list_tables_node,
     get_schema_node,
     generate_sql_node,
+    reasoning_node,
     repair_sql_node,
     validate_sql_node,
     execute_sql_node,
@@ -47,6 +48,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("classify_query", query_classification_node)
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
+    workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("generate_sql", generate_sql_node)
     workflow.add_node("repair_sql", repair_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
@@ -70,8 +72,29 @@ def create_langgraph_sql_workflow():
     
     # Database workflow path
     workflow.add_edge("list_tables", "get_schema")
-    workflow.add_edge("get_schema", "generate_sql")
-    workflow.add_edge("repair_sql", "validate_sql")
+    
+    # Conditional reasoning path
+    workflow.add_conditional_edges(
+        "get_schema",
+        route_after_schema,
+        {
+            "reasoning": "reasoning",
+            "generate_sql": "generate_sql",
+            "generate_response": "generate_response"
+        }
+    )
+    
+    workflow.add_edge("reasoning", "generate_sql")
+    
+    # Conditional repair routing (re-planning support)
+    workflow.add_conditional_edges(
+        "repair_sql",
+        route_after_repair,
+        {
+            "reasoning": "reasoning",
+            "validate_sql": "validate_sql"
+        }
+    )
 
     # SQL generation with retry (LangGraph pattern)
     workflow.add_conditional_edges(
@@ -158,6 +181,38 @@ def route_after_classification(
         return "database"
 
 
+def route_after_schema(
+    state: MessagesStateTXT2SQL
+) -> Literal["reasoning", "generate_sql", "generate_response"]:
+    """
+    Route after schema analysis to decide if reasoning is needed.
+    
+    Skip reasoning for simple queries to save latency.
+    """
+    classification = state.get("classification")
+    
+    # Default to reasoning if no classification
+    if not classification:
+        return "reasoning"
+        
+    # Check complexity
+    is_complex = False
+    
+    # 1. Check explicit route type (if we had a COMPLEX route, but we use DATABASE)
+    if state.get("query_route") == QueryRoute.SCHEMA:
+        return "generate_response"
+        
+    # 2. Check estimated complexity score
+    if classification.estimated_complexity and classification.estimated_complexity >= 0.6:
+        is_complex = True
+    # We can check the reasoning text or other signals if needed
+    
+    if is_complex:
+        return "reasoning"
+    else:
+        return "generate_sql"
+
+
 def route_after_sql_generation(
     state: MessagesStateTXT2SQL
 ) -> Literal["validate", "retry", "error"]:
@@ -232,6 +287,21 @@ def route_after_sql_validation(
     
     # Max retries reached or non-retryable error
     return "error"
+
+
+def route_after_repair(
+    state: MessagesStateTXT2SQL
+) -> Literal["reasoning", "validate_sql"]:
+    """
+    Route after SQL repair.
+    
+    If schema was refreshed during repair, we MUST re-plan (reasoning)
+    to avoid using a stale plan with the new schema.
+    """
+    if state.get("schema_refreshed"):
+        return "reasoning"
+    
+    return "validate_sql"
 
 
 def route_after_sql_execution(
