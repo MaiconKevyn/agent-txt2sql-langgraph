@@ -352,9 +352,3 @@ evaluation/
 ├── run_dag_evaluation.py     # Main runner
 └── README.md                 # Detailed documentation
 ```
-
-For more details, see `evaluation/README.md`.
-
-## Migration from V2
-
-This project has been migrated from legacy clean architecture to LangGraph V3. The legacy code is preserved but not actively used.
