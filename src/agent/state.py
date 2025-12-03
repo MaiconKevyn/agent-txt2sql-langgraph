@@ -21,6 +21,7 @@ class ExecutionPhase(Enum):
     QUERY_CLASSIFICATION = "query_classification"
     TABLE_DISCOVERY = "table_discovery"
     SCHEMA_ANALYSIS = "schema_analysis"
+    REASONING = "reasoning"
     SQL_GENERATION = "sql_generation"
     SQL_VALIDATION = "sql_validation"
     SQL_EXECUTION = "sql_execution"
@@ -100,6 +101,9 @@ class MessagesStateTXT2SQL(TypedDict):
     selected_tables: List[str]
     schema_context: str
     
+    # Reasoning
+    reasoning_plan: Optional[str]
+    
     # SQL processing
     generated_sql: Optional[str]
     validated_sql: Optional[str]
@@ -131,6 +135,10 @@ class MessagesStateTXT2SQL(TypedDict):
     # Success tracking
     success: bool
     completed: bool
+
+    # Clarification
+    needs_clarification: bool
+    clarification_question: Optional[str]
 
 
 def create_initial_messages_state(
@@ -176,6 +184,9 @@ def create_initial_messages_state(
         selected_tables=[],
         schema_context="",
         
+        # Reasoning
+        reasoning_plan=None,
+        
         # SQL processing
         generated_sql=None,
         validated_sql=None,
@@ -205,7 +216,11 @@ def create_initial_messages_state(
         
         # Status
         success=False,
-        completed=False
+        completed=False,
+        
+        # Clarification
+        needs_clarification=False,
+        clarification_question=None
     )
 
 

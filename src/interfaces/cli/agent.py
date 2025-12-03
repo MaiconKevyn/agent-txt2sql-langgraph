@@ -227,23 +227,9 @@ def debug_query_execution(orchestrator, user_query: str):
                     step_data["data"]["sql"] = sql
                     step_data["data"]["tables_used"] = selected_tables
                     
-                    # Extract RAG metadata
-                    rag_examples = []
-                    try:
-                        meta = node_state.get("response_metadata", {}) or {}
-                        rag_examples = meta.get("rag_retrieved_examples", [])
-                    except:
-                        pass
-                    
                     print(f" SQL Generated:")
                     print(f"     Query: {sql}")
                     print(f"      Using tables: {selected_tables}")
-                    
-                    if rag_examples:
-                        print(f"     RAG Context: Retrieved {len(rag_examples)} examples")
-                        for i, ex in enumerate(rag_examples):
-                            q_preview = ex.get('question', '')[:50]
-                            print(f"       {i+1}. {q_preview}...")
                     
                     # Validate SQL quality
                     if sql:
@@ -320,7 +306,20 @@ def debug_query_execution(orchestrator, user_query: str):
                     else:
                         print(f"     Execution failed: {error}")
                 
-                # 7. Response Generation Node
+                # 7. Clarification Node
+                elif node_name == "clarification":
+                    question = node_state.get("final_response", "") or node_state.get("clarification_question", "")
+                    success = node_state.get("success", False)
+                    
+                    debug_data["final_response"] = question
+                    step_data["data"]["response"] = question
+                    step_data["data"]["success"] = success
+                    
+                    print(f" Clarification Request:")
+                    print(f"     Question: {question}")
+                    print(f"     Success: {success}")
+
+                # 8. Response Generation Node
                 elif node_name == "generate_response":
                     # Extract response from the correct field
                     response = node_state.get("final_response", "") or node_state.get("response", "")
