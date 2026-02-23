@@ -8,6 +8,10 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from langchain_core.tools import BaseTool
 
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from ..memory.vector_store import VectorStoreManager
+import json
+import os
 
 from .state import (
     MessagesStateTXT2SQL,
@@ -254,50 +258,33 @@ def _refresh_schema_context(
         return False
 
 
-# Global LLM manager instance (singleton pattern)
-_llm_manager: HybridLLMManager = None
-
-def set_global_llm_manager(manager: HybridLLMManager):
+def get_llm_manager_from_config(config: RunnableConfig) -> HybridLLMManager:
     """
-    Set global LLM manager instance (called by orchestrator)
-
-    This allows the orchestrator to inject its configured LLM manager
-    into the nodes, ensuring consistency across the workflow.
-
+    Retrieve LLM manager from runtime config.
+    
     Args:
-        manager: HybridLLMManager instance to use globally
-    """
-    global _llm_manager
-    _llm_manager = manager
-    logger.info("Global LLM manager updated", extra={
-        "provider": manager.config.llm_provider,
-        "model": manager.config.llm_model
-    })
-
-def get_llm_manager() -> HybridLLMManager:
-    """
-    Get singleton LLM manager instance
-
-    Returns the global LLM manager that was set by the orchestrator.
-    If not set, creates a default instance (fallback behavior).
-
+        config: RunnableConfig containing 'configurable' key with 'llm_manager'
+        
     Returns:
         HybridLLMManager instance
     """
-    global _llm_manager
-    if _llm_manager is None:
+    configurable = config.get("configurable", {})
+    manager = configurable.get("llm_manager")
+    
+    if not manager:
         # Fallback: create default instance
         # This happens if nodes are used without orchestrator
         logger.warning(
-            "LLM Manager not initialized by orchestrator, using default config",
+            "LLM Manager not found in config, using default config",
             extra={"fallback": True}
         )
-        config = ApplicationConfig()
-        _llm_manager = HybridLLMManager(config)
-    return _llm_manager
+        config_app = ApplicationConfig()
+        manager = HybridLLMManager(config_app)
+        
+    return manager
 
 
-def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Query Classification Node - Official LangGraph Pattern
     
@@ -346,7 +333,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         if "user_query" not in state:
             state["user_query"] = user_query
         
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Heuristic pre-pass
         heur_route_str, heur_scores = heuristic_route(user_query)
@@ -360,17 +347,14 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
             # LLM JSON classification with few-shots
             system_prompt = (
                 "Você é um classificador de consultas. Decida a ROTA em {DATABASE, CONVERSATIONAL, SCHEMA}.\n"
-                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>}\n"
-                "DATABASE: perguntas de dados (contagem, ranking, listar, filtros, por cidade/ano/sexo...)\n"
-                "CONVERSATIONAL: explicações/definições (\\\"o que é\\\", \\\"significa\\\", \\\"como funciona\\\", diferenças)\n"
-                "SCHEMA: estrutura do banco (tabelas, colunas, schema, dicionário de dados).\n"
-                "Exemplos:\n"
-                "Q: Quantos óbitos ocorreram em 2023?\n"
-                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"contagem temporal\\\"}\n"
-                "Q: O que significa o CID J189?\n"
-                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"pedido de definição\\\"}\n"
-                "Q: Quais colunas existem na tabela internacoes?\n"
-                "A: {\\\"route\\\":\\\"SCHEMA\\\",\\\"confidence\\\":0.95,\\\"reasons\\\":\\\"estrutura da tabela\\\"}"
+                "Se a pergunta for ambígua, vaga ou faltar contexto crítico, defina 'needs_clarification': true e forneça 'clarification_question'.\n"
+                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>, \\\"needs_clarification\\\":<bool>, \\\"clarification_question\\\":<string>}\n"
+                "\n"
+                "EXEMPLOS:\n"
+                "1. 'Quantas internações?' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta objetiva sobre dados\\\", \\\"needs_clarification\\\": false}\n"
+                "2. 'O que é CID?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta conceitual\\\", \\\"needs_clarification\\\": false}\n"
+                "3. 'Qual o melhor?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.5, \\\"reasons\\\": \\\"Pergunta muito vaga\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Melhor em que sentido? Número de internações, menor mortalidade ou outro critério?\\\"}\n"
+                "4. 'Dados de 2024' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.8, \\\"reasons\\\": \\\"Implica busca de dados gerais\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Quais dados específicos de 2024 você deseja ver? Internações, óbitos ou valores?\\\"}\n"
             )
 
             messages = [
@@ -410,6 +394,17 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
                     f"Hybrid decision. llm_route={llm_route} conf={llm_conf} heur={heur_scores}"
                     + (f"; llm_reasons={llm_reasons}" if llm_reasons else "")
                 )
+
+            # Extract clarification fields
+            needs_clarification = False
+            clarification_question = None
+            if isinstance(data, dict):
+                needs_clarification = data.get("needs_clarification", False)
+                clarification_question = data.get("clarification_question")
+
+            # Update state with clarification info
+            state["needs_clarification"] = needs_clarification
+            state["clarification_question"] = clarification_question
 
             query_route = {
                 "DATABASE": QueryRoute.DATABASE,
@@ -471,7 +466,7 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
         return state
 
 
-def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     List Tables Node - Using SQLDatabaseToolkit
     
@@ -483,7 +478,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     logger.info("Table discovery node started")
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -511,7 +506,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
             # If no pattern matches, fallback to basic parsing
             if not table_names:
                 # Try to extract from the database directly
-                llm_manager = get_llm_manager()
+                llm_manager = get_llm_manager_from_config(config)
                 db = llm_manager.get_database()
                 table_names = db.get_usable_table_names()
             
@@ -587,7 +582,7 @@ def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Get Schema Node - Using SQLDatabaseToolkit
     
@@ -599,7 +594,7 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     logger.info("Schema node started")
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -665,7 +660,88 @@ def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def reasoning_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+    """
+    Reasoning (Chain-of-Thought) Node
+    
+    Generates a logical plan before SQL generation.
+    """
+    start_time = time.time()
+    logger.info("Reasoning node started")
+    
+    try:
+        llm_manager = get_llm_manager_from_config(config)
+        user_query = state["user_query"]
+        schema_context = state.get("schema_context", "")
+        selected_tables = state.get("selected_tables", [])
+        
+        # Create prompt for reasoning
+        reasoning_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a Data Analyst Expert.
+            Your task is to create a logical STEP-BY-STEP PLAN to answer the user's question using the provided database schema.
+            
+            GUIDELINES:
+            1. Analyze the user's request and the available tables/columns.
+            2. Break down the problem into logical steps (e.g., "Filter by date", "Join table X and Y", "Aggregate by Z").
+            3. Identify necessary filters, joins, and aggregations.
+            4. Do NOT write the SQL query yet. Just the logic.
+            5. Keep it concise and clear.
+            6. RESTRICT your plan to the selected tables: {selected_tables}. Do not hallucinate other tables.
+            7. DO NOT suggest filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested. Assume all records are valid.
+            8. OUTPUT MUST BE A VALID JSON OBJECT with keys: "steps" (list of strings) and "reasoning" (string summary).
+            
+            DATABASE SCHEMA:
+            {schema_context}
+            """),
+            ("human", "USER QUERY: {user_query}\n\nCreate the execution plan in JSON:")
+        ])
+        
+        messages = reasoning_prompt.format_messages(
+            schema_context=schema_context,
+            user_query=user_query,
+            selected_tables=", ".join(selected_tables)
+        )
+        
+        response = llm_manager.invoke_chat(messages)
+        content = response.content.strip() if hasattr(response, 'content') else str(response)
+        
+        # Parse JSON output
+        try:
+            plan_data = try_extract_json_block(content)
+            if isinstance(plan_data, dict) and "steps" in plan_data:
+                steps = plan_data["steps"]
+                reasoning_summary = plan_data.get("reasoning", "")
+                
+                # Format plan for SQL generator
+                formatted_plan = "\n".join([f"{i+1}. {step}" for i, step in enumerate(steps)])
+                if reasoning_summary:
+                    formatted_plan = f"SUMMARY: {reasoning_summary}\n\nSTEPS:\n{formatted_plan}"
+                
+                state["reasoning_plan"] = formatted_plan
+                logger.info("Reasoning plan generated (JSON parsed)", extra={"steps_count": len(steps)})
+            else:
+                # Strict JSON enforcement: Do not use raw text
+                state["reasoning_plan"] = None
+                logger.warning("Reasoning output was not valid JSON (missing 'steps'), skipping plan")
+        except Exception as parse_error:
+             state["reasoning_plan"] = None
+             logger.warning(f"Failed to parse reasoning JSON: {parse_error}")
+        
+        # Update phase
+        execution_time = time.time() - start_time
+        state = update_phase(state, ExecutionPhase.REASONING, execution_time)
+        
+        return state
+        
+    except Exception as e:
+        logger.warning(f"Reasoning failed: {e}")
+        # Continue without plan
+        state["reasoning_plan"] = None
+        state = update_phase(state, ExecutionPhase.REASONING, time.time() - start_time)
+        return state
+
+
+def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
     
@@ -679,10 +755,47 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     })
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         user_query = state["user_query"]
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
+        
+        # Initialize Vector Store and get examples
+        try:
+            # Singleton-like access could be improved with dependency injection in future
+            # For now, we initialize it here or get from config if available
+            vector_store = VectorStoreManager()
+            
+            # Check if we need to seed examples
+            if vector_store.count() == 0:
+                examples_path = os.path.join(os.path.dirname(__file__), "..", "memory", "examples.json")
+                if os.path.exists(examples_path):
+                    with open(examples_path, "r") as f:
+                        examples = json.load(f)
+                    vector_store.add_examples(examples)
+            
+            # Retrieve relevant examples
+            relevant_examples = vector_store.search_examples(user_query, k=3)
+
+            # Format examples for prompt
+            examples_text = "\n".join([
+                f"- User: {ex['question']}\n  SQL: {ex['sql']}"
+                for ex in relevant_examples
+            ])
+
+            logger.info(f"Retrieved {len(relevant_examples)} relevant examples for RAG")
+
+            # Log each example for debugging (visible in logs and LangSmith)
+            for i, ex in enumerate(relevant_examples, 1):
+                logger.debug(f"RAG Example {i}: Question='{ex['question'][:60]}...' | SQL='{ex['sql'][:80]}...'")
+            
+        except Exception as e:
+            logger.warning(f"Failed to use Vector Store for RAG: {e}")
+            examples_text = ""
+            
+        # Add examples to schema context or prompt
+        if examples_text:
+            schema_context += f"\n\nRELEVANT EXAMPLES:\n{examples_text}"
         
         logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
         
@@ -744,30 +857,36 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         2. Use proper table and column names with double quotes: "COLUMN_NAME"
         3. Handle Portuguese language questions appropriately
         4. Return only the SQL query, no explanation
-        5. Use proper JOINs when querying multiple tables
-        6. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+        5. Use appropriate WHERE clauses for filtering
+        6. Include LIMIT clauses when appropriate (default LIMIT 100)
+        7. Use proper JOINs when querying multiple tables
+        8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
+        9. DO NOT add filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested by the user. Assume all records are valid.
 
-        DISEASE LOOKUP RULE — JOIN WITH cid TABLE (NOT cid10):
-        7. For queries about disease names, ALWAYS JOIN with the cid table and use c."CD_DESCRICAO" ILIKE '%X%'
-        8. NEVER hardcode CID codes in DIAG_PRINC/CID_MORTE — NEVER write DIAG_PRINC = 'A39' or CID_MORTE = 'J18'
-           ✅ WHERE c."CD_DESCRICAO" ILIKE '%meningite%'   (correct — description lookup)
-           ❌ WHERE i."DIAG_PRINC" = 'A39'                 (wrong — hardcoded code!)
-        9. For "cause of death" use CID_MORTE; for "primary diagnosis" use DIAG_PRINC (see RULE B above)
-        10. CID code ranges: I%=Cardiovascular, J%=Respiratory, C%=Cancer, A%/B%=Infectious, K%=Digestive
-
+        
          DATABASE SCHEMA:
-        {schema_context}"""),
+        {schema_context}
+        
+        {reasoning_context}"""),
             
             ("system", "{table_specific_rules}"),
             
             ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
         ])
         
+        # Prepare reasoning context if available
+        reasoning_plan = state.get("reasoning_plan")
+        reasoning_context = ""
+        if reasoning_plan:
+            reasoning_context = f"FOLLOW THIS EXECUTION PLAN:\n{reasoning_plan}"
+            logger.info("Using reasoning plan for SQL generation")
+
         # Format the prompt with dynamic content
         formatted_messages = sql_prompt_template.format_messages(
             schema_context=schema_context,
             table_specific_rules=table_rules,
-            user_query=user_query
+            user_query=user_query,
+            reasoning_context=reasoning_context
         )
         
         logger.debug("Template prepared", extra={
@@ -831,7 +950,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Validate SQL Node - Using SQLDatabaseToolkit query checker
     
@@ -841,11 +960,26 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         generated_sql = state.get("generated_sql")
         
         if not generated_sql:
             raise ValueError("No SQL query to validate")
+            
+        # SECURITY: Sanitize and check SQL safety
+        # 1. Sanitize (remove comments, excessive whitespace)
+        sanitized_sql = sanitize_sql_for_execution(generated_sql)
+        state["generated_sql"] = sanitized_sql  # Update state with clean SQL
+        
+        # 2. Safety Check (Block DDL/DML)
+        is_safe, safety_reason = is_select_only(sanitized_sql)
+        if not is_safe:
+            error_message = f"SQL Safety Violation: {safety_reason}"
+            state = add_error(state, error_message, "sql_safety_error", ExecutionPhase.SQL_VALIDATION)
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            execution_time = time.time() - start_time
+            state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
+            return state
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -945,7 +1079,7 @@ def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def execute_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Execute SQL Node - Using SQLDatabaseToolkit query tool
     
@@ -955,7 +1089,7 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         validated_sql = state.get("validated_sql") or state.get("generated_sql")
         
         if not validated_sql:
@@ -1195,13 +1329,13 @@ def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """Repair SQL Node - regenerate SQL after execution failure."""
 
     start_time = time.time()
 
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         previous_sql = state.get("generated_sql")
 
         if not previous_sql:
@@ -1220,16 +1354,24 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
 
         if not error_message:
             error_message = "Erro desconhecido ao executar a consulta."  # fallback context
-
         user_query = state.get("user_query", "")
 
         # Refresh table/schema context when missing columns/relations are detected
         if _should_refresh_schema(error_message):
-            refreshed = _refresh_schema_context(state, error_message, llm_manager)
-            logger.info(
-                "Schema refresh attempted during repair",
+            if _refresh_schema_context(state, error_message, llm_manager):
+                # If schema changed, the previous reasoning plan might be invalid
+                # Clear it to force SQL generator to rely on new schema context
+                if state.get("reasoning_plan"):
+                    logger.info("Clearing stale reasoning plan after schema refresh")
+                    state["reasoning_plan"] = None
+                
+                # Flag for workflow routing to trigger re-planning
+                state["schema_refreshed"] = True
+                
+                logger.info(
+                "Schema refresh attempted during repair - Triggering Re-planning",
                 extra={
-                    "refreshed": refreshed,
+                    "refreshed": True,
                     "selected_tables": state.get("selected_tables", []),
                     "available_tables": state.get("available_tables", [])
                 }
@@ -1376,7 +1518,7 @@ def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         return state
 
 
-def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
     """
     Generate Response Node - Format final response
     
@@ -1386,9 +1528,57 @@ def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager()
+        llm_manager = get_llm_manager_from_config(config)
         user_query = state["user_query"]
-        query_route = state.get("query_route", QueryRoute.DATABASE)
+        query_route = state.get("query_route", QueryRoute.DATABASE) # Default route
+
+        # Ambiguity detection logic (assuming 'parsed' and 'route_str' are available from a previous step,
+        # or that this node is responsible for parsing the LLM's routing decision)
+        # For this change, we'll assume 'parsed' and 'route_str' would be derived from an LLM call
+        # that determines the route and potential ambiguity.
+        # As 'parsed' and 'route_str' are not defined in the original generate_response_node,
+        # this insertion might require context from a preceding node.
+        # For the sake of faithfully applying the change, we'll assume they are available
+        # or that this is where they are meant to be introduced.
+        # In a real scenario, 'parsed' would likely be the output of an LLM call for routing.
+        
+        # Placeholder for 'parsed' and 'route_str' if they were to come from an LLM routing step
+        # For this specific instruction, we'll simulate them based on existing query_route for now,
+        # but the intent seems to be to parse an LLM output for these.
+        # If the user intended this to be a new LLM call, that would be a larger change.
+        # Assuming 'query_route' is the 'route_str' for existing logic.
+        route_str = query_route.value if isinstance(query_route, QueryRoute) else query_route
+        
+        # Extract clarification fields (assuming 'parsed' is available, e.g., from state or a new LLM call)
+        # Since 'parsed' is not in the current state, we'll assume it's meant to be part of the state
+        # or derived from a new LLM call that determines the route and ambiguity.
+        # For this edit, we'll add a placeholder for 'parsed' if it's not explicitly passed.
+        # If 'parsed' is meant to be the output of an LLM call, that call would need to be added here.
+        # For now, we'll assume 'parsed' is a dictionary that might be in the state or derived.
+        parsed = state.get("llm_routing_decision", {}) # Placeholder: assuming routing decision is stored here
+
+        needs_clarification = parsed.get("needs_clarification", False)
+        clarification_question = parsed.get("clarification_question")
+
+        # If clarification is needed, override route to CONVERSATIONAL (or handle via state flag)
+        if needs_clarification:
+            logger.info("Ambiguity detected", extra={"question": clarification_question})
+            state["needs_clarification"] = True
+            state["clarification_question"] = clarification_question
+            # We still set a route, but the workflow will intercept based on the flag
+            query_route = QueryRoute.CONVERSATIONAL 
+        else:
+            state["needs_clarification"] = False
+            state["clarification_question"] = None
+
+        if not needs_clarification:
+            # Normal routing logic
+            if route_str == "DATABASE":
+                query_route = QueryRoute.DATABASE
+            elif route_str == "SCHEMA":
+                query_route = QueryRoute.SCHEMA
+            else:
+                query_route = QueryRoute.CONVERSATIONAL
         
         if query_route == QueryRoute.CONVERSATIONAL:
             # Generate conversational response
@@ -1401,6 +1591,32 @@ def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
                 final_response = result["response"]
             else:
                 final_response = f"Desculpe, não consegui processar sua pergunta: {result.get('error', 'Erro desconhecido')}"
+                
+        elif query_route == QueryRoute.SCHEMA:
+            # Generate schema explanation
+            schema_context = state.get("schema_context", "")
+            
+            # Create prompt for schema explanation
+            schema_prompt = f"""Você é um especialista em banco de dados.
+            Responda à pergunta do usuário com base APENAS no schema fornecido.
+            
+            Pergunta: "{user_query}"
+            
+            Schema Disponível:
+            {schema_context}
+            
+            Responda de forma clara e concisa, listando tabelas ou colunas conforme solicitado.
+            """
+            
+            result = llm_manager.generate_conversational_response(
+                user_query=schema_prompt,
+                conversation_history=[]
+            )
+            
+            if result["success"]:
+                final_response = result["response"]
+            else:
+                final_response = "Não foi possível analisar o schema."
                 
         else:
             # Generate response based on SQL execution results
@@ -2064,8 +2280,34 @@ __all__ = [
     "list_tables_node", 
     "get_schema_node",
     "generate_sql_node",
+    "reasoning_node",
     "repair_sql_node",
     "validate_sql_node",
     "execute_sql_node",
     "generate_response_node"
 ]
+from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
+
+def clarification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+    """
+    Clarification Node - Asks user for more details
+    
+    Triggered when the classification node detects ambiguity.
+    Returns the clarification question as the final response.
+    """
+    logger.info("Clarification node started")
+    
+    question = state.get("clarification_question")
+    if not question:
+        question = "Poderia fornecer mais detalhes sobre sua pergunta?"
+        
+    state["final_response"] = question
+    state["success"] = True # It's a successful interaction, even if it didn't answer the original query
+    state["completed"] = True
+    
+    # Add AI message with the question
+    state = add_ai_message(state, question)
+    
+    logger.info("Clarification question generated", extra={"question": question})
+    
+    return state

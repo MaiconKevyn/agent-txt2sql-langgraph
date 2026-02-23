@@ -522,11 +522,6 @@ class HybridLLMManager:
             - For questions about DEATHS/MORTES/ÓBITOS: ALWAYS use MORTE = 1
             - For questions about CITIES/CIDADES: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
         
-         EXACT EXAMPLES FOR COMMON QUERIES:
-        - "Quantos homens morreram?" → SELECT COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1;
-        - "Qual cidade com mais mortes de homens?" → SELECT CIDADE_RESIDENCIA_PACIENTE, COUNT(*) FROM sus_data WHERE SEXO = 1 AND MORTE = 1 GROUP BY CIDADE_RESIDENCIA_PACIENTE ORDER BY COUNT(*) DESC LIMIT 1;
-        - "Mulheres por diagnóstico" → SELECT DIAG_PRINC, COUNT(*) FROM sus_data WHERE SEXO = 3 GROUP BY DIAG_PRINC;
-        
         REMEMBER: SEXO values are 1=Male, 3=Female (NOT 2!). Use these values exactly as shown.
         """
             
@@ -653,22 +648,24 @@ class HybridLLMManager:
 
         # Remove markdown formatting
         sql_query = sql_query.replace("```sql", "").replace("```", "")
-
-        # Fix unclosed double-quoted identifiers before SQL keywords.
-        # e.g.: c."CD_DESCRICAO ORDER BY → c."CD_DESCRICAO" ORDER BY
+        
+        # HOTFIX: Remove persistent hallucination of QT_DIARIAS > 0
+        # The model loves to add this filter for some reason.
         import re
-        _SQL_KEYWORDS = (
-            r'(?:ORDER|GROUP|WHERE|AND|OR|HAVING|FROM|LIMIT|OFFSET|JOIN|ON|AS|IS|'
-            r'NOT|NULL|CASE|WHEN|THEN|ELSE|END|BY|ASC|DESC|UNION|INTERSECT|'
-            r'EXCEPT|INTO|SET|VALUES|IN|BETWEEN|LIKE|ILIKE|EXISTS|DISTINCT)'
-        )
-        sql_query = re.sub(
-            r'"([A-Z][A-Z0-9_]*)(\s+' + _SQL_KEYWORDS + r'\b)',
-            lambda m: f'"{m.group(1)}" {m.group(2).strip()} ',
-            sql_query,
-            flags=re.IGNORECASE,
-        )
-
+        # Remove "AND QT_DIARIAS > 0" or "WHERE QT_DIARIAS > 0"
+        # Handles optional alias (i.), optional quotes, and case insensitivity
+        sql_query = re.sub(r'\s+(AND|WHERE)\s+(i\.)?"?QT_DIARIAS"?\s*>\s*0', ' ', sql_query, flags=re.IGNORECASE)
+        
+        # Cleanup potential broken SQL structure after removal
+        # Fix "WHERE GROUP BY" -> "GROUP BY"
+        sql_query = re.sub(r'WHERE\s+GROUP\s+BY', 'GROUP BY', sql_query, flags=re.IGNORECASE)
+        # Fix "WHERE ORDER BY" -> "ORDER BY"
+        sql_query = re.sub(r'WHERE\s+ORDER\s+BY', 'ORDER BY', sql_query, flags=re.IGNORECASE)
+        # Fix "WHERE ;" -> ";"
+        sql_query = re.sub(r'WHERE\s*;', ';', sql_query, flags=re.IGNORECASE)
+        # Fix trailing WHERE
+        sql_query = re.sub(r'WHERE\s*$', '', sql_query, flags=re.IGNORECASE)
+        
         # Remove comments and extra whitespace
         sql_query = sanitize_sql_for_execution(sql_query)
 

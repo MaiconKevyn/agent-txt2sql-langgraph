@@ -306,7 +306,20 @@ def debug_query_execution(orchestrator, user_query: str):
                     else:
                         print(f"     Execution failed: {error}")
                 
-                # 7. Response Generation Node
+                # 7. Clarification Node
+                elif node_name == "clarification":
+                    question = node_state.get("final_response", "") or node_state.get("clarification_question", "")
+                    success = node_state.get("success", False)
+                    
+                    debug_data["final_response"] = question
+                    step_data["data"]["response"] = question
+                    step_data["data"]["success"] = success
+                    
+                    print(f" Clarification Request:")
+                    print(f"     Question: {question}")
+                    print(f"     Success: {success}")
+
+                # 8. Response Generation Node
                 elif node_name == "generate_response":
                     # Extract response from the correct field
                     response = node_state.get("final_response", "") or node_state.get("response", "")
