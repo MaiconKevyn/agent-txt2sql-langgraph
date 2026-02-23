@@ -645,7 +645,7 @@ class HybridLLMManager:
         """Clean and validate SQL query"""
         if not sql_query:
             return ""
-        
+
         # Remove markdown formatting
         sql_query = sql_query.replace("```sql", "").replace("```", "")
         
@@ -668,11 +668,11 @@ class HybridLLMManager:
         
         # Remove comments and extra whitespace
         sql_query = sanitize_sql_for_execution(sql_query)
-        
+
         # Ensure query ends with semicolon
         if not sql_query.strip().endswith(";"):
             sql_query += ";"
-        
+
         return sql_query.strip()
     
     def validate_sql_query(self, sql_query: str) -> Dict[str, Any]:

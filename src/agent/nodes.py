@@ -652,7 +652,7 @@ def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
         state = add_error(state, error_message, "schema_error", ExecutionPhase.SCHEMA_ANALYSIS)
         
         # Fallback schema context
-        state["schema_context"] = "Tables: internacoes (patient healthcare data), cid10 (diagnoses), municipios (cities)"
+        state["schema_context"] = "Tables: internacoes (patient healthcare data), cid (diagnoses), municipios (cities), atendimentos (procedures junction)"
         
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SCHEMA_ANALYSIS, execution_time)
@@ -811,7 +811,48 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         sql_prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
-         CORE POSTGRESQL INSTRUCTIONS:
+        ══════════════════════════════════════════════════════════
+        CRITICAL RULES — READ THESE FIRST, THEY OVERRIDE ALL ELSE
+        ══════════════════════════════════════════════════════════
+
+        RULE A — UTI/ICU IDENTIFICATION:
+        - COUNT UTI: WHERE "VAL_UTI" > 0
+        - AGGREGATE UTI values (AVG, SUM): ALWAYS add WHERE "VAL_UTI" > 0 as first filter
+          ✅ SELECT AVG("VAL_UTI") FROM internacoes WHERE "VAL_UTI" > 0 AND "SEXO" = 1
+          ❌ SELECT AVG("VAL_UTI") FROM internacoes WHERE "SEXO" = 1  ← WRONG: includes non-UTI zeros!
+        - "obstétricas"/"obstétrico" = ESPEC = 2 (NEVER use cid JOIN or ESPEC range for obstetric!)
+          ✅ WHERE "ESPEC" = 2 AND "VAL_UTI" > 0   ❌ WHERE "ESPEC" BETWEEN 74 AND 83
+        - NEVER use "ESPEC" BETWEEN 74 AND 83 for UTI detection.
+
+        RULE B — CAUSE OF DEATH vs PRIMARY DIAGNOSIS:
+        - "causa da morte" / "morreram de" / "óbitos por X" / "ocasionaram em morte" /
+          "resultaram em óbito" / "internações por X que morreram/que ocasionaram morte"
+          → JOIN cid c ON i."CID_MORTE" = c."CID" WHERE i."MORTE" = true
+          NOTE: always add AND i."MORTE" = true when using CID_MORTE
+        - "diagnóstico principal" / "internados por" / "internações por doença X" (without mention of death)
+          → JOIN cid c ON i."DIAG_PRINC" = c."CID"
+        - KEY SIGNAL: if the question contains "morte", "óbito", "morreram", "faleceram" → use CID_MORTE.
+        - When using CID_MORTE, ALWAYS filter: WHERE i."MORTE" = true AND i."CID_MORTE" IS NOT NULL
+
+        RULE C — LIMIT CLAUSES:
+        - Add LIMIT only when the question explicitly asks for top-N results (e.g., "top 5", "os 3 maiores").
+        - NEVER add LIMIT to aggregate queries (COUNT, SUM, AVG) or full-dataset queries.
+        - NEVER add a default LIMIT 100 "just in case".
+
+        RULE D — ONLY FILTERS EXPLICITLY REQUESTED:
+        - If the question does not mention age → do NOT add WHERE IDADE BETWEEN...
+        - If the question does not mention year → do NOT add WHERE EXTRACT(YEAR...)
+        - If the question does not mention gender → do NOT add WHERE SEXO = ...
+
+        RULE E — "COM DESCRIÇÃO" / "PRINCIPAIS CAUSAS" QUERIES:
+        - When query asks for "principais X (com descrição)" → include BOTH the code AND description:
+          ✅ SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total   (both columns!)
+          ❌ SELECT c."CD_DESCRICAO", COUNT(*) AS total            (missing code column!)
+        - GROUP BY must include ALL non-aggregate columns: GROUP BY c."CID", c."CD_DESCRICAO"
+
+        ══════════════════════════════════════════════════════════
+
+        CORE POSTGRESQL INSTRUCTIONS:
         1. Generate syntactically correct PostgreSQL queries
         2. Use proper table and column names with double quotes: "COLUMN_NAME"
         3. Handle Portuguese language questions appropriately
@@ -969,7 +1010,24 @@ def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
             # LLM checker invalid but DB valid: trust DB
             validation_passed = True
             validation_message = "DB validation passed"
-        
+
+        # Domain semantic check: socioeconomico is long-format; must always filter by metrica
+        if validation_passed and generated_sql:
+            sql_lower = generated_sql.lower()
+            if 'socioeconomico' in sql_lower and 'metrica' not in sql_lower:
+                validation_passed = False
+                validation_message = (
+                    "SEMANTIC ERROR: Query uses 'socioeconomico' table but is missing a "
+                    "WHERE metrica = '...' filter. The socioeconomico table is long-format "
+                    "(one row per metric × municipality × year). Without a metrica filter, "
+                    "the query aggregates across ALL metrics (population, IDHM, bolsa familia, "
+                    "etc.) which produces meaningless results. "
+                    "FIX: Add WHERE metrica = 'populacao_total' (or other specific metric). "
+                    "CORRECT PATTERN: FROM socioeconomico s JOIN municipios mu ON s.codigo_6d = mu.codigo_6d "
+                    "WHERE s.metrica = 'populacao_total' ORDER BY s.valor DESC LIMIT 1;"
+                )
+                logger.warning("Socioeconomico query rejected: missing metrica filter")
+
         # Update state based on validation
         if validation_passed:
             state["validated_sql"] = generated_sql
@@ -1358,6 +1416,9 @@ def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
             "Você é um especialista em PostgreSQL responsável por corrigir consultas SQL para o banco SUS. "
             "Restrições obrigatórias: USE APENAS colunas da lista branca por alias/tabela; se uma coluna não existir, substitua por uma das sugeridas; "
             "corrija os JOINs usando chaves que existam em ambas as tabelas. "
+            "CRÍTICO — ASPAS DUPLAS: em PostgreSQL TODOS os nomes de colunas DEVEM usar aspas duplas. "
+            "Se o erro mencionar 'coluna X não existe', quase sempre é falta de aspas duplas — adicione-as: "
+            "c.cd_descricao → c.\"CD_DESCRICAO\"; c.cid → c.\"CID\"; alias.coluna → alias.\"COLUNA\". "
             "Responda apenas com a SQL válida, sem comentários, markdown ou texto adicional."
         )
 
@@ -1787,23 +1848,20 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
       - A tabela `municipios` contém `nome` e `codigo_6d`.
     
     ### LÓGICA DE JUNÇÃO (JOIN) OBRIGATÓRIA:
-    - As tabelas `mortes` e `internacoes` **NÃO** contêm nomes de cidades, apenas códigos.
+    - A tabela `internacoes` **NÃO** contém nomes de cidades, apenas códigos de município.
     - Para obter o **NOME DA CIDADE/MUNICÍPIO**, a junção **SEMPRE** deve seguir este caminho:
-      1. Junte `mortes` com `internacoes` usando `N_AIH` (se a pergunta envolver mortes).
-         - `FROM mortes mo JOIN internacoes i ON mo."N_AIH" = i."N_AIH"`
-      2. Junte o resultado com `municipios` usando o código do município da tabela `internacoes`.
-         - `JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d`
+      - `JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d`
+    - **IMPORTANTE (sihrd5):** NÃO existe tabela `mortes` separada. Use `internacoes."MORTE" = true`.
 
     ### EXEMPLOS DE CONSULTAS CORRETAS:
     =====================================
-    
+
      **Top 10 cidades com mais mortes de idosos (> 60 anos):**
     ```sql
-    SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
-    FROM mortes mo
-    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+    SELECT mu.nome, COUNT(*) AS total_mortes
+    FROM internacoes i
     JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
-    WHERE i."IDADE" > 60 AND mo."CID_MORTE" IS NOT NULL
+    WHERE i."MORTE" = true AND i."IDADE" > 60
     GROUP BY mu.nome
     ORDER BY total_mortes DESC
     LIMIT 10;
@@ -1811,11 +1869,10 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
 
      **Cidade com mais mortes de homens:**
     ```sql
-    SELECT mu.nome, COUNT(mo."N_AIH") AS total_mortes
-    FROM mortes mo
-    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
+    SELECT mu.nome, COUNT(*) AS total_mortes
+    FROM internacoes i
     JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
-    WHERE i."SEXO" = 1
+    WHERE i."MORTE" = true AND i."SEXO" = 1
     GROUP BY mu.nome
     ORDER BY total_mortes DESC
     LIMIT 1;
@@ -1823,16 +1880,15 @@ def _enhance_sus_schema_context(base_schema: str) -> str:
 
      **Contar mortes de pessoas com menos de 30 anos:**
     ```sql
-    SELECT COUNT(mo."N_AIH")
-    FROM mortes mo
-    JOIN internacoes i ON mo."N_AIH" = i."N_AIH"
-    WHERE i."IDADE" < 30;
+    SELECT COUNT(*)
+    FROM internacoes
+    WHERE "MORTE" = true AND "IDADE" < 30;
     ```
 
     ### REGRAS OBRIGATÓRIAS PARA O LLM:
     1.  Para qualquer pergunta sobre **cidades/municípios**, a junção com a tabela `municipios` é obrigatória para obter o nome.
     2.  A condição de JOIN para municípios é **SEMPRE** `i."MUNIC_RES" = mu.codigo_6d`.
-    3.  Se a pergunta envolve **mortes**, a condição de JOIN entre `mortes` e `internacoes` é **SEMPRE** `mo."N_AIH" = i."N_AIH"`.
+    3.  **Mortes** são filtradas diretamente em `internacoes` com `WHERE "MORTE" = true` (não existe tabela mortes!).
     4.  Para filtros de **idade** ou **sexo**, use as colunas da tabela `internacoes` (`i."IDADE"`, `i."SEXO"`).
     5.  **SEMPRE** use aspas duplas para nomes de colunas que são case-sensitive (ex: `"N_AIH"`, `"IDADE"`).
     """
@@ -1894,36 +1950,44 @@ def _select_relevant_tables(
 AVAILABLE TABLES:
 {chr(10).join(table_desc_lines)}
 
-CRITICAL SELECTION RULES FOR SIH-RS DATABASE:
+CRITICAL SELECTION RULES FOR sihrd5 DATABASE:
 ====================================================
 
  CORE QUERIES - Primary Table Selection:
-• internacoes: ALWAYS use for patient counts, general hospitalization queries
-• mortes: Use ONLY when explicitly asking about deaths/mortality ("mortes", "óbitos", "falecimentos")  
-• uti_detalhes: Use ONLY for ICU/intensive care queries ("UTI", "terapia intensiva", "cuidados intensivos")
-• obstetricos: Use ONLY for maternal/obstetric care ("obstétricos", "gestantes", "pré-natal")
+• internacoes: ALWAYS use for patient counts, hospitalization queries, deaths (MORTE boolean), VDRL (IND_VDRL boolean)
+• atendimentos: Use when asking about procedures performed per hospitalization (junction table)
 
  LOOKUP TABLES - Always join when names/descriptions needed:
-• cid10: Join when need disease/diagnosis NAMES (not for counting patients - count from internacoes)
-• procedimentos: Join when need procedure NAMES (not for counting - count from internacoes)  
+• cid: Join when need disease/diagnosis NAMES (table renamed from cid10 — use cid, NOT cid10!)
+• procedimentos: Join when need procedure NAMES (always via atendimentos junction table)
 • hospital: Join when need hospital/facility information
 • municipios: Join when need city/municipality NAMES or geographic data
 
- SPECIALIZED ANALYSIS:
-• dado_ibge: Use for socioeconomic indicators, population data, demographic analysis
-• condicoes_especificas: Use for specific medical conditions (VDRL, STD screening)
-• instrucao: Use for patient education level analysis
+ SPECIALIZED ANALYSIS — socioeconomico is the ONLY source for these metrics:
+• socioeconomico: Use for "população", "mortalidade infantil", "IDHM", "bolsa família", "envelhecimento",
+  "saneamento", "dados do IBGE", "dados socioeconômicos" — ALWAYS filter by metrica column.
+  NEVER use internacoes for "taxa de mortalidade infantil" — that comes from socioeconomico!
+  Example: WHERE metrica = 'mortalidade_infantil_1ano' OR metrica = 'populacao_total' OR metrica = 'idhm'
+• instrucao: Lookup for education level descriptions (JOIN with internacoes.INSTRU)
+• vincprev: Lookup for social security type descriptions (JOIN with internacoes.VINCPREV)
+• especialidade: Lookup for medical specialty descriptions (JOIN with internacoes.ESPEC)
+• raca_cor: Lookup for race/color descriptions (JOIN with internacoes.RACA_COR)
 
- AVOID THESE TABLES:
-• diagnosticos_secundarios: Empty table - no data available
-• infehosp: Empty table - no data available  
-• cbor, vincprev: Only for very specific administrative queries
+ TABLES THAT NO LONGER EXIST (DO NOT SELECT):
+• mortes: REMOVED — use internacoes WHERE "MORTE" = true
+• cid10: RENAMED to cid — use cid
+• dado_ibge: REPLACED by socioeconomico
+• uti_detalhes: REMOVED — use internacoes."VAL_UTI" > 0 to identify ICU admissions
+• condicoes_especificas: REMOVED — use internacoes WHERE "IND_VDRL" = true
+• obstetricos: REMOVED — use internacoes.INSC_PN, GESTRICO, CONTRACEP1, CONTRACEP2
+• cbor, infehosp, diagnosticos_secundarios: REMOVED from sihrd5
 
  SELECTION LOGIC:
 1. Start with internacoes for most patient/hospitalization queries
-2. Add mortes ONLY if mortality is explicitly mentioned
-3. Add lookup tables (cid10, procedimentos, hospital, municipios) when descriptions are needed
-4. Add specialized tables only for their specific domains
+2. For deaths/mortality: use internacoes with WHERE "MORTE" = true (no separate mortes table)
+3. For procedures: add atendimentos + procedimentos (junction pattern)
+4. Add lookup tables (cid, hospital, municipios) when descriptions are needed
+5. For socioeconomic data: use socioeconomico (not dado_ibge)
 
 USER QUERY: "{user_query}"
 
@@ -2076,20 +2140,28 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
     
     logger.info(f"Starting table validation - Query: '{user_query}' - Initial: {selected_tables}")
     
-    # Rule 1: Death queries MUST include mortes table
+    # Rule 1: Death queries — in sihrd5 MORTE is a boolean in internacoes (no separate mortes table)
+    # EXCEPTION: "mortalidade infantil" rate lives in socioeconomico — do NOT add internacoes
     if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
+        is_infant_mortality = 'infantil' in query_lower and any(k in query_lower for k in ['mortalidade', 'taxa'])
         death_keywords = [k for k in ['morte', 'óbito', 'falecimento', 'mortalidade'] if k in query_lower]
-        logger.info(f"Death query detected with keywords: {death_keywords}")
-        if 'mortes' not in validated_tables and 'mortes' in available_tables:
-            validated_tables.append('mortes')
-            logger.info("Added 'mortes' table for death query")
+        if is_infant_mortality:
+            logger.info(f"Infant mortality query detected — keeping socioeconomico, NOT adding internacoes")
+        else:
+            logger.info(f"Death query detected with keywords: {death_keywords}")
+            if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+                validated_tables.append('internacoes')
+                logger.info("Added 'internacoes' for death query (MORTE boolean column)")
     
-    # Rule 2: Procedure frequency queries need both internacoes and procedimentos
-    if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento']):
+    # Rule 2: Procedure frequency queries need internacoes + atendimentos + procedimentos
+    if any(phrase in query_lower for phrase in ['procedimentos mais comuns', 'procedimentos mais realizados', 'frequência de procedimento', 'procedimento']):
         added_tables = []
         if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
             added_tables.append('internacoes')
+        if 'atendimentos' not in validated_tables and 'atendimentos' in available_tables:
+            validated_tables.append('atendimentos')
+            added_tables.append('atendimentos')
         if 'procedimentos' not in validated_tables and 'procedimentos' in available_tables:
             validated_tables.append('procedimentos')
             added_tables.append('procedimentos')
@@ -2102,12 +2174,31 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
             validated_tables.append('internacoes')
             logger.debug("Added 'internacoes' for financial data")
     
-    # Rule 4: Multi-table analysis validation
-    if 'mortes' in validated_tables and any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
-        if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
-            validated_tables.append('internacoes')
-            logger.debug("Added 'internacoes' for mortality rate calculation")
+    # Rule 4: Mortality rate queries — use internacoes with MORTE boolean
+    # EXCEPTION: "mortalidade infantil" rate lives in socioeconomico
+    if any(keyword in query_lower for keyword in ['taxa de mortalidade', 'taxa mortalidade', 'mortalidade']) and \
+       any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
+        if 'infantil' not in query_lower:
+            if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+                validated_tables.append('internacoes')
+                logger.debug("Added 'internacoes' for mortality rate calculation (MORTE boolean)")
     
+    # Rule 4b: Obstetric queries — only internacoes needed, ESPEC = 2 pattern (never a cid JOIN)
+    # "obstétricas" maps to ESPEC = 2 in internacoes, NOT to CID codes
+    if any(keyword in query_lower for keyword in ['obstétric', 'obstétrica', 'obstétricas', 'obstétrico']):
+        if 'internacoes' in validated_tables:
+            validated_tables = ['internacoes']  # single table only, ESPEC = 2 handles it
+            logger.info("Reduced to internacoes only for obstetric query — use ESPEC = 2")
+        elif 'cid' in validated_tables:
+            validated_tables.remove('cid')
+            logger.info("Removed 'cid' for obstetric query — use ESPEC = 2 instead of CID join")
+
+    # Rule 4c: Infant mortality queries — only socioeconomico needed (simple single-table AVG)
+    if 'infantil' in query_lower and any(k in query_lower for k in ['mortalidade', 'taxa']):
+        if 'socioeconomico' in validated_tables:
+            validated_tables = ['socioeconomico']
+            logger.info("Simplified to socioeconomico only for infant mortality rate query")
+
     # Rule 5: Remove unnecessary over-selections for simple counting
     if len(validated_tables) > 1:
         simple_counting_patterns = [
@@ -2119,8 +2210,8 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
         
         if is_simple_count and not any(join_keyword in query_lower for join_keyword in ['por', 'com', 'em', 'de']):
             # Keep only the most specific table for simple counting
-            priority_tables = ['mortes', 'uti_detalhes', 'obstetricos', 'condicoes_especificas', 
-                             'procedimentos', 'cid10', 'hospital', 'cbor', 'vincprev', 'instrucao']
+            priority_tables = ['atendimentos', 'procedimentos', 'cid',
+                             'hospital', 'socioeconomico', 'vincprev', 'instrucao', 'especialidade']
             
             for priority_table in priority_tables:
                 if priority_table in validated_tables:
@@ -2128,17 +2219,14 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
                     logger.debug("Simplified to single table for counting", extra={"table": priority_table})
                     break
 
-    # Rule 6: JOIN dependency - hospital requires internacoes to connect to municipios/dado_ibge
-    if 'hospital' in validated_tables:
-        needs_internacoes = False
-
-        # If hospital + municipios selected, need internacoes as bridge
-        if 'municipios' in validated_tables or 'dado_ibge' in validated_tables:
-            needs_internacoes = True
-
-        if needs_internacoes and 'internacoes' not in validated_tables and 'internacoes' in available_tables:
+    # Rule 6: JOIN dependency - atendimentos requires internacoes and procedimentos
+    if 'atendimentos' in validated_tables:
+        if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
             validated_tables.append('internacoes')
-            logger.info("Added 'internacoes' - required to join hospital → municipios/dado_ibge")
+            logger.info("Added 'internacoes' - required for atendimentos junction")
+        if 'procedimentos' not in validated_tables and 'procedimentos' in available_tables:
+            validated_tables.append('procedimentos')
+            logger.info("Added 'procedimentos' - required for atendimentos junction")
 
     if validated_tables != selected_tables:
         logger.debug("Table validation completed", extra={
@@ -2162,21 +2250,25 @@ def _get_intelligent_fallback(user_query: str, available_tables: List[str]) -> L
     """
     query_lower = user_query.lower()
     
-    # Death-related queries
+    # Death-related queries — MORTE is a boolean in internacoes (no separate mortes table)
     if any(keyword in query_lower for keyword in ['morte', 'óbito', 'falecimento', 'mortalidade']):
-        return ['mortes'] if 'mortes' in available_tables else ['internacoes']
-    
-    # UTI queries
+        return ['internacoes']
+
+    # UTI queries — use VAL_UTI > 0 in internacoes (no uti_detalhes table; never use ESPEC for UTI)
     if any(keyword in query_lower for keyword in ['uti', 'terapia intensiva', 'cuidados intensivos']):
-        return ['uti_detalhes'] if 'uti_detalhes' in available_tables else ['internacoes']
-    
-    # Obstetric queries
+        return ['internacoes']
+
+    # Obstetric queries — obstetric data is in internacoes (INSC_PN, GESTRICO, etc.)
     if any(keyword in query_lower for keyword in ['obstétric', 'gestante', 'pré-natal', 'parto']):
-        return ['obstetricos'] if 'obstetricos' in available_tables else ['internacoes']
-    
+        return ['internacoes']
+
+    # Procedure queries
+    if any(keyword in query_lower for keyword in ['procedimento', 'cirurgia', 'tratamento']):
+        return ['atendimentos', 'internacoes', 'procedimentos'] if 'atendimentos' in available_tables else ['internacoes']
+
     # CID queries
     if any(keyword in query_lower for keyword in ['cid', 'código', 'doença', 'diagnóstico']):
-        return ['cid10'] if 'cid10' in available_tables else ['internacoes']
+        return ['cid'] if 'cid' in available_tables else ['internacoes']
     
     # Default to internacoes for most healthcare queries
     return ['internacoes'] if 'internacoes' in available_tables else available_tables[:1]
