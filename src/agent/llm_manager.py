@@ -151,16 +151,56 @@ class HybridLLMManager:
                 logger.info("OpenAI LLM initialized", extra={"model": model_name})
                 
             elif provider == "huggingface":
+                # Configure quantization if requested
+                model_kwargs = {}
+
+                if self.config.llm_load_in_4bit or self.config.llm_load_in_8bit:
+                    try:
+                        from transformers import BitsAndBytesConfig
+
+                        quantization_config = BitsAndBytesConfig(
+                            load_in_4bit=self.config.llm_load_in_4bit,
+                            load_in_8bit=self.config.llm_load_in_8bit,
+                            bnb_4bit_compute_dtype="float16" if self.config.llm_load_in_4bit else None
+                        )
+                        model_kwargs["quantization_config"] = quantization_config
+
+                    except ImportError:
+                        logger.warning("bitsandbytes not available, loading model without quantization")
+
+                # Device configuration
+                device = -1  # CPU by default
+                if self.config.llm_device == "cuda" or self.config.llm_device == "auto":
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            device = 0
+                    except ImportError:
+                        pass
+
+                # Pipeline kwargs for generation parameters (NOT model initialization)
+                # Reduce max_new_tokens for GPU to avoid OOM (out of memory) errors
+                max_tokens = self.config.llm_max_new_tokens
+                if device == 0:  # GPU
+                    # Limit to 256 tokens for GPU to avoid memory issues
+                    max_tokens = min(max_tokens, 256)
+                    logger.info("Using GPU - limiting max_new_tokens to avoid OOM", extra={
+                        "max_tokens": max_tokens,
+                        "original": self.config.llm_max_new_tokens
+                    })
+
+                pipeline_kwargs = {
+                    "max_new_tokens": max_tokens,
+                    "temperature": self.config.llm_temperature,
+                    "do_sample": self.config.llm_temperature > 0,  # Only sample if temp > 0
+                }
+
                 self._llm = HuggingFacePipeline.from_model_id(
                     model_id=model_name,
                     task="text-generation",
-                    device=0 if self.config.llm_device == "cuda" else -1,
-                    model_kwargs={
-                        "temperature": self.config.llm_temperature,
-                        "load_in_8bit": self.config.llm_load_in_8bit,
-                        "load_in_4bit": self.config.llm_load_in_4bit,
-                        "max_new_tokens": 2048
-                    }
+                    device=device,
+                    model_kwargs=model_kwargs,
+                    pipeline_kwargs=pipeline_kwargs
                 )
                 
             else:
@@ -297,6 +337,77 @@ class HybridLLMManager:
     def get_database(self) -> SQLDatabase:
         """Get SQLDatabase instance"""
         return self._sql_database
+    
+    def _is_huggingface_llm(self) -> bool:
+        """
+        Detect if the underlying LLM is a HuggingFacePipeline-based model.
+        
+        HuggingFacePipeline expects plain text prompts (not Message lists) and
+        does not support native tool calling, so we need a different invocation
+        path for it.
+        """
+        try:
+            if isinstance(self._llm, HuggingFacePipeline):
+                return True
+        except Exception:
+            # Fallback to provider name if type check fails for any reason
+            pass
+        try:
+            return str(self.config.llm_provider).lower() == "huggingface"
+        except Exception:
+            return False
+
+    def _messages_to_prompt(self, messages: List[BaseMessage]) -> str:
+        """
+        Convert a list of LangChain messages into a single text prompt.
+        
+        This is used for providers like HuggingFacePipeline that expect a
+        string input instead of structured chat messages.
+        """
+        parts: List[str] = []
+        for msg in messages or []:
+            # Safely extract content
+            content = getattr(msg, "content", "")
+            content_str = str(content)
+
+            # Add lightweight role prefixes to preserve some structure
+            prefix = ""
+            if isinstance(msg, SystemMessage):
+                prefix = "SYSTEM: "
+            elif isinstance(msg, HumanMessage):
+                prefix = "USER: "
+            elif isinstance(msg, AIMessage):
+                prefix = "ASSISTANT: "
+
+            parts.append(f"{prefix}{content_str}")
+
+        return "\n\n".join(parts)
+
+    def invoke_chat(self, messages: List[BaseMessage]):
+        """
+        Invoke the underlying LLM with chat-style input in a provider-agnostic way.
+
+        - For chat models (Ollama, Groq, OpenAI), we pass the Message list directly.
+        - For HuggingFacePipeline, we convert messages into a single text prompt.
+        """
+        if not self._llm:
+            raise ValueError("LLM not initialized")
+
+        if self._is_huggingface_llm():
+            prompt = self._messages_to_prompt(messages)
+
+            # Clear CUDA cache before generation to avoid OOM errors
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
+            return self._llm.invoke(prompt)
+
+        # Default path for chat-capable models
+        return self._llm.invoke(messages)
     
     def create_messages(
         self, 
@@ -515,9 +626,10 @@ class HybridLLMManager:
                 system_prompt=system_prompt,
                 conversation_history=conversation_history
             )
-            
-            # Invoke LLM (no tools needed for conversational)
-            response = self._llm.invoke(messages)
+
+            # Invoke LLM (no tools needed for conversational).
+            # Use invoke_chat to support both chat models and HuggingFacePipeline.
+            response = self.invoke_chat(messages)
             
             return {
                 "success": True,
@@ -538,17 +650,32 @@ class HybridLLMManager:
         """Clean and validate SQL query"""
         if not sql_query:
             return ""
-        
+
         # Remove markdown formatting
         sql_query = sql_query.replace("```sql", "").replace("```", "")
 
+        # Fix unclosed double-quoted identifiers before SQL keywords.
+        # e.g.: c."CD_DESCRICAO ORDER BY → c."CD_DESCRICAO" ORDER BY
+        import re
+        _SQL_KEYWORDS = (
+            r'(?:ORDER|GROUP|WHERE|AND|OR|HAVING|FROM|LIMIT|OFFSET|JOIN|ON|AS|IS|'
+            r'NOT|NULL|CASE|WHEN|THEN|ELSE|END|BY|ASC|DESC|UNION|INTERSECT|'
+            r'EXCEPT|INTO|SET|VALUES|IN|BETWEEN|LIKE|ILIKE|EXISTS|DISTINCT)'
+        )
+        sql_query = re.sub(
+            r'"([A-Z][A-Z0-9_]*)(\s+' + _SQL_KEYWORDS + r'\b)',
+            lambda m: f'"{m.group(1)}" {m.group(2).strip()} ',
+            sql_query,
+            flags=re.IGNORECASE,
+        )
+
         # Remove comments and extra whitespace
         sql_query = sanitize_sql_for_execution(sql_query)
-        
+
         # Ensure query ends with semicolon
         if not sql_query.strip().endswith(";"):
             sql_query += ";"
-        
+
         return sql_query.strip()
     
     def validate_sql_query(self, sql_query: str) -> Dict[str, Any]:
