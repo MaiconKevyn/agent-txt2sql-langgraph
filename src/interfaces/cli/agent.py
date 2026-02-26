@@ -198,8 +198,8 @@ def debug_query_execution(orchestrator, user_query: str):
                     print(f"     Selected: {selected}")
                     
                     if selected:
-                        if "mortes" in selected:
-                            print(f"     Great! Selected 'mortes' table for death queries")
+                        if "atendimentos" in selected:
+                            print(f"     Great! Selected 'atendimentos' junction for procedure queries")
                         if "procedimentos" in selected:
                             print(f"     Great! Selected 'procedimentos' table for procedure queries")
                 
@@ -235,7 +235,7 @@ def debug_query_execution(orchestrator, user_query: str):
                     if sql:
                         if "COUNT(*)" in sql.upper():
                             print(f"     Count query detected")
-                        if any(table in sql.lower() for table in ["mortes", "procedimentos"]):
+                        if any(table in sql.lower() for table in ["atendimentos", "procedimentos", "cid"]):
                             print(f"     Using specialized healthcare tables")
                         if "SELECT *" in sql.upper():
                             print(f"      Warning: SELECT * detected (might be inefficient)")
@@ -426,12 +426,12 @@ def main():
         epilog="""
         Exemplos de uso:
           python src/interfaces/cli/agent.py                              # Padrão (interativo)
-          python src/interfaces/cli/agent.py --model llama3.1:8b          # Escolher modelo LLM
+          python src/interfaces/cli/agent.py --model gpt-4o-mini          # Escolher modelo OpenAI
           
           python src/interfaces/cli/agent.py --query "Quantas mortes em Porto Alegre?"   # Query única
           python src/interfaces/cli/agent.py --query "Quantas mortes?" --debug-steps     # Query c/ debug
           python src/interfaces/cli/agent.py --debug-steps                # Modo interativo com debug
-          python src/interfaces/cli/agent.py --db-url postgresql+psycopg2://user:pass@localhost:5432/sih_rs  # DB via CLI
+          python src/interfaces/cli/agent.py --db-url postgresql+psycopg2://user:pass@localhost:5432/sihrd5  # DB via CLI
         
         Arquitetura (LangGraph V3):
           • LangGraphOrchestrator: Orquestração principal
@@ -449,7 +449,7 @@ def main():
         default=None,
         help=(
             "URL de conexão PostgreSQL (SQLAlchemy), por ex.: "
-            "postgresql+psycopg2://usuario:senha@localhost:5432/sih_rs. "
+            "postgresql+psycopg2://usuario:senha@localhost:5432/sihrd5. "
             "Se omitido, usa ApplicationConfig ou a variável de ambiente DATABASE_URL."
         ),
     )
@@ -547,15 +547,15 @@ Componentes LangGraph V3:
 
 Melhorias da V3:
  Migração completa para LangGraph
- PostgreSQL com 15 tabelas especializadas
+ PostgreSQL com 16 tabelas especializadas (sihrd5)
  Seleção inteligente de tabelas (75%+ precisão)
  Suporte a healthcare brasileiro (SUS)
  Visualização de workflow (--visualize-workflow)
- Debug interativo com retry mechanisms
- Multi-LLM support (Ollama, HuggingFace)
+     Debug interativo com retry mechanisms
+     OpenAI tool calling (gpt-4o / gpt-4o-mini)
 
-Database: PostgreSQL sih_rs (11M+ registros)
-Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
+Database: PostgreSQL sihrd5 (18M+ internacoes, 37M+ atendimentos)
+Domínio: Healthcare brasileiro (internações, procedimentos, diagnósticos)
 """)
         return
     
@@ -564,6 +564,11 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         args.enable_logging = False
     
     # Modo interativo é padrão; --interactive foi removido
+
+    # Validar chave OpenAI antes de continuar
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Erro: defina a variável de ambiente OPENAI_API_KEY para usar o modelo OpenAI.")
+        sys.exit(1)
     
     try:
         # Create configuration
@@ -586,7 +591,15 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
             print(f"\n Status do Sistema: {health_status['status'].upper()}")
             print("=" * 50)
             
-            for service_name, service_health in health_status['services'].items():
+            # Monta serviços a partir da estrutura real do orchestrator
+            llm_h = health_status.get("llm_manager", {})
+            orch_h = health_status.get("orchestrator", {})
+            services = {
+                "llm": {"healthy": llm_h.get("status") == "healthy"},
+                "database": {"healthy": llm_h.get("components", {}).get("database_status") == "healthy"},
+                "workflow": {"healthy": orch_h.get("workflow_status") == "healthy"},
+            }
+            for service_name, service_health in services.items():
                 status_icon = "" if service_health.get('healthy', False) else ""
                 print(f"{status_icon} {service_name.title()}: {'OK' if service_health.get('healthy', False) else 'ERRO'}")
             
@@ -698,8 +711,8 @@ Domínio: Healthcare brasileiro (mortes, procedimentos, internações)
         logger.error("Fatal application error", extra={"error": str(e)})
         print(f" Erro fatal: {str(e)}")
         print("\n Dicas para resolução:")
-        print("• Verifique se o Ollama está rodando: ollama serve")
-        print("• Verifique se o modelo está instalado: ollama pull llama3.1:8b")
+        print("• Verifique se OPENAI_API_KEY está definido")
+        print("• Confirme o modelo configurado (ex.: gpt-4o-mini) e limites de uso da conta")
         print("• Verifique se o banco PostgreSQL está acessível (DATABASE_URL no .env)")
         print("• Execute health check: python src/interfaces/cli/agent.py --health-check")
         sys.exit(1)

@@ -1,6 +1,6 @@
 import time
 from datetime import datetime
-from typing import Dict, Any, List, Literal
+from typing import Dict, Any, List, Literal, Tuple
 import re
 import difflib
 
@@ -8,10 +8,6 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from langchain_core.tools import BaseTool
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableConfig
-from ..memory.vector_store import VectorStoreManager
-import json
-import os
 
 from .state import (
     MessagesStateTXT2SQL,
@@ -28,7 +24,7 @@ from .state import (
     should_retry,
     format_for_llm_input
 )
-from .llm_manager import HybridLLMManager
+from .llm_manager import OpenAILLMManager
 from ..application.config.simple_config import ApplicationConfig
 from ..utils.sql_safety import is_select_only
 from ..application.config.table_templates import build_table_specific_prompt, build_multi_table_prompt
@@ -39,7 +35,6 @@ from ..utils.classification import (
     try_extract_json_block,
     combine_scores,
 )
-from typing import List
 
 # Initialize logger
 logger = get_nodes_logger()
@@ -155,7 +150,7 @@ def _should_refresh_schema(error_message: str) -> bool:
 def _refresh_schema_context(
     state: MessagesStateTXT2SQL,
     error_message: str,
-    llm_manager: HybridLLMManager
+    llm_manager: OpenAILLMManager
 ) -> bool:
     """Re-run table discovery and schema retrieval with error context."""
     try:
@@ -228,8 +223,7 @@ def _refresh_schema_context(
         schema_start = time.time()
         schema_output = schema_tool.invoke(tables_input)
         schema_duration = time.time() - schema_start
-        enhanced_schema = _enhance_sus_schema_context(str(schema_output))
-        state["schema_context"] = enhanced_schema
+        state["schema_context"] = str(schema_output)
 
         schema_call = ToolCallResult(
             tool_name="sql_db_schema",
@@ -258,33 +252,50 @@ def _refresh_schema_context(
         return False
 
 
-def get_llm_manager_from_config(config: RunnableConfig) -> HybridLLMManager:
+# Global LLM manager instance (singleton pattern)
+_llm_manager: OpenAILLMManager = None
+
+def set_global_llm_manager(manager: OpenAILLMManager):
     """
-    Retrieve LLM manager from runtime config.
-    
+    Set global LLM manager instance (called by orchestrator)
+
+    This allows the orchestrator to inject its configured LLM manager
+    into the nodes, ensuring consistency across the workflow.
+
     Args:
-        config: RunnableConfig containing 'configurable' key with 'llm_manager'
-        
-    Returns:
-        HybridLLMManager instance
+        manager: OpenAILLMManager instance to use globally
     """
-    configurable = config.get("configurable", {})
-    manager = configurable.get("llm_manager")
-    
-    if not manager:
+    global _llm_manager
+    _llm_manager = manager
+    logger.info("Global LLM manager updated", extra={
+        "provider": manager.config.llm_provider,
+        "model": manager.config.llm_model
+    })
+
+def get_llm_manager() -> OpenAILLMManager:
+    """
+    Get singleton LLM manager instance
+
+    Returns the global LLM manager that was set by the orchestrator.
+    If not set, creates a default instance (fallback behavior).
+
+    Returns:
+        OpenAILLMManager instance
+    """
+    global _llm_manager
+    if _llm_manager is None:
         # Fallback: create default instance
         # This happens if nodes are used without orchestrator
         logger.warning(
-            "LLM Manager not found in config, using default config",
+            "LLM Manager not initialized by orchestrator, using default config",
             extra={"fallback": True}
         )
-        config_app = ApplicationConfig()
-        manager = HybridLLMManager(config_app)
-        
-    return manager
+        config = ApplicationConfig()
+        _llm_manager = OpenAILLMManager(config)
+    return _llm_manager
 
 
-def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Query Classification Node - Official LangGraph Pattern
     
@@ -333,28 +344,47 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
         if "user_query" not in state:
             state["user_query"] = user_query
         
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         
         # Heuristic pre-pass
         heur_route_str, heur_scores = heuristic_route(user_query)
 
         # Strong early exit: explicit SQL pasted by user
+        HEURISTIC_SKIP_THRESHOLD = 2
         if detect_sql_snippets(user_query):
             query_route = QueryRoute.DATABASE
             confidence_score = 0.95
             reasoning = "Explicit SQL detected in input."
+        elif (
+            heur_scores.get("DATABASE", 0) >= HEURISTIC_SKIP_THRESHOLD
+            and heur_route_str == "DATABASE"
+            and heur_scores.get("CONVERSATIONAL", 0) == 0
+            and heur_scores.get("SCHEMA", 0) == 0
+        ):
+            # Fast-path: high-confidence DATABASE query — skip LLM call
+            query_route = QueryRoute.DATABASE
+            confidence_score = 0.9
+            reasoning = (
+                f"Heuristic fast-path: route=DATABASE, score={heur_scores.get('DATABASE', 0)}, skipping LLM"
+            )
+            logger.info(
+                f"Heuristic fast-path: route=DATABASE, score={heur_scores.get('DATABASE', 0)}, skipping LLM"
+            )
         else:
             # LLM JSON classification with few-shots
             system_prompt = (
                 "Você é um classificador de consultas. Decida a ROTA em {DATABASE, CONVERSATIONAL, SCHEMA}.\n"
-                "Se a pergunta for ambígua, vaga ou faltar contexto crítico, defina 'needs_clarification': true e forneça 'clarification_question'.\n"
-                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>, \\\"needs_clarification\\\":<bool>, \\\"clarification_question\\\":<string>}\n"
-                "\n"
-                "EXEMPLOS:\n"
-                "1. 'Quantas internações?' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta objetiva sobre dados\\\", \\\"needs_clarification\\\": false}\n"
-                "2. 'O que é CID?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.9, \\\"reasons\\\": \\\"Pergunta conceitual\\\", \\\"needs_clarification\\\": false}\n"
-                "3. 'Qual o melhor?' -> {\\\"route\\\": \\\"CONVERSATIONAL\\\", \\\"confidence\\\": 0.5, \\\"reasons\\\": \\\"Pergunta muito vaga\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Melhor em que sentido? Número de internações, menor mortalidade ou outro critério?\\\"}\n"
-                "4. 'Dados de 2024' -> {\\\"route\\\": \\\"DATABASE\\\", \\\"confidence\\\": 0.8, \\\"reasons\\\": \\\"Implica busca de dados gerais\\\", \\\"needs_clarification\\\": true, \\\"clarification_question\\\": \\\"Quais dados específicos de 2024 você deseja ver? Internações, óbitos ou valores?\\\"}\n"
+                "Responda APENAS em JSON com campos: {\\\"route\\\":<string>,\\\"confidence\\\":<float>,\\\"reasons\\\":<string>}\n"
+                "DATABASE: perguntas de dados (contagem, ranking, listar, filtros, por cidade/ano/sexo...)\n"
+                "CONVERSATIONAL: explicações/definições (\\\"o que é\\\", \\\"significa\\\", \\\"como funciona\\\", diferenças)\n"
+                "SCHEMA: estrutura do banco (tabelas, colunas, schema, dicionário de dados).\n"
+                "Exemplos:\n"
+                "Q: Quantos óbitos ocorreram em 2023?\n"
+                "A: {\\\"route\\\":\\\"DATABASE\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"contagem temporal\\\"}\n"
+                "Q: O que significa o CID J189?\n"
+                "A: {\\\"route\\\":\\\"CONVERSATIONAL\\\",\\\"confidence\\\":0.9,\\\"reasons\\\":\\\"pedido de definição\\\"}\n"
+                "Q: Quais colunas existem na tabela internacoes?\n"
+                "A: {\\\"route\\\":\\\"SCHEMA\\\",\\\"confidence\\\":0.95,\\\"reasons\\\":\\\"estrutura da tabela\\\"}"
             )
 
             messages = [
@@ -362,7 +392,7 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
                 HumanMessage(content=user_query)
             ]
 
-            # Use provider-agnostic invocation (supports chat models and HuggingFace)
+            # Use chat invocation (OpenAI)
             response = llm_manager.invoke_chat(messages)
             content = getattr(response, "content", str(response))
             data = try_extract_json_block(content)
@@ -394,17 +424,6 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
                     f"Hybrid decision. llm_route={llm_route} conf={llm_conf} heur={heur_scores}"
                     + (f"; llm_reasons={llm_reasons}" if llm_reasons else "")
                 )
-
-            # Extract clarification fields
-            needs_clarification = False
-            clarification_question = None
-            if isinstance(data, dict):
-                needs_clarification = data.get("needs_clarification", False)
-                clarification_question = data.get("clarification_question")
-
-            # Update state with clarification info
-            state["needs_clarification"] = needs_clarification
-            state["clarification_question"] = clarification_question
 
             query_route = {
                 "DATABASE": QueryRoute.DATABASE,
@@ -466,7 +485,7 @@ def query_classification_node(state: MessagesStateTXT2SQL, config: RunnableConfi
         return state
 
 
-def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def list_tables_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     List Tables Node - Using SQLDatabaseToolkit
     
@@ -478,7 +497,7 @@ def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mes
     logger.info("Table discovery node started")
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -506,7 +525,7 @@ def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mes
             # If no pattern matches, fallback to basic parsing
             if not table_names:
                 # Try to extract from the database directly
-                llm_manager = get_llm_manager_from_config(config)
+                llm_manager = get_llm_manager()
                 db = llm_manager.get_database()
                 table_names = db.get_usable_table_names()
             
@@ -582,7 +601,7 @@ def list_tables_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mes
         return state
 
 
-def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def get_schema_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Get Schema Node - Using SQLDatabaseToolkit
     
@@ -594,7 +613,7 @@ def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
     logger.info("Schema node started")
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -612,10 +631,7 @@ def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
         tables_input = ", ".join(selected_tables)
         tool_result = schema_tool.invoke(tables_input)
         
-        # Enhance schema context with value mappings for SUS data
-        base_schema = str(tool_result)
-        enhanced_schema = _enhance_sus_schema_context(base_schema)
-        state["schema_context"] = enhanced_schema
+        state["schema_context"] = str(tool_result)
         
         # Create tool call result
         tool_call_result = ToolCallResult(
@@ -653,95 +669,64 @@ def get_schema_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
         
         # Fallback schema context
         state["schema_context"] = "Tables: internacoes (patient healthcare data), cid (diagnoses), municipios (cities), atendimentos (procedures junction)"
-        
+
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SCHEMA_ANALYSIS, execution_time)
-        
+
         return state
 
 
-def reasoning_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> str:
     """
-    Reasoning (Chain-of-Thought) Node
-    
-    Generates a logical plan before SQL generation.
+    Generate targeted warnings based on selected tables.
+    Injected into generate_sql_node BEFORE calling the LLM.
+    Prevents predictable failure patterns (generate→fail→repair cycles).
     """
-    start_time = time.time()
-    logger.info("Reasoning node started")
-    
-    try:
-        llm_manager = get_llm_manager_from_config(config)
-        user_query = state["user_query"]
-        schema_context = state.get("schema_context", "")
-        selected_tables = state.get("selected_tables", [])
-        
-        # Create prompt for reasoning
-        reasoning_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a Data Analyst Expert.
-            Your task is to create a logical STEP-BY-STEP PLAN to answer the user's question using the provided database schema.
-            
-            GUIDELINES:
-            1. Analyze the user's request and the available tables/columns.
-            2. Break down the problem into logical steps (e.g., "Filter by date", "Join table X and Y", "Aggregate by Z").
-            3. Identify necessary filters, joins, and aggregations.
-            4. Do NOT write the SQL query yet. Just the logic.
-            5. Keep it concise and clear.
-            6. RESTRICT your plan to the selected tables: {selected_tables}. Do not hallucinate other tables.
-            7. DO NOT suggest filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested. Assume all records are valid.
-            8. OUTPUT MUST BE A VALID JSON OBJECT with keys: "steps" (list of strings) and "reasoning" (string summary).
-            
-            DATABASE SCHEMA:
-            {schema_context}
-            """),
-            ("human", "USER QUERY: {user_query}\n\nCreate the execution plan in JSON:")
-        ])
-        
-        messages = reasoning_prompt.format_messages(
-            schema_context=schema_context,
-            user_query=user_query,
-            selected_tables=", ".join(selected_tables)
+    hints = []
+
+    if "socioeconomico" in selected_tables:
+        hints.append(
+            "🚨 SOCIOECONOMICO ALERT: long-format table. "
+            "MANDATORY: add WHERE metrica = '<metric>' in EVERY query. "
+            "Options: 'populacao_total', 'idhm', 'mortalidade_infantil_1ano', "
+            "'bolsa_familia_total', 'esgotamento_sanitario_domicilio', 'taxa_envelhecimento'. "
+            "Choosing wrong metric OR omitting it produces WRONG aggregations."
         )
-        
-        response = llm_manager.invoke_chat(messages)
-        content = response.content.strip() if hasattr(response, 'content') else str(response)
-        
-        # Parse JSON output
-        try:
-            plan_data = try_extract_json_block(content)
-            if isinstance(plan_data, dict) and "steps" in plan_data:
-                steps = plan_data["steps"]
-                reasoning_summary = plan_data.get("reasoning", "")
-                
-                # Format plan for SQL generator
-                formatted_plan = "\n".join([f"{i+1}. {step}" for i, step in enumerate(steps)])
-                if reasoning_summary:
-                    formatted_plan = f"SUMMARY: {reasoning_summary}\n\nSTEPS:\n{formatted_plan}"
-                
-                state["reasoning_plan"] = formatted_plan
-                logger.info("Reasoning plan generated (JSON parsed)", extra={"steps_count": len(steps)})
-            else:
-                # Strict JSON enforcement: Do not use raw text
-                state["reasoning_plan"] = None
-                logger.warning("Reasoning output was not valid JSON (missing 'steps'), skipping plan")
-        except Exception as parse_error:
-             state["reasoning_plan"] = None
-             logger.warning(f"Failed to parse reasoning JSON: {parse_error}")
-        
-        # Update phase
-        execution_time = time.time() - start_time
-        state = update_phase(state, ExecutionPhase.REASONING, execution_time)
-        
-        return state
-        
-    except Exception as e:
-        logger.warning(f"Reasoning failed: {e}")
-        # Continue without plan
-        state["reasoning_plan"] = None
-        state = update_phase(state, ExecutionPhase.REASONING, time.time() - start_time)
-        return state
+
+    if "tempo" in selected_tables:
+        hints.append(
+            "🚨 TEMPO ALERT: NEVER join tempo table on computed expression. "
+            "Use EXTRACT(YEAR/MONTH FROM DT_INTER) directly — NO JOIN. "
+            "✅ WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2020  "
+            "❌ JOIN tempo t ON EXTRACT(YEAR FROM i.\"DT_INTER\") = t.ano → CARTESIAN PRODUCT"
+        )
+
+    if "atendimentos" in selected_tables:
+        hints.append(
+            "🚨 ATENDIMENTOS ALERT: junction table pattern MANDATORY. "
+            "internacoes i → JOIN atendimentos a ON i.\"N_AIH\" = a.\"N_AIH\" "
+            "→ JOIN procedimentos p ON a.\"PROC_REA\" = p.\"PROC_REA\". "
+            "NEVER reference a.\"NOME_PROC\" — that column is in procedimentos, not atendimentos."
+        )
+
+    if "especialidade" in selected_tables:
+        hints.append(
+            "🚨 ESPECIALIDADE ALERT: join on ESPEC code. "
+            "JOIN especialidade e ON i.\"ESPEC\" = e.\"ESPEC\" → SELECT e.\"DESCRICAO\". "
+            "For UTI: use WHERE \"VAL_UTI\" > 0 (NOT ESPEC BETWEEN 74 AND 83)."
+        )
+
+    if not hints:
+        return ""
+
+    return (
+        "\n\n⚠️ TABLE-SPECIFIC WARNINGS FOR THIS QUERY:\n"
+        + "\n".join(f"  {h}" for h in hints)
+        + "\n"
+    )
 
 
-def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
     
@@ -755,48 +740,14 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
     })
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         user_query = state["user_query"]
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
-        
-        # Initialize Vector Store and get examples
-        try:
-            # Singleton-like access could be improved with dependency injection in future
-            # For now, we initialize it here or get from config if available
-            vector_store = VectorStoreManager()
-            
-            # Check if we need to seed examples
-            if vector_store.count() == 0:
-                examples_path = os.path.join(os.path.dirname(__file__), "..", "memory", "examples.json")
-                if os.path.exists(examples_path):
-                    with open(examples_path, "r") as f:
-                        examples = json.load(f)
-                    vector_store.add_examples(examples)
-            
-            # Retrieve relevant examples
-            relevant_examples = vector_store.search_examples(user_query, k=3)
 
-            # Format examples for prompt
-            examples_text = "\n".join([
-                f"- User: {ex['question']}\n  SQL: {ex['sql']}"
-                for ex in relevant_examples
-            ])
+        # Enrich schema with value mappings (single source of truth)
+        schema_context = _enhance_sus_schema_context(schema_context)
 
-            logger.info(f"Retrieved {len(relevant_examples)} relevant examples for RAG")
-
-            # Log each example for debugging (visible in logs and LangSmith)
-            for i, ex in enumerate(relevant_examples, 1):
-                logger.debug(f"RAG Example {i}: Question='{ex['question'][:60]}...' | SQL='{ex['sql'][:80]}...'")
-            
-        except Exception as e:
-            logger.warning(f"Failed to use Vector Store for RAG: {e}")
-            examples_text = ""
-            
-        # Add examples to schema context or prompt
-        if examples_text:
-            schema_context += f"\n\nRELEVANT EXAMPLES:\n{examples_text}"
-        
         logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
         
         # Build table-specific prompt using our new template system
@@ -806,7 +757,16 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         else:
             table_rules = build_table_specific_prompt(selected_tables)
             logger.debug("Table-specific rules applied", extra={"tables": selected_tables})
-        
+
+        # Inject preventive hints for known failure patterns
+        pregeneration_hints = _build_pregeneration_hints(selected_tables, user_query)
+        if pregeneration_hints:
+            table_rules = pregeneration_hints + "\n" + table_rules
+            logger.info(
+                "Pre-generation hints injected",
+                extra={"tables": selected_tables, "hints_length": len(pregeneration_hints)}
+            )
+
         # Create ChatPromptTemplate with dynamic table rules
         sql_prompt_template = ChatPromptTemplate.from_messages([
             ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
@@ -815,78 +775,66 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         CRITICAL RULES — READ THESE FIRST, THEY OVERRIDE ALL ELSE
         ══════════════════════════════════════════════════════════
 
-        RULE A — UTI/ICU IDENTIFICATION:
-        - COUNT UTI: WHERE "VAL_UTI" > 0
-        - AGGREGATE UTI values (AVG, SUM): ALWAYS add WHERE "VAL_UTI" > 0 as first filter
-          ✅ SELECT AVG("VAL_UTI") FROM internacoes WHERE "VAL_UTI" > 0 AND "SEXO" = 1
-          ❌ SELECT AVG("VAL_UTI") FROM internacoes WHERE "SEXO" = 1  ← WRONG: includes non-UTI zeros!
-        - "obstétricas"/"obstétrico" = ESPEC = 2 (NEVER use cid JOIN or ESPEC range for obstetric!)
-          ✅ WHERE "ESPEC" = 2 AND "VAL_UTI" > 0   ❌ WHERE "ESPEC" BETWEEN 74 AND 83
-        - NEVER use "ESPEC" BETWEEN 74 AND 83 for UTI detection.
+        RULE A — UTI/ICU: WHERE "VAL_UTI" > 0 to count or filter UTI.
+        For AVG/SUM on UTI values: also require WHERE "VAL_UTI" > 0 (excludes non-ICU zeros).
+        "obstétricas"/"obstétrico" = ESPEC = 2 (NEVER ESPEC BETWEEN 74 AND 83).
+        ✅ WHERE "ESPEC" = 2 AND "VAL_UTI" > 0
 
-        RULE B — CAUSE OF DEATH vs PRIMARY DIAGNOSIS:
-        - "causa da morte" / "morreram de" / "óbitos por X" / "ocasionaram em morte" /
-          "resultaram em óbito" / "internações por X que morreram/que ocasionaram morte"
-          → JOIN cid c ON i."CID_MORTE" = c."CID" WHERE i."MORTE" = true
-          NOTE: always add AND i."MORTE" = true when using CID_MORTE
-        - "diagnóstico principal" / "internados por" / "internações por doença X" (without mention of death)
-          → JOIN cid c ON i."DIAG_PRINC" = c."CID"
-        - KEY SIGNAL: if the question contains "morte", "óbito", "morreram", "faleceram" → use CID_MORTE.
-        - When using CID_MORTE, ALWAYS filter: WHERE i."MORTE" = true AND i."CID_MORTE" IS NOT NULL
+        RULE B — DEATH CAUSE vs DIAGNOSIS:
+        "causa da morte"/"morreram de"/"óbitos por DOENÇA X" → JOIN cid ON i."CID_MORTE"=c."CID" WHERE i."MORTE"=true AND i."CID_MORTE" IS NOT NULL
+        "diagnóstico principal"/"internado por DOENÇA X" → JOIN cid ON i."DIAG_PRINC"=c."CID"
+        "resultaram em óbito" WITHOUT a specific disease → WHERE "MORTE"=true only (NO CID JOIN)
+        ✅ "Quantas internações de UTI resultaram em óbito?" → WHERE "VAL_UTI" > 0 AND "MORTE" = true
 
-        RULE C — LIMIT CLAUSES:
-        - Add LIMIT only when the question explicitly asks for top-N results (e.g., "top 5", "os 3 maiores").
-        - NEVER add LIMIT to aggregate queries (COUNT, SUM, AVG) or full-dataset queries.
-        - NEVER add a default LIMIT 100 "just in case".
+        RULE C — LIMIT: add LIMIT only when question asks for top-N (e.g. "top 5"). NEVER add default LIMIT.
 
-        RULE D — ONLY FILTERS EXPLICITLY REQUESTED:
-        - If the question does not mention age → do NOT add WHERE IDADE BETWEEN...
-        - If the question does not mention year → do NOT add WHERE EXTRACT(YEAR...)
-        - If the question does not mention gender → do NOT add WHERE SEXO = ...
+        RULE D — ONLY REQUESTED FILTERS: add only filters the question explicitly mentions.
+        No age filter unless age asked. No year filter unless year asked. No gender unless gender asked.
+        No "MORTE"=false unless question specifically asks for discharged/surviving patients.
 
-        RULE E — "COM DESCRIÇÃO" / "PRINCIPAIS CAUSAS" QUERIES:
-        - When query asks for "principais X (com descrição)" → include BOTH the code AND description:
-          ✅ SELECT c."CID", c."CD_DESCRICAO", COUNT(*) AS total   (both columns!)
-          ❌ SELECT c."CD_DESCRICAO", COUNT(*) AS total            (missing code column!)
-        - GROUP BY must include ALL non-aggregate columns: GROUP BY c."CID", c."CD_DESCRICAO"
+        RULE E — CID COLUMN:
+        • Include c."CID" WHEN: question says "com código", "código CID", or asks "quais CIDs" / "principais CIDs" / "CIDs de entrada" (CID is the subject of the question).
+        • Default: SELECT only c."CD_DESCRICAO", GROUP BY c."CD_DESCRICAO".
+        ✅ "principais causas de morte" → SELECT c."CD_DESCRICAO", COUNT(*) GROUP BY c."CD_DESCRICAO"
+        ✅ "com código" / "código CID" → SELECT c."CID", c."CD_DESCRICAO", COUNT(*) GROUP BY c."CID", c."CD_DESCRICAO"
+        ✅ "principais CIDs de entrada" / "quais os CIDs" → SELECT c."CID", c."CD_DESCRICAO", COUNT(*) GROUP BY c."CID", c."CD_DESCRICAO" ORDER BY ... LIMIT 10
+
+        RULE F — singular "qual o X mais Y" → LIMIT 1; plural "quais os N X mais Y" → LIMIT N.
+
+        RULE G — DATE FILTERS: use EXTRACT directly on "DT_INTER", NEVER join tempo with non-equijoin.
+        ✅ WHERE EXTRACT(YEAR FROM "DT_INTER") = 2020  ← use DT_INTER for year/period filters (admission date)
+        Only use "DT_SAIDA" when question explicitly asks about discharge or exit date.
+
+        RULE H — IDADE (INTEGER) vs NASC (DATE):
+        "IDADE" = pre-calculated integer age column (0-130). USE FOR ALL age filters/groupings.
+        "NASC" = birth date. USE ONLY when question asks about BIRTH YEAR specifically.
+        ✅ WHERE "IDADE" > 60             ✅ GROUP BY "IDADE"   ✅ CASE WHEN "IDADE" < 18
+        ✅ WHERE EXTRACT(YEAR FROM "NASC") < 1950  ← "nascidos antes de 1950" → use NASC
+        ❌ EXTRACT(YEAR FROM AGE("NASC")) > 60   ← NEVER! use IDADE directly
+        ❌ (CURRENT_DATE - "NASC") / 365 > 60    ← NEVER! use IDADE directly
+
+        DISEASE LOOKUP: table is "cid" (NOT "cid10"). NEVER hardcode CID codes (e.g. DIAG_PRINC = 'J18' is WRONG).
+        Named disease → JOIN cid c ON i."DIAG_PRINC"=c."CID" WHERE c."CD_DESCRICAO" ILIKE '%X%'
+        Category (no specific name) → WHERE "DIAG_PRINC" LIKE 'J%' (J=Respiratory, I=Cardiovascular, C=Cancer, K=Digestive)
+        For cause of death by disease → JOIN cid ON i."CID_MORTE"=c."CID" (see RULE B)
 
         ══════════════════════════════════════════════════════════
 
-        CORE POSTGRESQL INSTRUCTIONS:
-        1. Generate syntactically correct PostgreSQL queries
-        2. Use proper table and column names with double quotes: "COLUMN_NAME"
-        3. Handle Portuguese language questions appropriately
-        4. Return only the SQL query, no explanation
-        5. Use appropriate WHERE clauses for filtering
-        6. Include LIMIT clauses when appropriate (default LIMIT 100)
-        7. Use proper JOINs when querying multiple tables
-        8. Use PostgreSQL-specific functions when needed (EXTRACT, ILIKE, etc.)
-        9. DO NOT add filters like "QT_DIARIAS > 0" or "VAL_TOT > 0" unless explicitly requested by the user. Assume all records are valid.
+        CORE: Use double quotes for all columns: "COLUMN_NAME". Return ONLY the SQL query.
 
-        
-         DATABASE SCHEMA:
-        {schema_context}
-        
-        {reasoning_context}"""),
+        DATABASE SCHEMA:
+        {schema_context}"""),
             
             ("system", "{table_specific_rules}"),
             
             ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
         ])
         
-        # Prepare reasoning context if available
-        reasoning_plan = state.get("reasoning_plan")
-        reasoning_context = ""
-        if reasoning_plan:
-            reasoning_context = f"FOLLOW THIS EXECUTION PLAN:\n{reasoning_plan}"
-            logger.info("Using reasoning plan for SQL generation")
-
         # Format the prompt with dynamic content
         formatted_messages = sql_prompt_template.format_messages(
             schema_context=schema_context,
             table_specific_rules=table_rules,
-            user_query=user_query,
-            reasoning_context=reasoning_context
+            user_query=user_query
         )
         
         logger.debug("Template prepared", extra={
@@ -894,7 +842,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
             "rules_length": len(table_rules)
         })
         
-        # Use provider-agnostic chat invocation (supports chat models and HuggingFace)
+        # Use chat invocation (OpenAI)
         response = llm_manager.invoke_chat(formatted_messages)
         
         # Extract SQL query from response
@@ -915,14 +863,35 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
             logger.info("SQL generated successfully", extra={"sql": sql_query[:200]})
             
         else:
-            # Handle empty SQL generation
-            error_message = "Failed to generate SQL query - empty response"
-            state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
-            # Persist retry counters at node level
-            state["retry_count"] = state.get("retry_count", 0) + 1
-            state["generation_retry_count"] = state.get("generation_retry_count", 0) + 1
-            logger.warning("SQL generation failed: empty response")
-        
+            # First attempt failed — retry with simplified prompt (schema + question only)
+            logger.warning("SQL generation: empty response on first attempt, trying simplified prompt")
+            try:
+                simplified_messages = [
+                    SystemMessage(content=(
+                        "You are a PostgreSQL expert. Generate ONLY a valid SQL SELECT query "
+                        "for the Brazilian healthcare database sihrd5. "
+                        "Return ONLY the SQL, no explanation.\n\n"
+                        f"DATABASE SCHEMA:\n{schema_context}"
+                    )),
+                    HumanMessage(content=f"USER QUERY: {user_query}\n\nGenerate the SQL query:")
+                ]
+                retry_response = llm_manager.invoke_chat(simplified_messages)
+                retry_sql = retry_response.content.strip() if hasattr(retry_response, 'content') else str(retry_response)
+                retry_sql = llm_manager._clean_sql_query(retry_sql)
+                if retry_sql:
+                    state["generated_sql"] = retry_sql
+                    state["current_error"] = None
+                    state = add_ai_message(state, f"Generated SQL (retry): {retry_sql}")
+                    logger.info("SQL generated on retry", extra={"sql": retry_sql[:200]})
+                else:
+                    raise ValueError("Retry also produced empty SQL")
+            except Exception as retry_err:
+                error_message = "Failed to generate SQL query - empty response (both attempts)"
+                state = add_error(state, error_message, "sql_generation_error", ExecutionPhase.SQL_GENERATION)
+                state["retry_count"] = state.get("retry_count", 0) + 1
+                state["generation_retry_count"] = state.get("generation_retry_count", 0) + 1
+                logger.warning("SQL generation failed on both attempts", extra={"error": str(retry_err)})
+
         # Update phase
         execution_time = time.time() - start_time
         state = update_phase(state, ExecutionPhase.SQL_GENERATION, execution_time)
@@ -950,7 +919,7 @@ def generate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         return state
 
 
-def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def validate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Validate SQL Node - Using SQLDatabaseToolkit query checker
     
@@ -960,26 +929,11 @@ def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         generated_sql = state.get("generated_sql")
         
         if not generated_sql:
             raise ValueError("No SQL query to validate")
-            
-        # SECURITY: Sanitize and check SQL safety
-        # 1. Sanitize (remove comments, excessive whitespace)
-        sanitized_sql = sanitize_sql_for_execution(generated_sql)
-        state["generated_sql"] = sanitized_sql  # Update state with clean SQL
-        
-        # 2. Safety Check (Block DDL/DML)
-        is_safe, safety_reason = is_select_only(sanitized_sql)
-        if not is_safe:
-            error_message = f"SQL Safety Violation: {safety_reason}"
-            state = add_error(state, error_message, "sql_safety_error", ExecutionPhase.SQL_VALIDATION)
-            state["retry_count"] = state.get("retry_count", 0) + 1
-            execution_time = time.time() - start_time
-            state = update_phase(state, ExecutionPhase.SQL_VALIDATION, execution_time)
-            return state
         
         # Get SQL tools
         tools = llm_manager.get_sql_tools()
@@ -1022,11 +976,75 @@ def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
                     "(one row per metric × municipality × year). Without a metrica filter, "
                     "the query aggregates across ALL metrics (population, IDHM, bolsa familia, "
                     "etc.) which produces meaningless results. "
-                    "FIX: Add WHERE metrica = 'populacao_total' (or other specific metric). "
-                    "CORRECT PATTERN: FROM socioeconomico s JOIN municipios mu ON s.codigo_6d = mu.codigo_6d "
-                    "WHERE s.metrica = 'populacao_total' ORDER BY s.valor DESC LIMIT 1;"
+                    "FIX EXACTLY: "
+                    "SELECT mu.nome AS municipio_maior_populacao "
+                    "FROM socioeconomico s "
+                    "JOIN municipios mu ON s.codigo_6d = mu.codigo_6d "
+                    "WHERE s.metrica = 'populacao_total' "
+                    "ORDER BY s.valor DESC LIMIT 1; "
+                    "IMPORTANT: SELECT ONLY the column(s) that directly answer the question. "
+                    "Do NOT include s.valor or extra columns unless explicitly requested."
                 )
                 logger.warning("Socioeconomico query rejected: missing metrica filter")
+
+        # Check for tempo table cartesian explosion via non-equijoin
+        if validation_passed and generated_sql:
+            if re.search(r'\bjoin\s+tempo\b', generated_sql, re.I):
+                # Proper equijoin: ON i."DT_INTER" = t."data" — OK (1:1 match)
+                # Non-equijoin: EXTRACT(...) = t.ano, t.mes BETWEEN, etc. — CARTESIAN EXPLOSION
+                has_proper_equijoin = bool(re.search(
+                    r'on\s+\w+\."DT_INTER"\s*=\s*\w+\."data"',
+                    generated_sql, re.I
+                ))
+                if not has_proper_equijoin:
+                    validation_passed = False
+                    validation_message = (
+                        "TEMPO TABLE ERROR: Non-equijoin on tempo table detected "
+                        "(e.g., ON EXTRACT(YEAR FROM \"DT_INTER\") = t.ano or ON t.mes BETWEEN ...). "
+                        "This creates a CARTESIAN PRODUCT multiplying rows by hundreds or thousands! "
+                        "SOLUTION: Remove the JOIN tempo entirely. Use EXTRACT() directly without any JOIN: "
+                        "✅ WHERE EXTRACT(YEAR FROM \"DT_INTER\") = 2015 "
+                        "✅ WHERE EXTRACT(MONTH FROM \"DT_INTER\") IN (6, 7, 8) "
+                        "✅ WHERE EXTRACT(MONTH FROM \"DT_INTER\") BETWEEN 6 AND 8"
+                    )
+                    logger.warning("Tempo non-equijoin rejected: would cause cartesian explosion")
+
+        # Check for spurious VAL_UTI > 0 filter on obstetric queries without UTI mention
+        if validation_passed and generated_sql:
+            espec_2 = bool(re.search(r'"ESPEC"\s*=\s*2\b', generated_sql))
+            val_uti = bool(re.search(r'"VAL_UTI"\s*>\s*0', generated_sql))
+            if espec_2 and val_uti:
+                user_query_lower = (state.get('user_query') or '').lower()
+                uti_mentioned = any(k in user_query_lower for k in [
+                    'uti', 'unidade de terapia', 'custo de uti', 'valor de uti', 'custo uti', 'icú'
+                ])
+                if not uti_mentioned:
+                    validation_passed = False
+                    validation_message = (
+                        "ERROR: Added 'VAL_UTI > 0' to an obstetric query when UTI was not mentioned. "
+                        "Obstetric = WHERE \"ESPEC\" = 2 ONLY (no UTI filter needed here). "
+                        "REMOVE the AND \"VAL_UTI\" > 0 condition from this query. "
+                        "Only add VAL_UTI > 0 when the question explicitly asks about UTI/ICU."
+                    )
+                    logger.warning("Spurious VAL_UTI filter on obstetric query rejected")
+
+        # Check for spurious MORTE = false when question does not ask for non-death subset
+        if validation_passed and generated_sql:
+            has_morte_false = bool(re.search(r'"MORTE"\s*=\s*(false|FALSE)\b', generated_sql))
+            if has_morte_false:
+                user_query_lower = (state.get('user_query') or '').lower()
+                discharge_asked = any(k in user_query_lower for k in [
+                    'alta', 'sobrevivente', 'não morreram', 'sem óbito', 'recuper', 'vivos', 'saíram vivos'
+                ])
+                if not discharge_asked:
+                    validation_passed = False
+                    validation_message = (
+                        "ERROR: Added 'MORTE = false' filter but the question does not ask specifically "
+                        "about discharged (non-death) patients. "
+                        "REMOVE the '\"MORTE\" = false' condition. "
+                        "Count ALL patients matching the other conditions, regardless of outcome."
+                    )
+                    logger.warning("Spurious MORTE=false filter rejected")
 
         # Update state based on validation
         if validation_passed:
@@ -1079,7 +1097,7 @@ def validate_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Me
         return state
 
 
-def execute_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def execute_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Execute SQL Node - Using SQLDatabaseToolkit query tool
     
@@ -1089,7 +1107,7 @@ def execute_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mes
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         validated_sql = state.get("validated_sql") or state.get("generated_sql")
         
         if not validated_sql:
@@ -1329,13 +1347,13 @@ def execute_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mes
         return state
 
 
-def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def repair_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """Repair SQL Node - regenerate SQL after execution failure."""
 
     start_time = time.time()
 
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         previous_sql = state.get("generated_sql")
 
         if not previous_sql:
@@ -1354,24 +1372,16 @@ def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
 
         if not error_message:
             error_message = "Erro desconhecido ao executar a consulta."  # fallback context
+
         user_query = state.get("user_query", "")
 
         # Refresh table/schema context when missing columns/relations are detected
         if _should_refresh_schema(error_message):
-            if _refresh_schema_context(state, error_message, llm_manager):
-                # If schema changed, the previous reasoning plan might be invalid
-                # Clear it to force SQL generator to rely on new schema context
-                if state.get("reasoning_plan"):
-                    logger.info("Clearing stale reasoning plan after schema refresh")
-                    state["reasoning_plan"] = None
-                
-                # Flag for workflow routing to trigger re-planning
-                state["schema_refreshed"] = True
-                
-                logger.info(
-                "Schema refresh attempted during repair - Triggering Re-planning",
+            refreshed = _refresh_schema_context(state, error_message, llm_manager)
+            logger.info(
+                "Schema refresh attempted during repair",
                 extra={
-                    "refreshed": True,
+                    "refreshed": refreshed,
                     "selected_tables": state.get("selected_tables", []),
                     "available_tables": state.get("available_tables", [])
                 }
@@ -1433,7 +1443,7 @@ def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
             "Reescreva a consulta corrigindo o problema identificado, usando SOMENTE colunas da lista branca e as sugestões quando necessário."
         )
         
-        # Use provider-agnostic chat invocation for SQL repair
+        # Use chat invocation for SQL repair (OpenAI)
         response = llm_manager.invoke_chat([
             SystemMessage(content=system_prompt),
             HumanMessage(content=human_prompt)
@@ -1518,7 +1528,7 @@ def repair_sql_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> Mess
         return state
 
 
-def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
+def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
     """
     Generate Response Node - Format final response
     
@@ -1528,57 +1538,9 @@ def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) 
     start_time = time.time()
     
     try:
-        llm_manager = get_llm_manager_from_config(config)
+        llm_manager = get_llm_manager()
         user_query = state["user_query"]
-        query_route = state.get("query_route", QueryRoute.DATABASE) # Default route
-
-        # Ambiguity detection logic (assuming 'parsed' and 'route_str' are available from a previous step,
-        # or that this node is responsible for parsing the LLM's routing decision)
-        # For this change, we'll assume 'parsed' and 'route_str' would be derived from an LLM call
-        # that determines the route and potential ambiguity.
-        # As 'parsed' and 'route_str' are not defined in the original generate_response_node,
-        # this insertion might require context from a preceding node.
-        # For the sake of faithfully applying the change, we'll assume they are available
-        # or that this is where they are meant to be introduced.
-        # In a real scenario, 'parsed' would likely be the output of an LLM call for routing.
-        
-        # Placeholder for 'parsed' and 'route_str' if they were to come from an LLM routing step
-        # For this specific instruction, we'll simulate them based on existing query_route for now,
-        # but the intent seems to be to parse an LLM output for these.
-        # If the user intended this to be a new LLM call, that would be a larger change.
-        # Assuming 'query_route' is the 'route_str' for existing logic.
-        route_str = query_route.value if isinstance(query_route, QueryRoute) else query_route
-        
-        # Extract clarification fields (assuming 'parsed' is available, e.g., from state or a new LLM call)
-        # Since 'parsed' is not in the current state, we'll assume it's meant to be part of the state
-        # or derived from a new LLM call that determines the route and ambiguity.
-        # For this edit, we'll add a placeholder for 'parsed' if it's not explicitly passed.
-        # If 'parsed' is meant to be the output of an LLM call, that call would need to be added here.
-        # For now, we'll assume 'parsed' is a dictionary that might be in the state or derived.
-        parsed = state.get("llm_routing_decision", {}) # Placeholder: assuming routing decision is stored here
-
-        needs_clarification = parsed.get("needs_clarification", False)
-        clarification_question = parsed.get("clarification_question")
-
-        # If clarification is needed, override route to CONVERSATIONAL (or handle via state flag)
-        if needs_clarification:
-            logger.info("Ambiguity detected", extra={"question": clarification_question})
-            state["needs_clarification"] = True
-            state["clarification_question"] = clarification_question
-            # We still set a route, but the workflow will intercept based on the flag
-            query_route = QueryRoute.CONVERSATIONAL 
-        else:
-            state["needs_clarification"] = False
-            state["clarification_question"] = None
-
-        if not needs_clarification:
-            # Normal routing logic
-            if route_str == "DATABASE":
-                query_route = QueryRoute.DATABASE
-            elif route_str == "SCHEMA":
-                query_route = QueryRoute.SCHEMA
-            else:
-                query_route = QueryRoute.CONVERSATIONAL
+        query_route = state.get("query_route", QueryRoute.DATABASE)
         
         if query_route == QueryRoute.CONVERSATIONAL:
             # Generate conversational response
@@ -1591,32 +1553,6 @@ def generate_response_node(state: MessagesStateTXT2SQL, config: RunnableConfig) 
                 final_response = result["response"]
             else:
                 final_response = f"Desculpe, não consegui processar sua pergunta: {result.get('error', 'Erro desconhecido')}"
-                
-        elif query_route == QueryRoute.SCHEMA:
-            # Generate schema explanation
-            schema_context = state.get("schema_context", "")
-            
-            # Create prompt for schema explanation
-            schema_prompt = f"""Você é um especialista em banco de dados.
-            Responda à pergunta do usuário com base APENAS no schema fornecido.
-            
-            Pergunta: "{user_query}"
-            
-            Schema Disponível:
-            {schema_context}
-            
-            Responda de forma clara e concisa, listando tabelas ou colunas conforme solicitado.
-            """
-            
-            result = llm_manager.generate_conversational_response(
-                user_query=schema_prompt,
-                conversation_history=[]
-            )
-            
-            if result["success"]:
-                final_response = result["response"]
-            else:
-                final_response = "Não foi possível analisar o schema."
                 
         else:
             # Generate response based on SQL execution results
@@ -1823,84 +1759,95 @@ def _generate_fallback_response(user_query: str, results_text: str, row_count: i
 
 def _enhance_sus_schema_context(base_schema: str) -> str:
     """
-    Enhance schema context with Brazilian SUS data value mappings
-    
-    Adds important value mappings that are not obvious from the schema alone
+    Enhance schema context with Brazilian SUS data value mappings.
+
+    Adds critical value mappings and join rules not obvious from raw DDL.
+    This is the single source of truth for column semantics — overrides DDL if conflicting.
     """
-    
-    # Check if this is PostgreSQL SIH-RS data (contains internacoes table)
-    if "internacoes" not in base_schema.lower():
-        return base_schema
-    
-    # Enhanced PostgreSQL SIH-RS mappings based on direct DB inspection
     sus_mappings = """
 
-    CRITICAL VALUE MAPPINGS & JOIN LOGIC FOR SIH-RS POSTGRESQL DATA:
-    ===================================================================
-    
-    ### COLUNAS E VALORES ESSENCIAIS:
-    - **SEXO (na tabela internacoes):**
-      - `i."SEXO" = 1` → MASCULINO/HOMEM
-      - `i."SEXO" = 3` → FEMININO/MULHER
-    - **IDADE (na tabela internacoes):**
-      - `i."IDADE"` → Usar para filtros de idade (ex: `i."IDADE" < 30`).
-    - **MUNICÍPIO (para nomes de cidades):**
-      - A tabela `municipios` contém `nome` e `codigo_6d`.
-    
-    ### LÓGICA DE JUNÇÃO (JOIN) OBRIGATÓRIA:
-    - A tabela `internacoes` **NÃO** contém nomes de cidades, apenas códigos de município.
-    - Para obter o **NOME DA CIDADE/MUNICÍPIO**, a junção **SEMPRE** deve seguir este caminho:
-      - `JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d`
-    - **IMPORTANTE (sihrd5):** NÃO existe tabela `mortes` separada. Use `internacoes."MORTE" = true`.
+CRITICAL COLUMN VALUE MAPPINGS (sihrd5 — override DDL if conflicting):
+=======================================================================
+internacoes:
+  "SEXO"    INTEGER: 1=Masculino, 3=Feminino (NUNCA usar 2)
+  "MORTE"   BOOLEAN: true=óbito, false=alta
+  "IND_VDRL" BOOLEAN: true=positivo (filtrar sem JOIN cid)
+  "IDADE"   INTEGER (0-130): idade pré-calculada — USAR para todos filtros de idade
+  "NASC"    DATE: data de nascimento — usar SOMENTE para "nascidos antes/após ano X"
+            ❌ EXTRACT(YEAR FROM AGE("NASC")) — ERRADO, usar "IDADE" diretamente
+            ❌ (CURRENT_DATE - "NASC") / 365 > 60 — ERRADO, usar "IDADE" diretamente
+  "VAL_TOT" NUMERIC: custo total   | "VAL_SH": serviço hospitalar | "VAL_UTI": UTI
+            "valor do serviço hospitalar" → VAL_SH  (NÃO VAL_TOT!)
+  "ESPEC"   INTEGER: 1=Cirúrgico, 2=Obstétrico, 3=Clínico, 4=Crônico, 5=Psiquiatria, 7=Pediátrico
+  "MUNIC_RES" FK→municipios.codigo_6d: município de RESIDÊNCIA do paciente
+  "MUNIC_MOV" FK→hospital.MUNIC_MOV: município do hospital (localização do hospital)
+  "DIAG_PRINC" FK→cid."CID": diagnóstico principal de entrada
+  "CID_MORTE"  FK→cid."CID": causa da morte (somente quando MORTE=true)
 
-    ### EXEMPLOS DE CONSULTAS CORRETAS:
-    =====================================
+socioeconomico (long-format — SEMPRE filtrar por metrica):
+  metrica='populacao_total'             | metrica='idhm'
+  metrica='mortalidade_infantil_1ano'   | metrica='bolsa_familia_total'
+  metrica='esgotamento_sanitario_domicilio' | metrica='taxa_envelhecimento'
+  ⚠️ SEM WHERE metrica=? → SUM soma TODAS as métricas → resultado sem sentido!
 
-     **Top 10 cidades com mais mortes de idosos (> 60 anos):**
-    ```sql
-    SELECT mu.nome, COUNT(*) AS total_mortes
-    FROM internacoes i
-    JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
-    WHERE i."MORTE" = true AND i."IDADE" > 60
-    GROUP BY mu.nome
-    ORDER BY total_mortes DESC
-    LIMIT 10;
-    ```
+raca_cor:
+  0/99=Sem info, 1=Branca, 2=Preta, 3=Parda, 4=Amarela, 5=Indígena
+  Filtrar inline: WHERE "RACA_COR" = 5 (sem JOIN)
+  Descrição: JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" → SELECT r."DESCRICAO"
 
-     **Cidade com mais mortes de homens:**
-    ```sql
-    SELECT mu.nome, COUNT(*) AS total_mortes
-    FROM internacoes i
-    JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
-    WHERE i."MORTE" = true AND i."SEXO" = 1
-    GROUP BY mu.nome
-    ORDER BY total_mortes DESC
-    LIMIT 1;
-    ```
-
-     **Contar mortes de pessoas com menos de 30 anos:**
-    ```sql
-    SELECT COUNT(*)
-    FROM internacoes
-    WHERE "MORTE" = true AND "IDADE" < 30;
-    ```
-
-    ### REGRAS OBRIGATÓRIAS PARA O LLM:
-    1.  Para qualquer pergunta sobre **cidades/municípios**, a junção com a tabela `municipios` é obrigatória para obter o nome.
-    2.  A condição de JOIN para municípios é **SEMPRE** `i."MUNIC_RES" = mu.codigo_6d`.
-    3.  **Mortes** são filtradas diretamente em `internacoes` com `WHERE "MORTE" = true` (não existe tabela mortes!).
-    4.  Para filtros de **idade** ou **sexo**, use as colunas da tabela `internacoes` (`i."IDADE"`, `i."SEXO"`).
-    5.  **SEMPRE** use aspas duplas para nomes de colunas que são case-sensitive (ex: `"N_AIH"`, `"IDADE"`).
-    """
-    
+JOIN RULES:
+  municipio do paciente → JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+  municipio do hospital → JOIN hospital h ON ... JOIN municipios mu ON h."MUNIC_MOV" = mu.codigo_6d
+  especialidade         → JOIN especialidade e ON i."ESPEC" = e."ESPEC" → SELECT e."DESCRICAO"
+  diagnóstico           → JOIN cid c ON i."DIAG_PRINC" = c."CID" → SELECT c."CD_DESCRICAO"
+  causa de morte        → JOIN cid c ON i."CID_MORTE" = c."CID" WHERE i."MORTE" = true
+"""
     return base_schema + sus_mappings
 
 
+def _heuristic_table_selection(
+    user_query: str, available_tables: List[str]
+) -> Tuple[List[str], float]:
+    """
+    Stage 1: keyword-based fast table selection.
+    Returns (tables, confidence). If confidence >= 0.85, skips LLM call.
+    """
+    q = user_query.lower()
+
+    if re.search(r'mortalidade infantil|taxa de mortalidade infantil', q):
+        return (['socioeconomico'], 0.95)
+
+    # Hospital mortality rate (NOT infant) — always from internacoes
+    if re.search(r'taxa de mortalidade|mortalidade hospitalar|maior taxa de mortalidade', q) \
+            and 'infantil' not in q:
+        return (['internacoes', 'municipios'], 0.93)
+
+    if re.search(r'procedimentos?\s+(mais\s+)?(comuns?|realizados?|frequentes?)', q):
+        return (['internacoes', 'atendimentos', 'procedimentos'], 0.92)
+
+    if re.search(r'idhm|bolsa\s*familia|saneamento|pop.*econom', q):
+        return (['socioeconomico', 'municipios'], 0.92)
+
+    if re.search(r'especialidade.*interna[cç][oõ]es|interna[cç][oõ]es.*especialidade', q):
+        return (['internacoes', 'especialidade'], 0.90)
+
+    if re.search(r'n[ií]vel\s+de\s+instru[cç][aã]o|escolaridade.*interna[cç][oõ]es', q):
+        return (['internacoes', 'instrucao'], 0.90)
+
+    if re.search(r'ra[cç]a.*mortes|mortes.*ra[cç]a|ra[cç]a.*interna[cç][oõ]es', q):
+        return (['internacoes', 'raca_cor'], 0.90)
+
+    if re.search(r'hospital.*munic[ií]pio|munic[ií]pio.*hospital', q):
+        return (['internacoes', 'hospital', 'municipios'], 0.88)
+
+    return ([], 0.0)
+
+
 def _select_relevant_tables(
-    user_query: str, 
-    tool_result: str, 
-    available_tables: List[str], 
-    llm_manager: HybridLLMManager
+    user_query: str,
+    tool_result: str,
+    available_tables: List[str],
+    llm_manager: OpenAILLMManager
 ) -> (List[str], List[str]):
     """
     Seleciona tabelas relevantes usando LLM + contexto das descrições completas
@@ -1916,10 +1863,22 @@ def _select_relevant_tables(
     """
     try:
         logger.info("Intelligent table selection started")
-        
+
+        # Stage 1: heuristic fast-path
+        heur_tables, heur_confidence = _heuristic_table_selection(user_query, available_tables)
+        if heur_confidence >= 0.85 and heur_tables:
+            logger.info(
+                f"Heuristic table selection: {heur_tables} (conf={heur_confidence})"
+            )
+            validated = _validate_table_selection(user_query, heur_tables, available_tables)
+            return validated, heur_tables
+
+        # Stage 2: LLM selection (only for ambiguous queries)
+        logger.info("Heuristic inconclusive — falling back to LLM table selection")
+
         # Import table descriptions
         from ..application.config.table_descriptions import TABLE_DESCRIPTIONS
-        
+
         # Build comprehensive table selection prompt using actual descriptions
         table_desc_lines = []
         for table_name in available_tables:
@@ -1972,6 +1931,14 @@ CRITICAL SELECTION RULES FOR sihrd5 DATABASE:
 • vincprev: Lookup for social security type descriptions (JOIN with internacoes.VINCPREV)
 • especialidade: Lookup for medical specialty descriptions (JOIN with internacoes.ESPEC)
 • raca_cor: Lookup for race/color descriptions (JOIN with internacoes.RACA_COR)
+
+ DISAMBIGUATION RULES:
+• "taxa de mortalidade" / "mortalidade hospitalar" / "percentual de óbitos" in hospitalization context →
+  calculate from internacoes: COUNT(MORTE=true)/COUNT(*). DO NOT use socioeconomico.
+• "mortalidade infantil" / "taxa de mortalidade infantil" → socioeconomico with metrica='mortalidade_infantil_1ano'
+• "municípios de residência" / "onde os pacientes moram" → internacoes.MUNIC_RES → municipios
+• "municípios que atendem" / "por localização do hospital" / "média por município (hospital)" →
+  hospital.MUNIC_MOV → municipios (requires BOTH hospital AND municipios tables)
 
  TABLES THAT NO LONGER EXIST (DO NOT SELECT):
 • mortes: REMOVED — use internacoes WHERE "MORTE" = true
@@ -2174,14 +2141,20 @@ def _validate_table_selection(user_query: str, selected_tables: List[str], avail
             validated_tables.append('internacoes')
             logger.debug("Added 'internacoes' for financial data")
     
-    # Rule 4: Mortality rate queries — use internacoes with MORTE boolean
-    # EXCEPTION: "mortalidade infantil" rate lives in socioeconomico
-    if any(keyword in query_lower for keyword in ['taxa de mortalidade', 'taxa mortalidade', 'mortalidade']) and \
-       any(keyword in query_lower for keyword in ['taxa', 'percentual', 'proporção']):
+    # Rule 4: Hospital mortality rate → internacoes only (NOT socioeconomico).
+    # "taxa de mortalidade" without "infantil" is always hospitalization-derived.
+    # We must also REMOVE socioeconomico if the LLM mistakenly added it.
+    if any(kw in query_lower for kw in ['taxa de mortalidade', 'taxa mortalidade', 'mortalidade']) and \
+       any(kw in query_lower for kw in ['taxa', 'percentual', 'proporção', 'maior taxa', 'municípios com']):
         if 'infantil' not in query_lower:
+            if 'socioeconomico' in validated_tables:
+                validated_tables.remove('socioeconomico')
+                logger.info(
+                    "Removed 'socioeconomico': hospital mortality rate uses internacoes, NOT socioeconomico"
+                )
             if 'internacoes' not in validated_tables and 'internacoes' in available_tables:
                 validated_tables.append('internacoes')
-                logger.debug("Added 'internacoes' for mortality rate calculation (MORTE boolean)")
+                logger.info("Added 'internacoes' for hospital mortality rate calculation (MORTE boolean)")
     
     # Rule 4b: Obstetric queries — only internacoes needed, ESPEC = 2 pattern (never a cid JOIN)
     # "obstétricas" maps to ESPEC = 2 in internacoes, NOT to CID codes
@@ -2280,34 +2253,8 @@ __all__ = [
     "list_tables_node", 
     "get_schema_node",
     "generate_sql_node",
-    "reasoning_node",
     "repair_sql_node",
     "validate_sql_node",
     "execute_sql_node",
     "generate_response_node"
 ]
-from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
-
-def clarification_node(state: MessagesStateTXT2SQL, config: RunnableConfig) -> MessagesStateTXT2SQL:
-    """
-    Clarification Node - Asks user for more details
-    
-    Triggered when the classification node detects ambiguity.
-    Returns the clarification question as the final response.
-    """
-    logger.info("Clarification node started")
-    
-    question = state.get("clarification_question")
-    if not question:
-        question = "Poderia fornecer mais detalhes sobre sua pergunta?"
-        
-    state["final_response"] = question
-    state["success"] = True # It's a successful interaction, even if it didn't answer the original query
-    state["completed"] = True
-    
-    # Add AI message with the question
-    state = add_ai_message(state, question)
-    
-    logger.info("Clarification question generated", extra={"question": question})
-    
-    return state

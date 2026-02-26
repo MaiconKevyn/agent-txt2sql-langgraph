@@ -84,7 +84,7 @@ LANGCHAIN_PROJECT=txt2sql
 
 # Database Configuration (optional; can also be passed via --db-url)
 # Prefer using a full SQLAlchemy URL with psycopg2 driver
-DATABASE_URL=postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs
+DATABASE_URL=postgresql+psycopg2://postgres:your_password@localhost:5432/sihrd5
 ```
 
 ### 5. Web Interface Setup (Optional)
@@ -129,7 +129,7 @@ python src/interfaces/cli/agent.py --health-check
 python src/interfaces/cli/agent.py --visualize-workflow
 
 # Use a specific PostgreSQL connection (overrides defaults and env)
-python src/interfaces/cli/agent.py --db-url "postgresql+psycopg2://postgres:your_password@localhost:5432/sih_rs" --query "Quantas mortes ocorreram?"
+python src/interfaces/cli/agent.py --db-url "postgresql+psycopg2://postgres:your_password@localhost:5432/sihrd5" --query "Quantas mortes ocorreram?"
 ```
 
 ### API Server
@@ -146,48 +146,56 @@ python src/interfaces/api/main.py
 ```mermaid
 graph TD
     A["<b>User Input</b><br/>Natural Language Query"] --> B{"<b>Interface</b>"}
-    
+
     B -->|CLI| C["<b>CLI Agent</b><br/>agent.py"]
     B -->|API| D["<b>FastAPI Server</b><br/>main.py"]
     B -->|Web| E["<b>Frontend</b><br/>Express.js"]
-    
+
     C --> F["<b>LangGraph Orchestrator</b><br/>orchestrator.py"]
     D --> F
     E --> D
-    
-    F --> G["<b>Query Classification Node</b><br/>DATABASE/CONVERSATIONAL/SCHEMA"]
-    
-    G -->|DATABASE| H["<b>Table Discovery Node</b><br/>Select Relevant Tables"]
-    G -->|CONVERSATIONAL| I["<b>Direct Response Node</b><br/>General Conversation"]
-    G -->|SCHEMA| J["<b>Schema Info Node</b><br/>Database Structure"]
-    
+
+    F --> G["<b>Query Classification Node</b><br/>DATABASE / CONVERSATIONAL / SCHEMA"]
+
+    G -->|DATABASE / SCHEMA| H["<b>Table Discovery Node</b><br/>Select Relevant Tables"]
+    G -->|CONVERSATIONAL| P["<b>Response Generation Node</b><br/>Format Natural Language Response"]
+
     H --> K["<b>Schema Analysis Node</b><br/>Get Table Schemas"]
     K --> L["<b>SQL Generation Node</b><br/>Create SQL Query"]
-    L --> M["<b>SQL Validation Node</b><br/>Syntax & Safety Check"]
-    
-    M -->|Valid| N["<b>SQL Execution Node</b><br/>Execute Against PostgreSQL"]
-    M -->|Invalid| O["<b>Error Response</b>"]
-    
-    N --> P["<b>Response Generation Node</b><br/>Format Natural Language Response"]
-    I --> P
-    J --> P
-    O --> P
-    
+
+    L -->|retry| L
+    L -->|valid SQL| M["<b>SQL Validation Node</b><br/>Syntax & Safety Check via EXPLAIN"]
+
+    M -->|valid| N["<b>SQL Execution Node</b><br/>Execute Against PostgreSQL"]
+    M -->|retry_generation| O["<b>SQL Repair Node</b><br/>LLM-guided Error Correction"]
+    M -->|retry_validation| M
+
+    N -->|success| P
+    N -->|retry_generation| O
+    N -->|retry_validation| M
+    N -->|retry_execution| N
+    N -->|error| P
+
+    O --> M
+
     P --> Q["<b>Final Response</b><br/>Natural Language + SQL"]
-    
+
     R[("<b>PostgreSQL Database</b><br/>SIH-RS Healthcare Data<br/>15 Tables, 11M+ Records")] --> N
-    
-    S["<b>LLM Manager</b><br/>Ollama Integration"] --> L
+
+    S["<b>LLM Manager</b><br/>Ollama Integration"] --> G
+    S --> L
+    S --> O
     S --> P
-    
+
     T["<b>Logging System</b><br/>Structured Logs"] --> F
     U["<b>Session Management</b><br/>Conversation History"] --> F
-    
+
     style A fill:#e1f5fe
     style Q fill:#e8f5e8
     style R fill:#fff3e0
     style F fill:#f3e5f5
     style N fill:#ffebee
+    style O fill:#fff9c4
 ```
 
 ## Testing
@@ -240,7 +248,7 @@ tests/
 - **Purpose**: Ensures dangerous SQL is blocked at multiple layers
 - **Modules Tested**: 
   - `src.agent.nodes.execute_sql_node` (workflow level)
-  - `src.agent.llm_manager.HybridLLMManager.execute_sql_query` (manager level)
+  - `src.agent.llm_manager.OpenAILLMManager.execute_sql_query` (manager level)
 - **Test Cases**: 2 comprehensive tests using:
   - Mock objects to avoid heavy database initialization
   - Monkeypatching for isolated testing
@@ -310,16 +318,16 @@ The evaluation implements three standard Text-to-SQL metrics:
 
 ### Ground Truth Dataset
 
-The system uses a curated dataset of 55 healthcare management queries covering:
-- **Easy** (19 queries): Single table, basic operations
-- **Medium** (18 queries): Filtering, aggregation, temporal analysis
-- **Hard** (18 queries): Multi-table JOINs, complex calculations
+The system uses a curated dataset of 59 healthcare management queries covering:
+- **Easy** (25 queries): Single table, basic operations
+- **Medium** (19 queries): Filtering, aggregation, temporal analysis
+- **Hard** (15 queries): Multi-table JOINs, complex calculations
 
 All queries focus on real-world scenarios for DATASUS/SIH-RS healthcare data analysis.
 
 ### Running Evaluation
 
-Execute complete evaluation on all 55 queries using DAG-based pipeline:
+Execute complete evaluation on all 59 queries using DAG-based pipeline:
 
 ```bash
 # Run full evaluation

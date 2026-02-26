@@ -23,28 +23,19 @@ class ApplicationConfig:
     )
     
     # LLM configuration (for SQL generation)
-    # llm_provider: str = "huggingface"  # ollama, huggingface
-    # llm_model: str = "maiconkevyn/mistral-txt2sql-sus"  # Fine-tuned SUS model
-    llm_provider: str = "ollama"  # Fallback to Ollama
-    llm_model: str = "llama3.1:8b"  # llama3.1:8b with tool calling support
-    # llm_model: str = "defog/sqlcoder-7b-2"  # Heavy model - causes IDE crashes
-    llm_temperature: float = 0  # Optimized for fine-tuned model
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-4o-mini"
+    llm_temperature: float = 0.0
     llm_timeout: int = 120
     llm_max_retries: int = 3
-    
-    # Conversational LLM configuration (for natural language responses)
-    conversational_llm_model: str = "llama3.1:8b"  # llama3.1:8b, mistral
-    conversational_llm_temperature: float = 0.8
+
+    # Conversational LLM configuration (share same model by default)
+    conversational_llm_model: str = "gpt-4o-mini"
+    conversational_llm_temperature: float = 0.7
     conversational_llm_max_tokens: int = 1000
     conversational_llm_timeout: int = 60
     conversational_llm_max_retries: int = 3
-    
-    # HuggingFace model configuration
-    llm_device: str = "auto"  # auto detects best device (cuda/cpu)
-    llm_load_in_8bit: bool = False
-    llm_load_in_4bit: bool = True  # Enable 4-bit quantization for efficiency
-    llm_max_new_tokens: int = 300  # Increased for better SQL generation
-    
+
     # Schema configuration
     schema_type: str = "sus"
     

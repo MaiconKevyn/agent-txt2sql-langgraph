@@ -18,16 +18,16 @@ from .workflow import (
     execute_sql_workflow,
     stream_sql_workflow
 )
-from .llm_manager import HybridLLMManager
+from .llm_manager import OpenAILLMManager
 from .state import create_initial_messages_state, state_to_legacy_format
 from ..application.config.simple_config import ApplicationConfig, OrchestratorConfig
 
 
 @dataclass
 class ModelConfig:
-    """Configuration for LLM model switching"""
-    provider: str  # "ollama", "huggingface"
-    model_name: str  # "llama3", "mistral", etc.
+    """Configuration for OpenAI model"""
+    provider: str  # always "openai"
+    model_name: str  # e.g., gpt-4o-mini
     temperature: float = 0.1
     timeout: int = 30
     max_retries: int = 3
@@ -88,17 +88,15 @@ class LangGraphOrchestrator:
     def _initialize_workflow(self):
         """Initialize the appropriate workflow based on environment"""
         try:
-            # FIX: Create LLM manager FIRST using orchestrator's config
-            # This ensures nodes use the same config as the orchestrator
-            self._llm_manager = HybridLLMManager(self.app_config)
+            # Create OpenAI LLM manager first using orchestrator's config
+            self._llm_manager = OpenAILLMManager(self.app_config)
 
             # Inject into global singleton used by nodes
-            # LLM manager created
-            # from .nodes import set_global_llm_manager
-            # set_global_llm_manager(self._llm_manager)
+            from .nodes import set_global_llm_manager
+            set_global_llm_manager(self._llm_manager)
 
             self.logger.info("LLM Manager created and injected into nodes", extra={
-                "provider": self.app_config.llm_provider,
+                "provider": "openai",
                 "model": self.app_config.llm_model
             })
 
@@ -115,7 +113,7 @@ class LangGraphOrchestrator:
 
             # Track current model
             self._current_model = ModelConfig(
-                provider=self.app_config.llm_provider,
+                provider="openai",
                 model_name=self.app_config.llm_model,
                 temperature=self.app_config.llm_temperature,
                 timeout=self.app_config.llm_timeout,
@@ -168,38 +166,22 @@ class LangGraphOrchestrator:
     
     def switch_model(
         self,
-        provider: str,
         model_name: str,
         temperature: float = None,
         timeout: int = None
     ) -> bool:
-        """
-        Switch to a different LLM model
-        
-        Args:
-            provider: LLM provider ("ollama", "huggingface")
-            model_name: Model name ("llama3", "mistral", etc.)
-            temperature: Model temperature (optional)
-            timeout: Model timeout (optional)
-            
-        Returns:
-            True if switch was successful, False otherwise
-        """
+        """Switch to a different OpenAI model."""
         try:
-            self.logger.info("Switching model", extra={"model": model_name, "provider": provider})
-            
-            # Create new configuration
+            self.logger.info("Switching model", extra={"model": model_name, "provider": "openai"})
+
             new_config = ApplicationConfig(
                 database_type=self.app_config.database_type,
                 database_path=self.app_config.database_path,
-                llm_provider=provider,
+                llm_provider="openai",
                 llm_model=model_name,
                 llm_temperature=temperature or self.app_config.llm_temperature,
                 llm_timeout=timeout or self.app_config.llm_timeout,
                 llm_max_retries=self.app_config.llm_max_retries,
-                llm_device=self.app_config.llm_device,
-                llm_load_in_8bit=self.app_config.llm_load_in_8bit,
-                llm_load_in_4bit=self.app_config.llm_load_in_4bit,
                 schema_type=self.app_config.schema_type,
                 ui_type=self.app_config.ui_type,
                 interface_type=self.app_config.interface_type,
@@ -207,40 +189,33 @@ class LangGraphOrchestrator:
                 enable_error_logging=self.app_config.enable_error_logging,
                 query_processing_type=self.app_config.query_processing_type
             )
-            
-            # Initialize new LLM manager
-            new_llm_manager = HybridLLMManager(new_config)
-            
-            # Test the new model
+
+            new_llm_manager = OpenAILLMManager(new_config)
             test_result = new_llm_manager.health_check()
             if test_result["status"] != "healthy":
                 self.logger.error("Model switch failed", extra={"test_result": test_result})
                 return False
-            
-            # Update configuration and managers
+
             self.app_config = new_config
             self._llm_manager = new_llm_manager
 
-            # FIX: Also update global singleton used by nodes
-            # Global singleton update removed - using dependency injection
-            # from .nodes import set_global_llm_manager
-            # set_global_llm_manager(new_llm_manager)
+            from .nodes import set_global_llm_manager
+            set_global_llm_manager(new_llm_manager)
 
-            # Update current model tracking
             self._current_model = ModelConfig(
-                provider=provider,
+                provider="openai",
                 model_name=model_name,
                 temperature=temperature or self.app_config.llm_temperature,
                 timeout=timeout or self.app_config.llm_timeout,
                 max_retries=self.app_config.llm_max_retries
             )
 
-            self.logger.info("Model switched successfully (orchestrator + nodes)", extra={
+            self.logger.info("Model switched successfully", extra={
                 "model": model_name,
-                "provider": provider
+                "provider": "openai"
             })
             return True
-            
+
         except Exception as e:
             self.logger.error("Model switch failed", extra={"error": str(e)})
             return False
@@ -276,14 +251,14 @@ class LangGraphOrchestrator:
         if session_id is None:
             session_id = f"session_{int(time.time() * 1000) % 100000}"
         
-        # Log query start
-        self.logger.info(f"Query started", extra={
-            "query_id": self._total_queries + 1,
-            "session_id": session_id,
-            "user_query": user_query[:100] + "..." if len(user_query) > 100 else user_query,
-            "streaming": streaming,
-            "model": f"{self._current_model.provider}/{self._current_model.model_name}"
-        })
+            # Log query start
+            self.logger.info(f"Query started", extra={
+                "query_id": self._total_queries + 1,
+                "session_id": session_id,
+                "user_query": user_query[:100] + "..." if len(user_query) > 100 else user_query,
+                "streaming": streaming,
+                "model": f"openai/{self._current_model.model_name}"
+            })
         
         try:
             # Track query
@@ -319,8 +294,7 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=langsmith_config,
-                    llm_manager=self._llm_manager
+                    config=langsmith_config
                 ):
                     results.append(update)
                 
@@ -339,8 +313,7 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=langsmith_config,
-                    llm_manager=self._llm_manager
+                    config=langsmith_config
                 )
                 
                 # Calculate execution time
@@ -527,12 +500,10 @@ class LangGraphOrchestrator:
             Dictionary mapping providers to available models
         """
         return {
-            "ollama": ["llama3.1:8b", "llama3.2", "mistral"],
-            "huggingface": [
-                "microsoft/DialoGPT-medium",
-                "microsoft/DialoGPT-large", 
-                "EleutherAI/gpt-neo-2.7B",
-                "EleutherAI/gpt-j-6B"
+            "openai": [
+                "gpt-4o-mini",
+                "gpt-4o",
+                "gpt-3.5-turbo-0125"
             ]
         }
     
@@ -664,7 +635,7 @@ class LangGraphOrchestrator:
      Features:
     • PostgreSQL with 15 specialized tables
     • Intelligent table selection (mortes, procedimentos, etc.)
-    • Multi-LLM support (Ollama, HuggingFace)
+    • OpenAI tool calling (gpt-4o / gpt-4o-mini)
     • Retry mechanisms with error recovery
     • Healthcare domain optimization (SUS data)
         """
@@ -843,8 +814,8 @@ class LangGraphOrchestrator:
 
 # Factory functions for easy instantiation
 def create_orchestrator(
-    provider: str = "ollama",
-    model_name: str = "llama3.1:8b",
+    provider: str = "openai",
+    model_name: str = "gpt-4o-mini",
     environment: str = "production",
     database_url: Optional[str] = None
 ) -> LangGraphOrchestrator:
@@ -852,7 +823,7 @@ def create_orchestrator(
     Factory function to create LangGraph Orchestrator
     
     Args:
-        provider: LLM provider ("ollama", "huggingface")
+        provider: LLM provider (only "openai")
         model_name: Model name
         environment: Environment mode
         database_url: PostgreSQL connection URL
@@ -871,7 +842,7 @@ def create_orchestrator(
     app_config = ApplicationConfig(
         database_type="postgresql",
         database_path=resolved_db_url,
-        llm_provider=provider,
+        llm_provider="openai",
         llm_model=model_name
     )
     
@@ -885,8 +856,8 @@ def create_orchestrator(
 
 
 def create_production_orchestrator(
-    provider: str = "ollama",
-    model_name: str = "llama3.1:8b"
+    provider: str = "openai",
+    model_name: str = "gpt-4o-mini"
 ) -> LangGraphOrchestrator:
     """Create production-ready orchestrator"""
     return create_orchestrator(
@@ -897,8 +868,8 @@ def create_production_orchestrator(
 
 
 def create_development_orchestrator(
-    provider: str = "ollama",
-    model_name: str = "llama3.1:8b"
+    provider: str = "openai",
+    model_name: str = "gpt-4o-mini"
 ) -> LangGraphOrchestrator:
     """Create development orchestrator with debugging"""
     return create_orchestrator(
