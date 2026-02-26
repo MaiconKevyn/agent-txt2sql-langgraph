@@ -92,33 +92,57 @@ def initialize_database(load_configuration: Dict[str, Any], **kwargs) -> Dict[st
     """
     print("  Initializing database connection...")
 
-    # Simple database wrapper
+    # Simple database wrapper (supports PostgreSQL and DuckDB)
     class SimpleDatabaseConnection:
         def __init__(self, db_url: str):
-            import psycopg2
             self.db_url = db_url
-            self.connection = psycopg2.connect(db_url)
+            self.is_duckdb = db_url.startswith("duckdb")
+            if self.is_duckdb:
+                from sqlalchemy import create_engine
+                # Use the same SQLAlchemy/duckdb-engine pathway as the agent
+                # so both connections share identical DuckDB configuration
+                self._engine = create_engine(db_url)
+            else:
+                import psycopg2
+                self.connection = psycopg2.connect(db_url)
 
         def execute_query(self, sql: str):
-            try:
-                cursor = self.connection.cursor()
-                cursor.execute(sql)
+            if self.is_duckdb:
+                from sqlalchemy import text
                 try:
-                    results = cursor.fetchall()
-                    self.connection.commit()  # Commit successful query
-                    return results, None
-                except Exception:
-                    self.connection.commit()  # Commit even if no results (e.g., INSERT)
-                    return [], None
-            except Exception as e:
-                self.connection.rollback()  # Rollback on error to prevent transaction abort
-                return None, str(e)
+                    with self._engine.connect() as conn:
+                        result = conn.execute(text(sql))
+                        try:
+                            rows = [tuple(row) for row in result.fetchall()]
+                            return rows, None
+                        except Exception:
+                            return [], None
+                except Exception as e:
+                    return None, str(e)
+            else:
+                try:
+                    cursor = self.connection.cursor()
+                    cursor.execute(sql)
+                    try:
+                        results = cursor.fetchall()
+                        self.connection.commit()
+                        return results, None
+                    except Exception:
+                        self.connection.commit()
+                        return [], None
+                except Exception as e:
+                    self.connection.rollback()
+                    return None, str(e)
 
         def get_raw_connection(self):
+            if self.is_duckdb:
+                return self._engine.raw_connection()
             return self.connection
 
         def close(self):
-            if self.connection:
+            if self.is_duckdb:
+                self._engine.dispose()
+            elif hasattr(self, 'connection') and self.connection:
                 self.connection.close()
 
     # Get database URL
@@ -127,7 +151,7 @@ def initialize_database(load_configuration: Dict[str, Any], **kwargs) -> Dict[st
     if not db_url:
         raise ValueError("DATABASE_URL or DATABASE_PATH not found in environment")
 
-    # Convert SQLAlchemy format to psycopg2 format if needed
+    # Convert SQLAlchemy format to psycopg2 format if needed (PostgreSQL only)
     if "postgresql+psycopg2://" in db_url:
         db_url = db_url.replace("postgresql+psycopg2://", "postgresql://")
 
@@ -137,7 +161,7 @@ def initialize_database(load_configuration: Dict[str, Any], **kwargs) -> Dict[st
 
     return {
         'db_connection': db_connection,
-        'db_url_masked': db_url.split('@')[1] if '@' in db_url else 'localhost'
+        'db_url_masked': db_url.split('@')[1] if '@' in db_url else db_url.split('///')[-1]
     }
 
 

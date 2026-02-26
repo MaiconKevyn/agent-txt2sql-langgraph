@@ -1,0 +1,54 @@
+================================================================================
+TEXT-TO-SQL EVALUATION REPORT
+================================================================================
+
+OVERALL SUMMARY
+--------------------------------------------------------------------------------
+Total Questions: 81
+Agent Success Rate: 98.8%
+Total Execution Time: 2622.4s
+Avg Time per Question: 32.38s
+
+METRICS PERFORMANCE
+--------------------------------------------------------------------------------
+
+Exact Match (EM):
+  Average Score: 0.150
+  Accuracy (≥0.8): 15.0%
+  Perfect Matches: 12/80
+
+Component Matching (CM):
+  Average Score: 0.738
+  Accuracy (≥0.8): 46.2%
+  Perfect Matches: 25/80
+
+Execution Accuracy (EX):
+  Average Score: 0.838
+  Accuracy (≥0.8): 83.8%
+  Perfect Matches: 67/80
+
+DIFFICULTY BREAKDOWN
+--------------------------------------------------------------------------------
+
+EASY:
+  Questions: 31
+  Agent Success: 31/31 (100.0%)
+  Exact Match (EM): 0.226 (22.6%)
+  Component Matching (CM): 0.823 (58.1%)
+  Execution Accuracy (EX): 0.903 (90.3%)
+
+HARD:
+  Questions: 21
+  Agent Success: 21/21 (100.0%)
+  Exact Match (EM): 0.095 (9.5%)
+  Component Matching (CM): 0.697 (42.9%)
+  Execution Accuracy (EX): 0.667 (66.7%)
+
+MEDIUM:
+  Questions: 29
+  Agent Success: 28/29 (96.6%)
+  Exact Match (EM): 0.107 (10.7%)
+  Component Matching (CM): 0.674 (35.7%)
+  Execution Accuracy (EX): 0.893 (89.3%)
+
+================================================================================
