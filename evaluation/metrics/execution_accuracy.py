@@ -13,6 +13,7 @@ Following the Spider benchmark standards:
 """
 
 import psycopg2
+from decimal import Decimal
 from typing import Dict, Any, List, Tuple, Optional, Union
 from collections import Counter
 from .base_metrics import BaseMetric, MetricResult, EvaluationContext
@@ -293,31 +294,41 @@ class ExecutionAccuracyMetric(BaseMetric):
 
     def _normalize_value(self, value: Any) -> Any:
         """
-        Normalize a single value for comparison
+        Normalize a single value for comparison.
 
-        Args:
-            value: Raw value from database
-
-        Returns:
-            Normalized value
+        Key invariants:
+        - Booleans checked before int (bool is subclass of int in Python)
+        - Decimal (PostgreSQL NUMERIC/AVG/SUM) converted to float and rounded
+        - Floats rounded to 2 decimal places to absorb PostgreSQL query-planner
+          floating-point accumulation differences on the same logical computation
+        - Strings stripped and lowercased for case-insensitive comparison
         """
         if value is None:
             return None
 
-        # Handle numeric types
-        if isinstance(value, (int, float)):
-            # For floating point numbers, round to avoid precision issues
-            if isinstance(value, float):
-                return round(value, 10)  # 10 decimal places should be sufficient
-            return value
-
-        # Handle string types
-        if isinstance(value, str):
-            return value.strip()
-
-        # Handle boolean types
+        # Handle boolean before int (bool is a subclass of int)
         if isinstance(value, bool):
             return value
+
+        # Handle Python Decimal (maps to PostgreSQL NUMERIC, AVG, SUM results)
+        # Convert to float first, then round to 2 decimal places.
+        # This absorbs tiny FP differences when PostgreSQL accumulates millions
+        # of rows in different orders across semantically-equivalent queries.
+        if isinstance(value, Decimal):
+            return round(float(value), 2)
+
+        # Handle native int
+        if isinstance(value, int):
+            return value
+
+        # Handle native float
+        if isinstance(value, float):
+            return round(value, 2)
+
+        # Handle string types — lowercase for case-insensitive comparison
+        # (e.g. 'BRANCA' from raca_cor.DESCRICAO vs 'Branca' from CASE WHEN)
+        if isinstance(value, str):
+            return value.strip().lower()
 
         # Handle date/datetime types
         if hasattr(value, 'isoformat'):
