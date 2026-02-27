@@ -1,3 +1,11 @@
+"""
+Rich Prompt Baseline Pipeline.
+
+Single-shot OpenAI API call with full context (RULES A-H + TABLE_TEMPLATES +
+SUS_MAPPINGS + pre-gen hints). No LangGraph, no table selection, no validation loop.
+
+Experimental purpose: isolate the impact of LangGraph architecture vs prompt engineering.
+"""
 from __future__ import annotations
 
 import json
@@ -10,12 +18,12 @@ from evaluation.metrics.component_matching import ComponentMatchingMetric
 from evaluation.metrics.exact_match import ExactMatchMetric
 from evaluation.metrics.execution_accuracy import ExecutionAccuracyMetric
 
-from baselines.llm_direct_sql.config import BaselineConfig
-from baselines.llm_direct_sql.context_loader import build_schema_context
-from baselines.llm_direct_sql.llm_client import DirectLLMClient
-from baselines.llm_direct_sql.prompt_builder import build_prompts
-from baselines.llm_direct_sql.query_executor import PostgresQueryExecutor
-from baselines.llm_direct_sql.sql_parser import parse_and_validate_sql
+from baselines.rich_prompt_baseline.config import BaselineConfig
+from baselines.rich_prompt_baseline.context_loader import build_schema_context
+from baselines.rich_prompt_baseline.llm_client import DirectLLMClient
+from baselines.rich_prompt_baseline.query_executor import PostgresQueryExecutor
+from baselines.rich_prompt_baseline.sql_parser import parse_and_validate_sql
+from baselines.rich_prompt_baseline.prompt_builder import build_prompts
 
 
 def load_ground_truth(path: str) -> List[Dict[str, Any]]:
@@ -31,7 +39,7 @@ def load_ground_truth(path: str) -> List[Dict[str, Any]]:
 
 def default_output_path(output_dir: Path) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return output_dir / f"llm_direct_baseline_{ts}.json"
+    return output_dir / f"rich_prompt_baseline_{ts}.json"
 
 
 def _json_safe(value: Any) -> Any:
@@ -44,60 +52,6 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
-
-
-def run_single_question(
-    question: str,
-    config: BaselineConfig,
-    *,
-    question_id: str = "single",
-    difficulty: str = "ad-hoc",
-    ground_truth_sql: str = "",
-    schema_context: Optional[str] = None,
-) -> Dict[str, Any]:
-    context = schema_context or build_schema_context()
-    system_prompt, user_prompt = build_prompts(question, context)
-
-    llm = DirectLLMClient(config)
-    db = PostgresQueryExecutor(
-        database_url=config.database_url,
-        statement_timeout_ms=config.statement_timeout_ms,
-    )
-    try:
-        llm_output = llm.generate_sql(system_prompt, user_prompt)
-        parsed = parse_and_validate_sql(llm_output.raw_text)
-
-        predicted_sql = parsed.sql if parsed.is_safe else ""
-        execution = None
-        if predicted_sql:
-            execution = db.execute(predicted_sql)
-
-        return {
-            "question_id": question_id,
-            "difficulty": difficulty,
-            "question": question,
-            "ground_truth_sql": ground_truth_sql,
-            "predicted_sql": predicted_sql,
-            "unsafe_predicted_sql": parsed.sql if not parsed.is_safe else "",
-            "is_safe_sql": parsed.is_safe,
-            "safety_reason": parsed.safety_reason,
-            "llm_provider": config.llm_provider,
-            "llm_model": config.llm_model,
-            "llm_latency_s": llm_output.latency_s,
-            "raw_response": llm_output.raw_text if config.include_raw_response else "",
-            "execution": {
-                "row_count": execution.row_count if execution else 0,
-                "columns": execution.columns if execution else [],
-                "rows_preview": list(execution.rows[:5]) if execution else [],
-                "error": execution.error if execution else (
-                    parsed.safety_reason if not parsed.is_safe else None
-                ),
-                "latency_s": execution.latency_s if execution else 0.0,
-            },
-            "agent_success": bool(predicted_sql.strip()),
-        }
-    finally:
-        db.close()
 
 
 def _aggregate_results(
@@ -202,11 +156,13 @@ def run_batch(
     metric_scores: Dict[str, List[float]] = {metric.name: [] for metric in metrics}
 
     try:
-        for item in questions:
+        for i, item in enumerate(questions, 1):
             question = item.get("question", "")
             question_id = item.get("id", "")
             difficulty = item.get("difficulty", "unknown")
             ground_truth_sql = item.get("query", "")
+
+            print(f"[{i:3d}/{len(questions)}] {question_id} ({difficulty}): {question[:80]}...")
 
             system_prompt, user_prompt = build_prompts(question, context)
             llm_output = llm.generate_sql(system_prompt, user_prompt)
@@ -266,6 +222,12 @@ def run_batch(
                             "error": str(exc),
                         }
 
+            # Print EX score for quick monitoring
+            ex_score = row_result["metrics"].get("Execution Accuracy (EX)", {}).get("score", "N/A")
+            exec_err = row_result["execution"].get("error")
+            status = f"EX={ex_score}" if not exec_err else f"ERR: {str(exec_err)[:60]}"
+            print(f"        -> {status}")
+
             detailed_results.append(row_result)
 
     finally:
@@ -274,9 +236,12 @@ def run_batch(
     aggregate = _aggregate_results(detailed_results, metric_scores)
     return {
         "baseline": {
-            "name": "llm_direct_sql",
-            "description": "Single-shot direct LLM baseline without LangGraph",
-            "provider": config.llm_provider,
+            "name": "rich_prompt_baseline",
+            "description": (
+                "Single-shot LLM with full context (RULES A-H + TABLE_TEMPLATES + SUS_MAPPINGS "
+                "+ pre-gen hints) but no LangGraph (no table selection, no validation, no repair)"
+            ),
+            "provider": "openai",
             "model": config.llm_model,
             "temperature": config.llm_temperature,
             "statement_timeout_ms": config.statement_timeout_ms,
@@ -295,4 +260,3 @@ def save_results(results: Dict[str, Any], output_path: Path) -> Path:
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(_json_safe(results), f, indent=2, ensure_ascii=False)
     return output_path
-

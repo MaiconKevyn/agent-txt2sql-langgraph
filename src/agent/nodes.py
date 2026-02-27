@@ -2247,14 +2247,39 @@ def _get_intelligent_fallback(user_query: str, available_tables: List[str]) -> L
     return ['internacoes'] if 'internacoes' in available_tables else available_tables[:1]
 
 
+# ---------------------------------------------------------------------------
+# Optional reasoning / clarification nodes (stubs to keep workflow intact)
+# ---------------------------------------------------------------------------
+def reasoning_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+    """No-op reasoning step to satisfy workflow edges."""
+    start = time.time()
+    state = update_phase(state, ExecutionPhase.SQL_GENERATION, time.time() - start)
+    return state
+
+
+def clarification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+    """Fallback clarification response if routed here."""
+    prompt = (
+        "Não consegui entender totalmente sua pergunta. "
+        "Por favor, reformule adicionando contexto (tabelas, filtros, período)."
+    )
+    state = add_ai_message(state, prompt)
+    state["final_response"] = prompt
+    state["completed"] = True
+    state = update_phase(state, ExecutionPhase.RESPONSE_FORMATTING, 0.0)
+    return state
+
+
 # Export all nodes
 __all__ = [
     "query_classification_node",
     "list_tables_node", 
     "get_schema_node",
+    "reasoning_node",
     "generate_sql_node",
     "repair_sql_node",
     "validate_sql_node",
     "execute_sql_node",
-    "generate_response_node"
+    "generate_response_node",
+    "clarification_node"
 ]
