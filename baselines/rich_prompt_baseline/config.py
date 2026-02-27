@@ -26,7 +26,6 @@ def _as_bool(value: Optional[str], default: bool = False) -> bool:
 
 @dataclass(frozen=True)
 class BaselineConfig:
-    llm_provider: str
     llm_model: str
     llm_temperature: float
     llm_timeout: int
@@ -39,7 +38,6 @@ class BaselineConfig:
     def from_env(
         cls,
         *,
-        llm_provider: Optional[str] = None,
         llm_model: Optional[str] = None,
         llm_temperature: Optional[float] = None,
         llm_timeout: Optional[int] = None,
@@ -48,17 +46,11 @@ class BaselineConfig:
         include_raw_response: Optional[bool] = None,
         output_dir: Optional[str] = None,
     ) -> "BaselineConfig":
-        provider = _first_non_empty(
-            llm_provider,
-            os.getenv("BASELINE_LLM_PROVIDER"),
-            os.getenv("LLM_PROVIDER"),
-            "ollama",
-        )
         model = _first_non_empty(
             llm_model,
             os.getenv("BASELINE_LLM_MODEL"),
             os.getenv("LLM_MODEL"),
-            "llama3.1:8b",
+            "gpt-4o-mini",
         )
 
         temp = (
@@ -98,11 +90,10 @@ class BaselineConfig:
         out_dir = Path(
             output_dir
             or os.getenv("BASELINE_OUTPUT_DIR")
-            or "baselines/llm_direct_sql/artifacts"
+            or "baselines/rich_prompt_baseline/artifacts"
         )
 
         return cls(
-            llm_provider=provider,
             llm_model=model,
             llm_temperature=float(temp),
             llm_timeout=int(timeout),

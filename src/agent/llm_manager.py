@@ -1,870 +1,252 @@
 import os
-from typing import List, Dict, Any, Optional, Union
-from langchain_core.language_models import BaseLLM
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from typing import List, Dict, Any, Optional
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
-from langchain_ollama import ChatOllama
-from langchain_community.llms import HuggingFacePipeline
-
-# Adicionar suporte a novos provedores LLM
-try:
-    from langchain_groq import ChatGroq
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
-
-try:
-    from langchain_openai import ChatOpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
+from langchain_openai import ChatOpenAI
 
 from ..application.config.simple_config import ApplicationConfig
 from ..utils.sql_safety import is_select_only, sanitize_sql_for_execution
 from ..utils.logging_config import get_llm_manager_logger
 
-# Initialize logger
+
 logger = get_llm_manager_logger()
 
 
-class HybridLLMManager:
+class OpenAILLMManager:
     """
-    Hybrid LLM Manager following LangGraph SQL Agent best practices
-    
-    Integrates:
-    - SQLDatabaseToolkit for database operations
-    - Multi-provider LLM support (Ollama, HuggingFace)
-    - Tool binding with llm.bind_tools()
-    - Message state management
-    - Official LangGraph patterns
+    OpenAI-only LLM manager responsible for:
+    - Creating ChatOpenAI client
+    - Wiring SQLDatabase + SQLDatabaseToolkit tools
+    - Exposing convenience helpers for SQL generation/execution
     """
-    
+
     def __init__(self, config: ApplicationConfig):
         self.config = config
-        self._llm: Optional[BaseLLM] = None
+        self._llm: Optional[BaseChatModel] = None
+        self._bound_llm = None
         self._sql_database: Optional[SQLDatabase] = None
         self._sql_toolkit: Optional[SQLDatabaseToolkit] = None
-        self._bound_llm = None
-        
-        # Performance optimization: cache for expensive operations
-        self._schema_cache = {}
-        self._table_list_cache = None
-        self._cache_timeout = 300  # 5 minutes cache
-        
-        # Initialize components
+
         self._initialize_database()
         self._initialize_llm()
         self._initialize_sql_toolkit()
         self._bind_tools()
-    
+
+    # ------------------------------------------------------------------
+    # Initialization
+    # ------------------------------------------------------------------
     def _initialize_database(self):
-        """Initialize SQLDatabase for PostgreSQL (LangChain integration)"""
+        db_path = self.config.database_path or ""
+        if not (db_path.startswith("postgresql") or db_path.startswith("duckdb")):
+            raise ValueError("Defina DATABASE_URL (postgresql:// ou duckdb:///)")
+
+        # Normalize psycopg2 style
+        if db_path.startswith("postgresql+psycopg2://"):
+            db_path = db_path.replace("postgresql+psycopg2://", "postgresql://", 1)
+
+        redacted = db_path
         try:
-            db_path = self.config.database_path or ""
-            if not (self.config.database_type == "postgresql" or db_path.startswith("postgresql")):
-                raise ValueError("Database must be PostgreSQL. Defina DATABASE_URL no .env ou use --db-url.")
+            if "://" in db_path and "@" in db_path:
+                scheme, rest = db_path.split("://", 1)
+                after_at = rest.split("@", 1)[1]
+                redacted = f"{scheme}://****@{after_at}"
+        except Exception:
+            redacted = "[redacted]"
 
-            # Normalize driver style if needed
-            connection_string = db_path
-            if connection_string.startswith("postgresql+psycopg2://"):
-                connection_string = connection_string.replace("postgresql+psycopg2://", "postgresql://", 1)
+        logger.info("Connecting to database", extra={"connection_string": redacted})
 
-            # Redact credentials before logging
-            redacted = connection_string
-            try:
-                if "://" in connection_string and "@" in connection_string:
-                    scheme_sep = connection_string.split("://", 1)
-                    right = scheme_sep[1]
-                    if "@" in right:
-                        after_at = right.split("@", 1)[1]
-                        redacted = f"{scheme_sep[0]}://****@{after_at}"
-            except Exception:
-                redacted = "[redacted]"
-            logger.info("Connecting to PostgreSQL", extra={"connection_string": redacted})
-            
-            # Create SQLDatabase instance following LangGraph tutorial
-            self._sql_database = SQLDatabase.from_uri(connection_string)
-            
-            # Verify database connection
-            table_names = self._sql_database.get_usable_table_names()
-            if not table_names:
-                raise ValueError("No usable tables found in database")
-                
-            logger.info("SQLDatabase initialized", extra={"table_count": len(table_names)})
-            
-        except Exception as e:
-            logger.error("Database initialization failed", extra={"error": str(e)})
-            raise
-    
+        self._sql_database = SQLDatabase.from_uri(db_path)
+        table_names = self._sql_database.get_usable_table_names()
+        if not table_names:
+            raise ValueError("No usable tables found in database")
+
     def _initialize_llm(self):
-        """Initialize LLM based on provider configuration"""
-        try:
-            provider = self.config.llm_provider.lower()
-            model_name = self.config.llm_model
-            
-            if provider == "ollama":
-                self._llm = ChatOllama(
-                    model=model_name,
-                    temperature=self.config.llm_temperature,
-                    timeout=self.config.llm_timeout,
-                    num_predict=1024,  # Reduced for faster response
-                    top_k=5,  # Reduced for more focused responses
-                    top_p=0.9
-                )
-                
-            elif provider == "groq":
-                # GROQ - LLM OPEN SOURCE GRATUITO COM TOOL CALLING
-                if not GROQ_AVAILABLE:
-                    raise ImportError("Groq not available. Install with: pip install groq langchain-groq")
-                
-                api_key = os.getenv("GROQ_API_KEY")
-                if not api_key:
-                    raise ValueError("GROQ_API_KEY environment variable not set")
-                
-                self._llm = ChatGroq(
-                    model=model_name,
-                    temperature=self.config.llm_temperature,
-                    groq_api_key=api_key,
-                    max_tokens=None,
-                    timeout=None,
-                    max_retries=2
-                )
-                logger.info("Groq LLM initialized", extra={"model": model_name, "description": "Free Llama3 70B with tool calling"})
-                
-            elif provider == "openai":
-                if not OPENAI_AVAILABLE:
-                    raise ImportError("OpenAI not available. Install with: pip install openai langchain-openai")
-                
-                api_key = os.getenv("OPENAI_API_KEY")
-                if not api_key:
-                    raise ValueError("OPENAI_API_KEY environment variable not set")
-                
-                self._llm = ChatOpenAI(
-                    model=model_name,
-                    temperature=self.config.llm_temperature,
-                    api_key=api_key,
-                    timeout=self.config.llm_timeout,
-                    max_retries=2
-                )
-                logger.info("OpenAI LLM initialized", extra={"model": model_name})
-                
-            elif provider == "huggingface":
-                # Configure quantization if requested
-                model_kwargs = {}
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not set")
 
-                if self.config.llm_load_in_4bit or self.config.llm_load_in_8bit:
-                    try:
-                        from transformers import BitsAndBytesConfig
+        self._llm = ChatOpenAI(
+            model=self.config.llm_model,
+            temperature=self.config.llm_temperature,
+            timeout=self.config.llm_timeout,
+            max_retries=self.config.llm_max_retries,
+            api_key=api_key,
+        )
 
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_4bit=self.config.llm_load_in_4bit,
-                            load_in_8bit=self.config.llm_load_in_8bit,
-                            bnb_4bit_compute_dtype="float16" if self.config.llm_load_in_4bit else None
-                        )
-                        model_kwargs["quantization_config"] = quantization_config
+        logger.info("OpenAI LLM initialized", extra={"model": self.config.llm_model})
 
-                    except ImportError:
-                        logger.warning("bitsandbytes not available, loading model without quantization")
-
-                # Device configuration
-                device = -1  # CPU by default
-                if self.config.llm_device == "cuda" or self.config.llm_device == "auto":
-                    try:
-                        import torch
-                        if torch.cuda.is_available():
-                            device = 0
-                    except ImportError:
-                        pass
-
-                # Pipeline kwargs for generation parameters (NOT model initialization)
-                # Reduce max_new_tokens for GPU to avoid OOM (out of memory) errors
-                max_tokens = self.config.llm_max_new_tokens
-                if device == 0:  # GPU
-                    # Limit to 256 tokens for GPU to avoid memory issues
-                    max_tokens = min(max_tokens, 256)
-                    logger.info("Using GPU - limiting max_new_tokens to avoid OOM", extra={
-                        "max_tokens": max_tokens,
-                        "original": self.config.llm_max_new_tokens
-                    })
-
-                pipeline_kwargs = {
-                    "max_new_tokens": max_tokens,
-                    "temperature": self.config.llm_temperature,
-                    "do_sample": self.config.llm_temperature > 0,  # Only sample if temp > 0
-                }
-
-                self._llm = HuggingFacePipeline.from_model_id(
-                    model_id=model_name,
-                    task="text-generation",
-                    device=device,
-                    model_kwargs=model_kwargs,
-                    pipeline_kwargs=pipeline_kwargs
-                )
-                
-            else:
-                supported_providers = ["ollama", "huggingface"]
-                if GROQ_AVAILABLE:
-                    supported_providers.append("groq")
-                if OPENAI_AVAILABLE:
-                    supported_providers.append("openai")
-                raise ValueError(f"Unsupported LLM provider: {provider}. Supported: {supported_providers}")
-            
-            logger.info("LLM initialized", extra={"model": model_name, "provider": provider})
-            
-        except Exception as e:
-            logger.error("LLM initialization failed", extra={"error": str(e)})
-            raise
-    
     def _initialize_sql_toolkit(self):
-        """Initialize SQLDatabaseToolkit with Enhanced Tools following LangGraph patterns"""
-        try:
-            if not self._llm or not self._sql_database:
-                raise ValueError("LLM and database must be initialized first")
-            
-            # Create SQLDatabaseToolkit as per LangGraph tutorial
-            self._sql_toolkit = SQLDatabaseToolkit(
-                db=self._sql_database,
-                llm=self._llm
-            )
-            
-            # Get standard tools from toolkit
-            standard_tools = self._sql_toolkit.get_tools()
-            
-            # Create enhanced tools by replacing sql_db_list_tables with our custom version
-            enhanced_tools = self._create_enhanced_tools(standard_tools)
-            
-            # Store enhanced tools for use
-            self._enhanced_tools = enhanced_tools
-            
-            logger.info("Enhanced SQLDatabaseToolkit initialized", extra={"tool_count": len(enhanced_tools)})
-            
-            # Log available tools (including enhanced ones)
-            for tool in enhanced_tools:
-                tool_type = " Enhanced" if "Enhanced" in str(type(tool).__name__) else " Standard"
-                logger.debug("Tool loaded", extra={
-                    "type": tool_type,
-                    "name": tool.name,
-                    "description": tool.description[:80]
-                })
-                
-        except Exception as e:
-            logger.error("SQLDatabaseToolkit initialization failed", extra={"error": str(e)})
-            raise
-    
+        if not self._llm or not self._sql_database:
+            raise ValueError("LLM and database must be initialized first")
+
+        self._sql_toolkit = SQLDatabaseToolkit(db=self._sql_database, llm=self._llm)
+        self._enhanced_tools = self._create_enhanced_tools(self._sql_toolkit.get_tools())
+        logger.info("SQLDatabaseToolkit initialized", extra={"tool_count": len(self._enhanced_tools)})
+
     def _create_enhanced_tools(self, standard_tools: List[BaseTool]) -> List[BaseTool]:
-        """
-        Create enhanced version of SQL tools by replacing standard ones with enhanced versions
-        
-        Args:
-            standard_tools: Original tools from SQLDatabaseToolkit
-            
-        Returns:
-            List of enhanced tools with custom implementations
-        """
         try:
-            # Import our enhanced tool
             from .tools.enhanced_list_tables_tool import EnhancedListTablesTool
-            
-            # Filter out the original sql_db_list_tables tool
-            enhanced_tools = [
-                tool for tool in standard_tools 
-                if tool.name != "sql_db_list_tables"
-            ]
-            
-            # Create and add our enhanced list tables tool
-            enhanced_list_tool = EnhancedListTablesTool(db=self._sql_database)
-            enhanced_tools.append(enhanced_list_tool)
-            
-            logger.info("Enhanced sql_db_list_tables tool integrated", extra={
-                "original_tools": len(standard_tools),
-                "enhanced_tools": len(enhanced_tools),
-                "replacement": "sql_db_list_tables → EnhancedListTablesTool"
-            })
-            
-            return enhanced_tools
-            
-        except ImportError as e:
-            logger.warning("Enhanced tools not available, falling back to standard", extra={"error": str(e)})
-            return standard_tools
+
+            tools = [tool for tool in standard_tools if tool.name != "sql_db_list_tables"]
+            tools.append(EnhancedListTablesTool(db=self._sql_database))
+            logger.info("Enhanced list_tables tool installed", extra={"count": len(tools)})
+            return tools
         except Exception as e:
-            logger.error("Error creating enhanced tools, falling back to standard", extra={"error": str(e)})
+            logger.warning("Falling back to standard tools", extra={"error": str(e)})
             return standard_tools
-    
+
     def _bind_tools(self):
-        """Bind enhanced tools to LLM following LangGraph best practices"""
-        try:
-            if not self._llm or not self._sql_toolkit:
-                raise ValueError("LLM and toolkit must be initialized first")
-            
-            # Get enhanced tools (or standard as fallback)
-            tools = self.get_sql_tools()
-            
-            # Bind tools to LLM (official LangGraph pattern)
-            self._bound_llm = self._llm.bind_tools(tools)
-            
-            # Count enhanced vs standard tools for logging
-            enhanced_count = sum(1 for tool in tools if "Enhanced" in str(type(tool).__name__))
-            standard_count = len(tools) - enhanced_count
-            
-            logger.info("Tools bound to LLM", extra={"tool_count": len(tools)})
-            if enhanced_count > 0:
-                logger.debug("Tool breakdown", extra={
-                    "enhanced_count": enhanced_count,
-                    "standard_count": standard_count
-                })
-            
-        except Exception as e:
-            logger.error("Tool binding failed", extra={"error": str(e)})
-            # Fallback: use unbound LLM
-            self._bound_llm = self._llm
-    
+        tools = self.get_sql_tools()
+        self._bound_llm = self._llm.bind_tools(tools)
+        logger.info("Tools bound to LLM", extra={"tool_count": len(tools)})
+
+    # ------------------------------------------------------------------
+    # Accessors
+    # ------------------------------------------------------------------
     def get_sql_tools(self) -> List[BaseTool]:
-        """Get enhanced SQL database tools"""
-        # Return enhanced tools if available, otherwise fall back to standard tools
-        if hasattr(self, '_enhanced_tools') and self._enhanced_tools:
-            return self._enhanced_tools
-        elif self._sql_toolkit:
-            return self._sql_toolkit.get_tools()
-        else:
-            return []
-    
-    def get_bound_llm(self) -> BaseLLM:
-        """Get LLM with bound tools"""
+        return getattr(self, "_enhanced_tools", []) or (self._sql_toolkit.get_tools() if self._sql_toolkit else [])
+
+    def get_bound_llm(self) -> BaseChatModel:
         return self._bound_llm or self._llm
-    
+
     def get_database(self) -> SQLDatabase:
-        """Get SQLDatabase instance"""
         return self._sql_database
-    
-    def _is_huggingface_llm(self) -> bool:
-        """
-        Detect if the underlying LLM is a HuggingFacePipeline-based model.
-        
-        HuggingFacePipeline expects plain text prompts (not Message lists) and
-        does not support native tool calling, so we need a different invocation
-        path for it.
-        """
-        try:
-            if isinstance(self._llm, HuggingFacePipeline):
-                return True
-        except Exception:
-            # Fallback to provider name if type check fails for any reason
-            pass
-        try:
-            return str(self.config.llm_provider).lower() == "huggingface"
-        except Exception:
-            return False
 
-    def _messages_to_prompt(self, messages: List[BaseMessage]) -> str:
-        """
-        Convert a list of LangChain messages into a single text prompt.
-        
-        This is used for providers like HuggingFacePipeline that expect a
-        string input instead of structured chat messages.
-        """
-        parts: List[str] = []
-        for msg in messages or []:
-            # Safely extract content
-            content = getattr(msg, "content", "")
-            content_str = str(content)
-
-            # Add lightweight role prefixes to preserve some structure
-            prefix = ""
-            if isinstance(msg, SystemMessage):
-                prefix = "SYSTEM: "
-            elif isinstance(msg, HumanMessage):
-                prefix = "USER: "
-            elif isinstance(msg, AIMessage):
-                prefix = "ASSISTANT: "
-
-            parts.append(f"{prefix}{content_str}")
-
-        return "\n\n".join(parts)
-
-    def invoke_chat(self, messages: List[BaseMessage]):
-        """
-        Invoke the underlying LLM with chat-style input in a provider-agnostic way.
-
-        - For chat models (Ollama, Groq, OpenAI), we pass the Message list directly.
-        - For HuggingFacePipeline, we convert messages into a single text prompt.
-        """
-        if not self._llm:
-            raise ValueError("LLM not initialized")
-
-        if self._is_huggingface_llm():
-            prompt = self._messages_to_prompt(messages)
-
-            # Clear CUDA cache before generation to avoid OOM errors
-            try:
-                import torch
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-            except Exception:
-                pass
-
-            return self._llm.invoke(prompt)
-
-        # Default path for chat-capable models
-        return self._llm.invoke(messages)
-    
-    def create_messages(
-        self, 
-        user_query: str, 
-        system_prompt: Optional[str] = None,
-        conversation_history: Optional[List[BaseMessage]] = None
-    ) -> List[BaseMessage]:
-        """
-        Create message list following MessagesState pattern
-        
-        Args:
-            user_query: User's natural language question
-            system_prompt: Optional system prompt
-            conversation_history: Previous messages in conversation
-            
-        Returns:
-            List of messages for LLM processing
-        """
-        messages = []
-        
-        # Add system message if provided
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def create_messages(self, user_query: str, system_prompt: Optional[str] = None, conversation_history: Optional[List[BaseMessage]] = None) -> List[BaseMessage]:
+        messages: List[BaseMessage] = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
-        
-        # Add conversation history
         if conversation_history:
             messages.extend(conversation_history)
-        
-        # Add current user query
         messages.append(HumanMessage(content=user_query))
-        
         return messages
-    
-    def invoke_with_tools(
-        self, 
-        messages: List[BaseMessage],
-        max_iterations: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Invoke LLM with tools following LangGraph patterns
-        
-        Args:
-            messages: List of messages (MessagesState format)
-            max_iterations: Maximum tool calling iterations
-            
-        Returns:
-            Result with messages and tool calls
-        """
-        try:
-            if not self._bound_llm:
-                raise ValueError("Bound LLM not available")
-            
-            # Invoke bound LLM
-            response = self._bound_llm.invoke(messages)
-            
-            # Track tool calls if any
-            tool_calls = []
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                tool_calls = response.tool_calls
-            
-            return {
-                "response": response,
-                "messages": messages + [response],
-                "tool_calls": tool_calls,
-                "has_tool_calls": len(tool_calls) > 0
-            }
-            
-        except Exception as e:
-            return {
-                "response": None,
-                "messages": messages,
-                "tool_calls": [],
-                "has_tool_calls": False,
-                "error": str(e)
-            }
-    
-    def generate_sql_query(
-        self, 
-        user_query: str, 
-        schema_context: str,
-        conversation_history: Optional[List[BaseMessage]] = None
-    ) -> Dict[str, Any]:
-        """
-        Generate SQL query using LangGraph patterns
-        
-        Args:
-            user_query: Natural language question
-            schema_context: Database schema information
-            conversation_history: Previous conversation messages
-            
-        Returns:
-            SQL generation result
-        """
-        try:
-            # Create enhanced system prompt that emphasizes SUS value mappings
-            system_prompt = f"""You are a SQL expert assistant for Brazilian healthcare (SUS) data. Follow SUS database standards EXACTLY.
 
-        Database Schema and Critical Rules:
-        {schema_context}
-        
-        CRITICAL INSTRUCTIONS - READ CAREFULLY:
-            1. Generate syntactically correct PostgreSQL queries
-            2. Use proper table and column names from the schema above
-            3. Handle Portuguese language questions appropriately
-            4. Return only the SQL query, no explanation
-            5. Use appropriate WHERE clauses for filtering
-            6. Include LIMIT clauses when appropriate (default LIMIT 100)
-        
-        MANDATORY SUS VALUE MAPPINGS - NEVER MAKE MISTAKES:
-            - For questions about MEN/HOMENS/MASCULINO: ALWAYS use SEXO = 1
-            - For questions about WOMEN/MULHERES/FEMININO: ALWAYS use SEXO = 3
-            - For questions about DEATHS/MORTES/ÓBITOS: ALWAYS use MORTE = 1
-            - For questions about CITIES/CIDADES: ALWAYS use CIDADE_RESIDENCIA_PACIENTE
-        
-        REMEMBER: SEXO values are 1=Male, 3=Female (NOT 2!). Use these values exactly as shown.
-        """
-            
-            # Create messages
-            messages = self.create_messages(
-                user_query=user_query,
-                system_prompt=system_prompt,
-                conversation_history=conversation_history
-            )
-            
-            # Invoke with tools
-            result = self.invoke_with_tools(messages)
-            
-            if result.get("error"):
-                return {
-                    "success": False,
-                    "sql_query": None,
-                    "error": result["error"],
-                    "messages": result["messages"]
-                }
-            
-            # Extract SQL from response or tool calls
-            response = result["response"]
-            sql_query = ""
-            
-            # First, try to get SQL from response content
-            if hasattr(response, 'content') and response.content:
-                sql_query = response.content
-            
-            # If content is empty but we have tool calls, extract SQL from tool calls
-            elif result.get("tool_calls"):
-                for tool_call in result["tool_calls"]:
-                    if tool_call.get("name") == "sql_db_query":
-                        # Extract SQL from tool call arguments
-                        sql_query = tool_call.get("args", {}).get("query", "")
-                        break
-                    elif tool_call.get("name") == "sql_db_query_checker":
-                        # Extract SQL from query checker tool
-                        sql_query = tool_call.get("args", {}).get("query", "")
-                        break
-            
-            # Clean SQL query
-            sql_query = self._clean_sql_query(sql_query)
-            
-            return {
-                "success": True,
-                "sql_query": sql_query,
-                "error": None,
-                "messages": result["messages"],
-                "tool_calls": result["tool_calls"]
-            }
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "sql_query": None,
-                "error": str(e),
-                "messages": []
-            }
-    
-    def generate_conversational_response(
-        self, 
-        user_query: str,
-        context: Optional[str] = None,
-        conversation_history: Optional[List[BaseMessage]] = None
-    ) -> Dict[str, Any]:
-        """
-        Generate conversational response using LangGraph patterns
-        
-        Args:
-            user_query: User's question
-            context: Additional context (e.g., query results)
-            conversation_history: Previous messages
-            
-        Returns:
-            Conversational response result
-        """
+    def invoke_with_tools(self, messages: List[BaseMessage], max_iterations: int = 5) -> Dict[str, Any]:
+        llm = self.get_bound_llm()
+        response = llm.invoke(messages)
+        tool_calls = getattr(response, "tool_calls", []) or []
+        return {
+            "response": response,
+            "messages": messages + [response],
+            "tool_calls": tool_calls,
+            "has_tool_calls": len(tool_calls) > 0
+        }
+
+    def generate_sql_query(self, user_query: str, schema_context: str, conversation_history: Optional[List[BaseMessage]] = None) -> Dict[str, Any]:
+        system_prompt = f"""You are a SQL expert assistant for Brazilian healthcare (SUS) data.
+
+Database Schema:
+{schema_context}
+
+Rules:
+1. Generate syntactically correct PostgreSQL.
+2. Use table/column names exactly.
+3. Answer in SQL only.
+4. Default LIMIT 100 when missing.
+"""
+
+        messages = self.create_messages(user_query, system_prompt, conversation_history)
+        result = self.invoke_with_tools(messages)
+
+        if result.get("has_tool_calls"):
+            for call in result["tool_calls"]:
+                if call.get("name") in {"sql_db_query", "sql_db_query_checker"}:
+                    sql_query = call.get("args", {}).get("query", "")
+                    return {"success": True, "sql_query": self._clean_sql_query(sql_query), "messages": result["messages"], "tool_calls": result["tool_calls"], "error": None}
+
+        content = getattr(result["response"], "content", "") or ""
+        return {"success": True, "sql_query": self._clean_sql_query(content), "messages": result["messages"], "tool_calls": result["tool_calls"], "error": None}
+
+    def generate_conversational_response(self, user_query: str, context: Optional[str] = None, conversation_history: Optional[List[BaseMessage]] = None) -> Dict[str, Any]:
+        system_prompt = f"""You are a helpful assistant for Brazilian healthcare (SUS) data analysis.
+Answer in Portuguese, be concise.
+{f'Contexto: {context}' if context else ''}
+"""
+        messages = self.create_messages(user_query, system_prompt, conversation_history)
+        response = self.get_bound_llm().invoke(messages)
+        return {"success": True, "response": getattr(response, "content", str(response)), "messages": messages + [response], "error": None}
+
+    def invoke_chat(self, messages: List[BaseMessage]):
+        """Simple chat invocation without provider branching (OpenAI only)."""
+        return self._llm.invoke(messages)
+
+    def validate_sql_query(self, sql_query: str) -> Dict[str, Any]:
+        if not self._sql_database or not hasattr(self._sql_database, "_engine"):
+            return {"is_valid": False, "error": "Database not initialized", "suggestions": []}
+
+        from sqlalchemy import text
+        engine = self._sql_database._engine
+        cleaned_sql = sanitize_sql_for_execution(sql_query)
         try:
-            # Create system prompt for conversational response
-            system_prompt = f"""You are a helpful assistant for Brazilian healthcare (SUS) data analysis.
-
-        Provide clear, informative responses in Portuguese. Be helpful and accurate.
-        
-        {f"Context: {context}" if context else ""}
-        
-        Guidelines:
-        1. Answer in Portuguese
-        2. Be clear and concise
-        3. Use healthcare terminology appropriately
-        4. Provide context when explaining medical codes or procedures
-        5. Be helpful and informative
-        """
-            
-            # Create messages
-            messages = self.create_messages(
-                user_query=user_query,
-                system_prompt=system_prompt,
-                conversation_history=conversation_history
-            )
-
-            # Invoke LLM (no tools needed for conversational).
-            # Use invoke_chat to support both chat models and HuggingFacePipeline.
-            response = self.invoke_chat(messages)
-            
-            return {
-                "success": True,
-                "response": response.content if hasattr(response, 'content') else str(response),
-                "error": None,
-                "messages": messages + [response]
-            }
-            
+            with engine.connect() as conn:
+                conn.execute(text(f"EXPLAIN {cleaned_sql}"))
+            return {"is_valid": True, "error": None, "suggestions": []}
         except Exception as e:
-            return {
-                "success": False,
-                "response": f"Erro ao gerar resposta: {str(e)}",
-                "error": str(e),
-                "messages": []
-            }
-    
+            suggestions = ["Verifique nomes de tabelas/colunas", "Revise a sintaxe SQL"]
+            return {"is_valid": False, "error": str(e), "suggestions": suggestions}
+
+    def execute_sql_query(self, sql_query: str) -> Dict[str, Any]:
+        if not self._sql_database:
+            return {"success": False, "results": [], "error": "Database not initialized", "row_count": 0}
+
+        ok, reason = is_select_only(sql_query)
+        if not ok:
+            return {"success": False, "results": [], "error": f"SQL execution blocked: {reason}", "row_count": 0}
+
+        cleaned_sql = sanitize_sql_for_execution(sql_query)
+        try:
+            result = self._sql_database.run(cleaned_sql)
+            if isinstance(result, str):
+                rows = []
+                for line in result.strip().split("\n"):
+                    if line.strip():
+                        rows.append({"result": line.strip()})
+                return {"success": True, "results": rows, "error": None, "row_count": len(rows)}
+            return {"success": True, "results": result if isinstance(result, list) else [result], "error": None, "row_count": len(result) if isinstance(result, list) else 1}
+        except Exception as e:
+            return {"success": False, "results": [], "error": str(e), "row_count": 0}
+
     def _clean_sql_query(self, sql_query: str) -> str:
-        """Clean and validate SQL query"""
         if not sql_query:
             return ""
-
-        # Remove markdown formatting
-        sql_query = sql_query.replace("```sql", "").replace("```", "")
-        
-        # HOTFIX: Remove persistent hallucination of QT_DIARIAS > 0
-        # The model loves to add this filter for some reason.
-        import re
-        # Remove "AND QT_DIARIAS > 0" or "WHERE QT_DIARIAS > 0"
-        # Handles optional alias (i.), optional quotes, and case insensitivity
-        sql_query = re.sub(r'\s+(AND|WHERE)\s+(i\.)?"?QT_DIARIAS"?\s*>\s*0', ' ', sql_query, flags=re.IGNORECASE)
-        
-        # Cleanup potential broken SQL structure after removal
-        # Fix "WHERE GROUP BY" -> "GROUP BY"
-        sql_query = re.sub(r'WHERE\s+GROUP\s+BY', 'GROUP BY', sql_query, flags=re.IGNORECASE)
-        # Fix "WHERE ORDER BY" -> "ORDER BY"
-        sql_query = re.sub(r'WHERE\s+ORDER\s+BY', 'ORDER BY', sql_query, flags=re.IGNORECASE)
-        # Fix "WHERE ;" -> ";"
-        sql_query = re.sub(r'WHERE\s*;', ';', sql_query, flags=re.IGNORECASE)
-        # Fix trailing WHERE
-        sql_query = re.sub(r'WHERE\s*$', '', sql_query, flags=re.IGNORECASE)
-        
-        # Remove comments and extra whitespace
-        sql_query = sanitize_sql_for_execution(sql_query)
-
-        # Ensure query ends with semicolon
-        if not sql_query.strip().endswith(";"):
+        sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
+        if not sql_query.endswith(";"):
             sql_query += ";"
+        return sanitize_sql_for_execution(sql_query)
 
-        return sql_query.strip()
-    
-    def validate_sql_query(self, sql_query: str) -> Dict[str, Any]:
-        """
-        Validate SQL query against database
-        
-        Args:
-            sql_query: SQL query to validate
-            
-        Returns:
-            Validation result
-        """
-        try:
-            if not self._sql_database or not hasattr(self._sql_database, "_engine"):
-                return {
-                    "is_valid": False,
-                    "error": "Database not initialized",
-                    "suggestions": []
-                }
-
-            # Detect SQL dialect from SQLAlchemy engine
-            engine = self._sql_database._engine
-            dialect_name = getattr(getattr(engine, "dialect", None), "name", "") or ""
-
-            # Choose EXPLAIN variant (PostgreSQL)
-            explain_prefix = "EXPLAIN"
-
-            # Sanitize SQL to remove comments before validation
-            cleaned_sql = sanitize_sql_for_execution(sql_query)
-
-            # Use SQLAlchemy text() for 2.0 compatibility
-            from sqlalchemy import text
-
-            # Execute EXPLAIN to validate syntax without running the query
-            # Using context manager to ensure connection closure
-            explain_sql = f"{explain_prefix} {cleaned_sql}"
-            with engine.connect() as connection:
-                result = connection.execute(text(explain_sql))
-                # Consume results to ensure execution (some drivers require fetch)
-                try:
-                    result.fetchall()
-                except Exception:
-                    # Some dialects/queries may not support fetchall on EXPLAIN
-                    pass
-
-            return {
-                "is_valid": True,
-                "error": None,
-                "suggestions": []
-            }
-
-        except Exception as e:
-            # Provide dialect-aware suggestions
-            suggestions = [
-                "Check table and column names",
-                "Verify SQL syntax",
-                "Ensure proper WHERE clause formatting",
-            ]
-
-            if 'dialect_name' in locals() and dialect_name.lower().startswith("postgres"):
-                suggestions.extend([
-                    "Quote case-sensitive identifiers with double quotes",
-                    "Use ILIKE for case-insensitive matches",
-                    "Avoid non-PostgreSQL functions (e.g., strftime)",
-                ])
-
-            return {
-                "is_valid": False,
-                "error": str(e),
-                "suggestions": suggestions,
-            }
-    
-    def execute_sql_query(self, sql_query: str) -> Dict[str, Any]:
-        """
-        Execute SQL query safely
-        
-        Args:
-            sql_query: Valid SQL query to execute
-            
-        Returns:
-            Execution result
-        """
-        try:
-            if not self._sql_database:
-                return {
-                    "success": False,
-                    "results": [],
-                    "error": "Database not initialized",
-                    "row_count": 0
-                }
-            
-            # Block non-SELECT/unsafe SQL as a second safety layer
-            ok, reason = is_select_only(sql_query)
-            if not ok:
-                return {
-                    "success": False,
-                    "results": [],
-                    "error": f"SQL execution blocked: {reason}",
-                    "row_count": 0
-                }
-            
-            # Sanitize SQL to remove comments before execution
-            cleaned_sql = sanitize_sql_for_execution(sql_query)
-
-            # Execute query using SQLDatabase
-            result = self._sql_database.run(cleaned_sql)
-            
-            # Parse result (SQLDatabase returns string format)
-            if isinstance(result, str):
-                # Handle string results from SQLDatabase
-                rows = []
-                if result.strip():
-                    lines = result.strip().split('\n')
-                    for line in lines:
-                        if line.strip():
-                            # Simple parsing for basic results
-                            rows.append({"result": line.strip()})
-                
-                return {
-                    "success": True,
-                    "results": rows,
-                    "error": None,
-                    "row_count": len(rows)
-                }
-            else:
-                return {
-                    "success": True,
-                    "results": result if isinstance(result, list) else [result],
-                    "error": None,
-                    "row_count": len(result) if isinstance(result, list) else 1
-                }
-                
-        except Exception as e:
-            return {
-                "success": False,
-                "results": [],
-                "error": str(e),
-                "row_count": 0
-            }
-    
+    # ------------------------------------------------------------------
+    # Health
+    # ------------------------------------------------------------------
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about the current model"""
-        try:
-            return {
-                "provider": self.config.llm_provider,
-                "model_name": self.config.llm_model,
-                "temperature": self.config.llm_temperature,
-                "timeout": self.config.llm_timeout,
-                "has_sql_tools": self._sql_toolkit is not None,
-                "tools_bound": self._bound_llm is not None,
-                "database_connected": self._sql_database is not None,
-                "available": True
-            }
-        except Exception as e:
-            return {
-                "error": str(e),
-                "available": False
-            }
-    
-    def health_check(self) -> Dict[str, Any]:
-        """Health check for all components"""
-        health = {
-            "llm_status": "healthy" if self._llm else "failed",
-            "database_status": "healthy" if self._sql_database else "failed",
-            "toolkit_status": "healthy" if self._sql_toolkit else "failed",
-            "tools_bound": "yes" if self._bound_llm else "no"
-        }
-        
-        overall_status = "healthy" if all(
-            status == "healthy" for status in [
-                health["llm_status"], 
-                health["database_status"], 
-                health["toolkit_status"]
-            ]
-        ) else "degraded"
-        
         return {
-            "status": overall_status,
-            "components": health,
-            "model_info": self.get_model_info()
+            "provider": "openai",
+            "model_name": self.config.llm_model,
+            "temperature": self.config.llm_temperature,
+            "timeout": self.config.llm_timeout,
+            "available": True,
+            "tools_bound": self._bound_llm is not None,
+            "database_connected": self._sql_database is not None,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        return {
+            "status": "healthy" if self._llm and self._sql_database else "degraded",
+            "components": {
+                "llm_status": "healthy" if self._llm else "failed",
+                "database_status": "healthy" if self._sql_database else "failed",
+                "toolkit_status": "healthy" if self._sql_toolkit else "failed",
+                "tools_bound": "yes" if self._bound_llm else "no",
+            },
+            "model_info": self.get_model_info(),
         }
 
 
-# Factory function for easy instantiation
-def create_hybrid_llm_manager(config: ApplicationConfig) -> HybridLLMManager:
-    """
-    Factory function to create HybridLLMManager
-    
-    Args:
-        config: Application configuration
-        
-    Returns:
-        Configured HybridLLMManager instance
-    """
-    return HybridLLMManager(config)
+def create_openai_llm_manager(config: ApplicationConfig) -> OpenAILLMManager:
+    return OpenAILLMManager(config)

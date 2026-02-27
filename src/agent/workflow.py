@@ -16,7 +16,6 @@ from .nodes import (
     repair_sql_node,
     validate_sql_node,
     execute_sql_node,
-    execute_sql_node,
     generate_response_node,
     clarification_node
 )
@@ -204,22 +203,10 @@ def route_after_schema(
     if not classification:
         return "reasoning"
         
-    # Check complexity
-    is_complex = False
-    
-    # 1. Check explicit route type (if we had a COMPLEX route, but we use DATABASE)
+    # Schema queries bypass reasoning
     if state.get("query_route") == QueryRoute.SCHEMA:
         return "generate_response"
-        
-    # 2. Check estimated complexity score
-    if classification.estimated_complexity and classification.estimated_complexity >= 0.6:
-        is_complex = True
-    # We can check the reasoning text or other signals if needed
-    
-    if is_complex:
-        return "reasoning"
-    else:
-        return "generate_sql"
+    return "generate_sql"
 
 
 def route_after_sql_generation(

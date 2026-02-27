@@ -29,14 +29,14 @@ def test_execute_sql_node_blocks_non_select(monkeypatch):
 
 
 def test_llm_manager_execute_sql_query_blocks_non_select():
-    """HybridLLMManager.execute_sql_query deve bloquear DDL/DML (sem DB real)."""
-    from src.agent.llm_manager import HybridLLMManager
+    """OpenAILLMManager.execute_sql_query deve bloquear DDL/DML (sem DB real)."""
+    from src.agent.llm_manager import OpenAILLMManager
 
     # Criar instância sem __init__ para evitar inicialização pesada
-    inst = HybridLLMManager.__new__(HybridLLMManager)
+    inst = OpenAILLMManager.__new__(OpenAILLMManager)
     # Simular que há um database inicializado (qualquer objeto não-None serve para passar pela checagem)
     inst._sql_database = object()
 
-    result = HybridLLMManager.execute_sql_query(inst, "UPDATE t SET a=1;")
+    result = OpenAILLMManager.execute_sql_query(inst, "UPDATE t SET a=1;")
     assert result["success"] is False
     assert "blocked" in result.get("error", "").lower()
