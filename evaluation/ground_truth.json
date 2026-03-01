@@ -173,13 +173,13 @@
   {
     "id": "GT018",
     "difficulty": "medium",
-    "question": "Qual município tem a maior população segundo dados do IBGE?",
-    "query": "SELECT mu.nome AS municipio_maior_populacao FROM socioeconomico s JOIN municipios mu ON s.codigo_6d = mu.codigo_6d WHERE s.metrica = 'populacao_total' ORDER BY s.valor DESC LIMIT 1;",
+    "question": "Quantos habitantes tem o município que tem a maior população segundo dados do IBGE?",
+    "query": "SELECT mu.nome AS municipio_maior_populacao, s.valor AS total_habitantes FROM socioeconomico s JOIN municipios mu ON s.codigo_6d = mu.codigo_6d WHERE s.metrica = 'populacao_total' ORDER BY s.valor DESC LIMIT 1;",
     "tables": [
       "socioeconomico",
       "municipios"
     ],
-    "notes": "CRITICAL: dado_ibge replaced by socioeconomico (long format). MUST filter by metrica = 'populacao_total'. JOIN with municipios for city name. Result: São Paulo"
+    "notes": "CRITICAL: dado_ibge replaced by socioeconomico (long format). MUST filter by metrica = 'populacao_total'. JOIN with municipios for city name. Returns both city name and population count. Result: São Paulo"
   },
   {
     "id": "GT019",
@@ -277,7 +277,7 @@
   {
     "id": "GT028",
     "difficulty": "hard",
-    "question": "Quais sao os 10 municípios com a maior taxa de mortalidade?",
+    "question": "Quais sao os 10 municípios com mais de 100 internações com a maior taxa de mortalidade?",
     "query": "SELECT mu.nome AS municipio, COUNT(*) AS total_internacoes, SUM(CASE WHEN i.\"MORTE\" = true THEN 1 ELSE 0 END) AS total_mortes, ROUND(SUM(CASE WHEN i.\"MORTE\" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d GROUP BY mu.nome HAVING COUNT(*) > 100 ORDER BY taxa_mortalidade DESC LIMIT 10;",
     "tables": [
       "internacoes",
@@ -434,7 +434,7 @@
     "id": "GT047",
     "difficulty": "hard",
     "question": "Qual o custo médio de UTI por faixa etária dos pacientes?",
-    "query": "SELECT CASE WHEN \"IDADE\" < 18 THEN 'Menor' WHEN \"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(\"VAL_UTI\") AS custo_medio_uti FROM internacoes WHERE \"IDADE\" IS NOT NULL AND \"VAL_UTI\" > 0 GROUP BY CASE WHEN \"IDADE\" < 18 THEN 'Menor' WHEN \"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END;",
+    "query": "SELECT CASE WHEN \"IDADE\" < 18 THEN 'Menor' WHEN \"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END AS faixa_etaria, AVG(\"VAL_UTI\") AS custo_medio_uti FROM internacoes WHERE \"VAL_UTI\" > 0 GROUP BY CASE WHEN \"IDADE\" < 18 THEN 'Menor' WHEN \"IDADE\" < 60 THEN 'Adulto' ELSE 'Idoso' END;",
     "tables": [
       "internacoes"
     ],
@@ -485,7 +485,7 @@
     "id": "GT053",
     "difficulty": "hard",
     "question": "Qual a taxa de mortalidade no estado do Rio Grande do Sul em 2021?",
-    "query": "SELECT ROUND(SUM(CASE WHEN i.\"MORTE\" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade_perc FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d WHERE EXTRACT(YEAR FROM i.\"DT_INTER\") = 2021 AND mu.estado = 'RS';",
+    "query": "SELECT 'Rio Grande do Sul' AS estado, COUNT(*) AS total_internacoes, SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) AS total_mortes, ROUND(SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.\"codigo_6d\" WHERE mu.\"estado\" = 'RS' AND EXTRACT(YEAR FROM \"DT_INTER\") = 2021;",
     "tables": [
       "internacoes",
       "municipios"
@@ -496,11 +496,11 @@
     "id": "GT054",
     "difficulty": "medium",
     "question": "Qual a taxa de mortalidade para faixa etária 30-45?",
-    "query": "SELECT '30-45 anos' AS faixa_etaria, COUNT(*) AS total_internacoes, SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) AS total_mortes, ROUND(SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM internacoes WHERE \"IDADE\" BETWEEN 30 AND 45;",
+    "query": "SELECT '30 a 45 anos' AS faixa_etaria, COUNT(*) AS total_internacoes, SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) AS total_mortes, ROUND(SUM(CASE WHEN \"MORTE\" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade FROM internacoes WHERE \"IDADE\" BETWEEN 30 AND 45;",
     "tables": [
       "internacoes"
     ],
-    "notes": "CRITICAL: mortes table absorbed. Use MORTE boolean directly in internacoes. Result: ~1.64%"
+    "notes": "CRITICAL: mortes table absorbed. Use MORTE boolean directly in internacoes. Label '30 a 45 anos' is standard agent output. Result: ~1.64%"
   },
   {
     "id": "GT055",
@@ -645,9 +645,9 @@
   },
   {
     "id": "GT070",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "question": "Qual o nível de instrução dos pacientes internados?",
-    "query": "SELECT \"INSTRU\", COUNT(*) AS total FROM internacoes GROUP BY \"INSTRU\" ORDER BY total DESC;",
+    "query": "  SELECT ins.\"DESCRICAO\", COUNT(*) AS total FROM internacoes i JOIN instrucao ins ON i.\"INSTRU\" = ins.\"INSTRU\" WHERE i.\"INSTRU\" IS NOT NULL AND i.\"INSTRU\" != 0 GROUP BY ins.\"INSTRU\", ins.\"DESCRICAO\" ORDER BY total DESC;\n",
     "tables": [
       "internacoes"
     ],
@@ -688,24 +688,24 @@
   {
     "id": "GT074",
     "difficulty": "medium",
-    "question": "Quais são os principais CIDs de entrada nas internações?",
-    "query": "SELECT c.\"CD_DESCRICAO\", COUNT(*) AS total_internacoes FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_internacoes DESC;",
+    "question": "Quais são os 10 principais CIDs de entrada nas internações?",
+    "query": "SELECT c.\"CD_DESCRICAO\", COUNT(*) AS total_internacoes FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_internacoes DESC LIMIT 10;",
     "tables": [
       "internacoes",
       "cid"
     ],
-    "notes": "cid10 renamed to cid. JOIN on DIAG_PRINC. No explicit top-N → no LIMIT. Description only (no CID code requested). Top: Parto espontaneo cefalico ~982k"
+    "notes": "cid10 renamed to cid. JOIN on DIAG_PRINC. LIMIT 10 (explicit top-10 in question). Description only (no CID code requested). Top: Parto espontaneo cefalico ~982k"
   },
   {
     "id": "GT075",
     "difficulty": "medium",
     "question": "Quais os 10 motivos mais comuns de internação para pacientes indígenas?",
-    "query": "SELECT c.\"CID\", c.\"CD_DESCRICAO\", COUNT(*) AS total_internacoes FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE i.\"RACA_COR\" = 5 GROUP BY c.\"CID\", c.\"CD_DESCRICAO\" ORDER BY total_internacoes DESC LIMIT 10;",
+    "query": "SELECT c.\"CD_DESCRICAO\", COUNT(*) AS total_internacoes FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" WHERE i.\"RACA_COR\" = 5 GROUP BY c.\"CD_DESCRICAO\" ORDER BY total_internacoes DESC LIMIT 10;",
     "tables": [
       "internacoes",
       "cid"
     ],
-    "notes": "RACA_COR = 5 filters indigenous patients. 'principais CIDs' → include c.CID in SELECT. LIMIT 10. Top: O800 ~7,668"
+    "notes": "RACA_COR = 5 filters indigenous patients. 'motivos mais comuns' = description only (no explicit CID code request). LIMIT 10. Top: Parto espontaneo cefalico ~7,668"
   },
   {
     "id": "GT076",
@@ -754,7 +754,7 @@
   {
     "id": "GT080",
     "difficulty": "medium",
-    "question": "Quantas mortes foram registradas nos estados do MA e no RS?",
+    "question": "Quantas mortes foram registradas em cada um dos estados MA e no RS?",
     "query": "SELECT mu.estado, COUNT(*) AS total_mortes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d WHERE i.\"MORTE\" = true AND mu.estado IN ('MA', 'RS') GROUP BY mu.estado ORDER BY total_mortes DESC;",
     "tables": [
       "internacoes",
@@ -789,22 +789,24 @@
     "id": "GT083",
     "difficulty": "hard",
     "question": "Quais são os principais CIDs de entrada de cada nacionalidade?",
-    "query": "SELECT \"NACIONAL\", \"DIAG_PRINC\", total_internacoes FROM (SELECT i.\"NACIONAL\", i.\"DIAG_PRINC\", COUNT(i.\"N_AIH\") AS total_internacoes, ROW_NUMBER() OVER (PARTITION BY i.\"NACIONAL\" ORDER BY COUNT(i.\"N_AIH\") DESC) AS rn FROM internacoes i GROUP BY i.\"NACIONAL\", i.\"DIAG_PRINC\") cid_counts WHERE rn = 1 ORDER BY total_internacoes DESC LIMIT 10;",
+    "query": "SELECT n.\"DESCRICAO\" AS nacionalidade, c.\"CD_DESCRICAO\" AS cid_principal, cid_counts.cnt FROM (SELECT i.\"NACIONAL\", i.\"DIAG_PRINC\", COUNT(*) AS cnt, ROW_NUMBER() OVER (PARTITION BY i.\"NACIONAL\" ORDER BY COUNT(*) DESC, i.\"DIAG_PRINC\" ASC) AS rn FROM internacoes i WHERE i.\"DIAG_PRINC\" IS NOT NULL GROUP BY i.\"NACIONAL\", i.\"DIAG_PRINC\") cid_counts JOIN nacionalidade n ON cid_counts.\"NACIONAL\" = n.\"NACIONAL\" JOIN cid c ON cid_counts.\"DIAG_PRINC\" = c.\"CID\" WHERE rn = 1 ORDER BY n.\"DESCRICAO\";",
     "tables": [
-      "internacoes"
+      "internacoes",
+      "nacionalidade",
+      "cid"
     ],
-    "notes": "Window function ROW_NUMBER() OVER PARTITION BY to get top CID per nationality. NACIONAL is numeric code (10=Brasil). Top: (10, O800, ~979,983). JOIN nacionalidade for readable names."
+    "notes": "HARD: subquery with ROW_NUMBER() OVER (PARTITION BY NACIONAL ORDER BY COUNT(*) DESC) to get top-1 CID per nationality. Returns description only (no raw CID code since 'com código' not requested). No LIMIT — returns all nationalities."
   },
   {
     "id": "GT084",
     "difficulty": "hard",
-    "question": "Quais são os principais motivos de internação para pacientes com menos de 18 anos, entre 18 e 64 anos, e acima de 64 anos?",
-    "query": "SELECT faixa_etaria, \"DIAG_PRINC\", \"CD_DESCRICAO\", total_internacoes FROM (SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor de 18' WHEN i.\"IDADE\" BETWEEN 18 AND 64 THEN '18 a 64' ELSE '65 ou mais' END AS faixa_etaria, i.\"DIAG_PRINC\", c.\"CD_DESCRICAO\", COUNT(i.\"N_AIH\") AS total_internacoes, ROW_NUMBER() OVER (PARTITION BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor de 18' WHEN i.\"IDADE\" BETWEEN 18 AND 64 THEN '18 a 64' ELSE '65 ou mais' END ORDER BY COUNT(i.\"N_AIH\") DESC) AS rn FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" GROUP BY faixa_etaria, i.\"DIAG_PRINC\", c.\"CD_DESCRICAO\") subquery WHERE rn = 1 ORDER BY faixa_etaria;",
+    "question": "Quais são os 10 principais motivos de internação para pacientes com menos de 18 anos, entre 18 e 64 anos, e acima de 64 anos?",
+    "query": "SELECT faixa_etaria, \"CD_DESCRICAO\", total_internacoes FROM (SELECT CASE WHEN i.\"IDADE\" < 18 THEN 'Menor de 18' WHEN i.\"IDADE\" BETWEEN 18 AND 64 THEN '18 a 64' ELSE '65 ou mais' END AS faixa_etaria, c.\"CD_DESCRICAO\", COUNT(*) AS total_internacoes, ROW_NUMBER() OVER (PARTITION BY CASE WHEN i.\"IDADE\" < 18 THEN 'Menor de 18' WHEN i.\"IDADE\" BETWEEN 18 AND 64 THEN '18 a 64' ELSE '65 ou mais' END ORDER BY COUNT(*) DESC) AS rn FROM internacoes i JOIN cid c ON i.\"DIAG_PRINC\" = c.\"CID\" GROUP BY faixa_etaria, c.\"CD_DESCRICAO\") subquery WHERE rn <= 10 ORDER BY faixa_etaria, rn;",
     "tables": [
       "internacoes",
       "cid"
     ],
-    "notes": "Window function with CASE WHEN faixa_etaria. Results: <18 = J189 Pneumonia NE; 18-64 = O800 Parto cefalico; 65+ = J189 Pneumonia NE"
+    "notes": "HARD: ROW_NUMBER() OVER (PARTITION BY faixa_etaria ORDER BY COUNT(*) DESC) rn<=10 → 30 rows total (10 per group). Groups: 'Menor de 18' / '18 a 64' / '65 ou mais'. Top-1 per group: <18=J189 Pneumonia NE (155,932); 18-64=O800 Parto espontaneo cefalico (861,909); 65+=J189 Pneumonia NE (149,221)."
   },
   {
     "id": "GT085",
@@ -833,5 +835,16 @@
       "municipios"
     ],
     "notes": "5-table join. GROUP BY only NOME_PROC (top-10 global procedures in MA). Filter by hospital state via MUNIC_MOV. Top: PARTO NORMAL / DOENCAS INFECCIOSAS INTESTINAIS"
+  },
+  {
+    "id": "GT087",
+    "difficulty": "easy",
+    "question": "Quantas mortes foram registradas no estado do RS?",
+    "query": "SELECT COUNT(*) AS total_mortes FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d WHERE i.\"MORTE\" = true AND mu.estado = 'RS';",
+    "tables": [
+      "internacoes",
+      "municipios"
+    ],
+    "notes": "CRITICAL: deaths are stored in internacoes.MORTE. State filter must use municipios.estado via internacoes.MUNIC_RES. Single-state question returns one total, not GROUP BY."
   }
 ]

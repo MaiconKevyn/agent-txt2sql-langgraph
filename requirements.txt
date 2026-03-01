@@ -20,3 +20,6 @@ sqlalchemy==2.0.41
 
 # Environment Management
 python-dotenv==1.1.0
+
+# Semantic table selection (Stage 2 embedding cascade)
+sentence-transformers==2.6.1

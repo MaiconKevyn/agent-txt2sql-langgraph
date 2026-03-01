@@ -5,12 +5,12 @@
 // Configuração base da API
 const API_CONFIG = {
     // URL base do agent (ajuste conforme necessário)
-    BASE_URL: process.env.API_BASE_URL || 'http://localhost:8000',
+    BASE_URL: process.env.API_BASE_URL || 'http://localhost:8000/api/v1',
     
     // Endpoints disponíveis
     ENDPOINTS: {
         QUERY: '/query',
-        HEALTH: '/health', 
+        HEALTH: '/health',
         SCHEMA: '/schema',
         MODELS: '/models'
     },

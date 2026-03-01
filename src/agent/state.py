@@ -108,6 +108,7 @@ class MessagesStateTXT2SQL(TypedDict):
     generated_sql: Optional[str]
     validated_sql: Optional[str]
     sql_execution_result: Optional[SQLExecutionResult]
+    sql_candidates: Optional[List[Dict[str, Any]]]  # N candidates for majority voting
     
     # Tool calling (official LangGraph pattern)
     tool_calls: List[ToolCallResult]
@@ -191,6 +192,7 @@ def create_initial_messages_state(
         generated_sql=None,
         validated_sql=None,
         sql_execution_result=None,
+        sql_candidates=None,
         
         # Tool calling
         tool_calls=[],

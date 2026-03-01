@@ -135,7 +135,7 @@ app.post('/api/query', async (req, res) => {
     const startTime = Date.now();
 
     try {
-        const { question } = req.body;
+        const { question, session_id } = req.body;
 
         if (!question || typeof question !== 'string' || question.trim().length === 0) {
             return res.status(400).json({
@@ -156,13 +156,17 @@ app.post('/api/query', async (req, res) => {
         console.log(`[${new Date().toISOString()}] Processing query: "${question.substring(0, 100)}${question.length > 100 ? '...' : ''}"`);
 
         // Forward request to Agent API
-        const response = await forwardToAgentAPI('/query', {
+        const response = await forwardToAgentAPI(API_CONFIG.ENDPOINTS.QUERY, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ question })
+            body: JSON.stringify({
+                query: question,
+                session_id: session_id || null,
+                include_sql: false
+            })
         });
 
         const executionTime = (Date.now() - startTime) / 1000;
@@ -170,7 +174,14 @@ app.post('/api/query', async (req, res) => {
         console.log(`[${new Date().toISOString()}] Query completed in ${executionTime.toFixed(2)}s`);
 
         res.json({
-            ...response,
+            success: Boolean(response.success),
+            status: response.status,
+            response: response.response || response.answer,
+            answer: response.answer || response.response,
+            sql_query: response.sql_query || response.sql || null,
+            sql: response.sql || response.sql_query || null,
+            session_id: response.session_id || session_id || null,
+            metadata: response.metadata || {},
             execution_time: executionTime,
             timestamp: new Date().toISOString()
         });
@@ -194,7 +205,12 @@ app.get('/api/schema', async (req, res) => {
     try {
         console.log(`[${new Date().toISOString()}] Schema request received`);
 
-        const response = await forwardToAgentAPI('/schema', {
+        const selectedTable = typeof req.query.table === 'string' ? req.query.table.trim() : '';
+        const schemaEndpoint = selectedTable
+            ? `${API_CONFIG.ENDPOINTS.SCHEMA}?table=${encodeURIComponent(selectedTable)}`
+            : API_CONFIG.ENDPOINTS.SCHEMA;
+
+        const response = await forwardToAgentAPI(schemaEndpoint, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -219,7 +235,7 @@ app.get('/api/schema', async (req, res) => {
 // Models Endpoint - Proxy to Agent API
 app.get('/api/models', async (req, res) => {
     try {
-        const response = await forwardToAgentAPI('/models', {
+        const response = await forwardToAgentAPI(API_CONFIG.ENDPOINTS.MODELS, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -241,7 +257,7 @@ app.get('/api/models', async (req, res) => {
 // Agent Health Check Endpoint
 app.get('/api/agent-health', async (req, res) => {
     try {
-        const response = await forwardToAgentAPI('/health', {
+        const response = await forwardToAgentAPI(API_CONFIG.ENDPOINTS.HEALTH, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -391,7 +407,7 @@ app.listen(PORT, HOST, () => {
     });
 
     console.log('\n🔌 Testing Agent API connection...');
-    forwardToAgentAPI('/health')
+    forwardToAgentAPI(API_CONFIG.ENDPOINTS.HEALTH)
         .then(() => {
             console.log('✅ Agent API connection successful');
         })
