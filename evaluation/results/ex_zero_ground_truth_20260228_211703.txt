@@ -1,0 +1,5 @@
+Ground truths com EX = 0
+----------------------------------------
+GT054 | Qual a taxa de mortalidade para faixa etária 30-45? | EX = 0
+GT083 | Quais são os principais CIDs de entrada de cada nacionalidade? | EX = 0
+GT086 | Quais são os 10 procedimentos mais comuns nas cidades do MA? | EX = 0

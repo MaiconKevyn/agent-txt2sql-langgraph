@@ -85,13 +85,21 @@ TABLE_TEMPLATES = {
         -- Q: "Qual o volume de internações que geraram custo de UTI?"
         SELECT COUNT(*) AS total_uti FROM internacoes WHERE "VAL_UTI" > 0;
 
-        -- Q: "Quantos pacientes de UTI foram a óbito durante a internação?"
-        -- NOTE: "resultaram em óbito" = MORTE = true only; no CID JOIN needed (not asking which disease caused it)
-        SELECT COUNT(*) AS uti_com_obito FROM internacoes WHERE "VAL_UTI" > 0 AND "MORTE" = true;
+        -- Q: "Qual o valor médio de UTI nas internações que resultaram em óbito vs alta?"
+        -- NOTE: teaching pattern: VAL_UTI > 0 selects UTI patients; CASE differentiates outcomes
+        SELECT CASE WHEN "MORTE" = true THEN 'Óbito' ELSE 'Alta' END AS desfecho,
+               COUNT(*) AS total,
+               ROUND(AVG("VAL_UTI"), 2) AS valor_medio_uti
+        FROM internacoes
+        WHERE "VAL_UTI" > 0
+        GROUP BY "MORTE"
+        ORDER BY desfecho;
 
-        -- Q: "Quantas gestantes necessitaram de UTI durante a internação?"
-        -- NOTE: "obstétricas"/"obstétrico" = ESPEC = 2. NEVER search CID codes for obstetric!
-        SELECT COUNT(*) AS obstetricos_uti FROM internacoes WHERE "ESPEC" = 2 AND "VAL_UTI" > 0;
+        -- Q: "Qual o tempo médio de permanência em internações obstétricas?"
+        -- NOTE: ESPEC = 2 identifies obstetric cases. NEVER use CID codes to detect obstetric!
+        SELECT AVG("DIAS_PERM") AS media_dias_obstetrico
+        FROM internacoes
+        WHERE "ESPEC" = 2;
 
         --- MEDIUM EXAMPLES ---
 
@@ -135,21 +143,32 @@ TABLE_TEMPLATES = {
 
         -- Q: "Internações por [doença] que ocasionaram morte (óbito)?"
         -- NOTE: doença + óbito → JOIN via CID_MORTE (não DIAG_PRINC!)
-        -- Example: meningite com óbito:
-        SELECT COUNT(*) AS total_obitos_meningite
+        -- TWO filter strategies:
+        --   (A) Search by disease NAME → ILIKE '%nome%' on c."CD_DESCRICAO"
+        --   (B) Search by CID chapter prefix → c."CID" LIKE 'X%'
+        -- Example A: sepse (pesquisa por nome na descrição):
+        SELECT COUNT(*) AS total_obitos_sepse
         FROM internacoes i
         JOIN cid c ON i."CID_MORTE" = c."CID"
-        WHERE c."CD_DESCRICAO" ILIKE '%meningite%'
+        WHERE c."CD_DESCRICAO" ILIKE '%sepse%'  -- pesquisa por nome, NÃO por código!
+          AND i."MORTE" = true;
+        -- Example B: neoplasias (pesquisa por capítulo CID):
+        SELECT COUNT(*) AS total_obitos_neoplasia
+        FROM internacoes i
+        JOIN cid c ON i."CID_MORTE" = c."CID"
+        WHERE c."CID" LIKE 'C%'  -- neoplasias malignas (capítulo C do CID-10)
           AND i."MORTE" = true;
 
-        -- Q: "Qual o volume de atendimentos registrado em cada especialidade médica?"
+        -- Q: "Qual a especialidade médica com maior custo médio de internação?"
         -- NOTE: for specialty NAME join especialidade; for UTI specifically use VAL_UTI > 0 not ESPEC
-        -- NOTE: "volume por especialidade" = all specialties, no LIMIT
-        SELECT e."DESCRICAO" AS especialidade, COUNT(*) AS total_consultas
+        SELECT e."DESCRICAO" AS especialidade,
+               ROUND(AVG(i."VAL_TOT"), 2) AS custo_medio,
+               COUNT(*) AS total_internacoes
         FROM internacoes i
         JOIN especialidade e ON i."ESPEC" = e."ESPEC"
+        WHERE i."VAL_TOT" IS NOT NULL
         GROUP BY e."DESCRICAO"
-        ORDER BY total_consultas DESC;
+        ORDER BY custo_medio DESC;
 
         -- Q: "Qual o tempo médio de permanência em UTI por faixa etária?"
         -- NOTE: "faixa etária" always means CASE WHEN age bands (NOT GROUP BY exact IDADE)
@@ -190,6 +209,15 @@ TABLE_TEMPLATES = {
         WHERE mu.estado IN ('GO', 'MT')
         GROUP BY mu.estado
         ORDER BY total_internacoes DESC;
+
+        -- Q: "Quantas mortes foram registradas no estado do RS?"
+        -- NOTE: death by patient residence state → JOIN municipios via MUNIC_RES and filter MORTE = true
+        -- NOTE: single state requested → return total count, NOT GROUP BY estado
+        SELECT COUNT(*) AS total_mortes
+        FROM internacoes i
+        JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+        WHERE i."MORTE" = true
+          AND mu.estado = 'RS';
 
         -- Q: "Como se distribui o vínculo previdenciário dos pacientes internados?"
         -- NOTE: bare distribution query → use raw numeric column (NOT JOIN lookup table)
@@ -546,8 +574,10 @@ TABLE_TEMPLATES = {
           Without "!= 0", the JOIN returns virtually the entire internacoes table.
 
         EXACT QUERY EXAMPLES:
-        -- "Quantos pacientes têm nível de instrução informado?"
-        SELECT COUNT(*) FROM internacoes WHERE "INSTRU" IS NOT NULL AND "INSTRU" != 0;
+        -- NOTE: count WITH education data → use internacoes directly (NOT instrucao lookup table!)
+        -- instrucao table has only 12 rows (codes); patient records are in internacoes."INSTRU"
+        -- "Quantos pacientes têm nível de instrução superior completo ou acima?"
+        SELECT COUNT(*) FROM internacoes WHERE "INSTRU" >= 8 AND "INSTRU" IS NOT NULL;
 
         -- Education level distribution of hospitalizations
         SELECT ins."DESCRICAO", COUNT(*) AS total
@@ -588,8 +618,10 @@ TABLE_TEMPLATES = {
           Without "!= 0", the JOIN returns virtually the entire internacoes table.
 
         EXACT QUERY EXAMPLES:
-        -- "Quantos pacientes têm vínculo previdenciário informado?"
-        SELECT COUNT(*) FROM internacoes WHERE "VINCPREV" IS NOT NULL AND "VINCPREV" != 0;
+        -- NOTE: count WITH social security data → use internacoes directly (NOT vincprev lookup table!)
+        -- vincprev table has only 7 rows (codes); patient records are in internacoes."VINCPREV"
+        -- "Quantos pacientes aposentados foram internados?"
+        SELECT COUNT(*) FROM internacoes WHERE "VINCPREV" = 3;  -- 3 = Aposentado
 
         -- Social security distribution of hospitalizations
         SELECT v."DESCRICAO", COUNT(*) AS total
@@ -749,6 +781,16 @@ TABLE_TEMPLATES = {
         WHERE i."NACIONAL" != 10  -- 10 = Brazil
         GROUP BY n."NACIONAL", n."DESCRICAO"
         ORDER BY total DESC;
+
+        -- ⚠️ TOP-1 per group with ROW_NUMBER (generic per-group pattern):
+        -- When question asks "principal X de cada Y" use ROW_NUMBER, NOT LIMIT
+        SELECT n."DESCRICAO" AS nacionalidade, COUNT(*) AS total
+        FROM internacoes i
+        JOIN nacionalidade n ON i."NACIONAL" = n."NACIONAL"
+        GROUP BY n."DESCRICAO"
+        ORDER BY total DESC;
+        -- For per-group top-N, apply RULE J: ROW_NUMBER() OVER (PARTITION BY group_col ORDER BY COUNT(*) DESC, tiebreaker ASC)
+        -- outer SELECT must reference the subquery alias, NOT the inner table alias (i.)
 """,
 
     "contraceptivos": """
@@ -897,28 +939,28 @@ TABLE_TEMPLATES = {
         ORDER BY s.valor DESC
         LIMIT 1;
 
-        -- Highest population municipalities
-        SELECT mu."nome", mu."estado", s."valor" AS populacao
+        -- Municipalities with highest economically active population
+        SELECT mu."nome", mu."estado", s."valor" AS pop_ativa
         FROM socioeconomico s
         JOIN municipios mu ON s."codigo_6d" = mu."codigo_6d"
-        WHERE s.metrica = 'populacao_total' AND s."ano" = 2010
+        WHERE s.metrica = 'pop_economicamente_ativa'
         ORDER BY s."valor" DESC
         LIMIT 10;
 
-        -- IDHM by state
-        SELECT mu."estado", AVG(s."valor") AS avg_idhm
+        -- Average sanitation coverage by state
+        SELECT mu."estado", ROUND(AVG(s."valor")::numeric, 2) AS cobertura_saneamento
         FROM socioeconomico s
         JOIN municipios mu ON s."codigo_6d" = mu."codigo_6d"
-        WHERE s.metrica = 'idhm'
+        WHERE s.metrica = 'esgotamento_sanitario_domicilio'
         GROUP BY mu."estado"
-        ORDER BY avg_idhm DESC;
+        ORDER BY cobertura_saneamento DESC;
 
-        -- Municipalities with high Bolsa Família
-        SELECT mu."nome", s."valor" AS bolsa_familia
+        -- Municipalities with lowest infant mortality (best performers)
+        SELECT mu."nome", mu."estado", s."valor" AS taxa_mortalidade_infantil
         FROM socioeconomico s
         JOIN municipios mu ON s."codigo_6d" = mu."codigo_6d"
-        WHERE s.metrica = 'bolsa_familia_total'
-        ORDER BY s."valor" DESC
+        WHERE s.metrica = 'mortalidade_infantil_1ano' AND s."valor" > 0
+        ORDER BY s."valor" ASC
         LIMIT 10;
 """,
 
@@ -940,14 +982,14 @@ TABLE_TEMPLATES = {
            → Each row joins to ~90 date rows = 90× explosion!
 
         ✅ ALWAYS USE EXTRACT DIRECTLY WITHOUT ANY JOIN:
-        -- "Quantas internações ocorreram em 2015?"
-        SELECT COUNT(*) FROM internacoes WHERE EXTRACT(YEAR FROM "DT_INTER") = 2015;
+        -- "Quantas internações ocorreram em um determinado ano?" → EXTRACT(YEAR FROM "DT_INTER") = <year>
+        SELECT COUNT(*) AS total_ano FROM internacoes WHERE EXTRACT(YEAR FROM "DT_INTER") = 2020;
 
-        -- "Quantas internações no inverno (junho a agosto)?"
-        SELECT COUNT(*) FROM internacoes WHERE EXTRACT(MONTH FROM "DT_INTER") IN (6, 7, 8);
+        -- "Quantas internações no verão (dezembro a fevereiro)?"
+        SELECT COUNT(*) FROM internacoes WHERE EXTRACT(MONTH FROM "DT_INTER") IN (12, 1, 2);
 
-        -- Filter by month range:
-        SELECT COUNT(*) FROM internacoes WHERE EXTRACT(MONTH FROM "DT_INTER") BETWEEN 6 AND 8;
+        -- Filter by month range (e.g., spring: Sep-Nov):
+        SELECT COUNT(*) FROM internacoes WHERE EXTRACT(MONTH FROM "DT_INTER") BETWEEN 9 AND 11;
 
         -- Only join tempo when grouping BY date attributes (equijoin on exact date):
         SELECT t."mes", COUNT(*) AS total

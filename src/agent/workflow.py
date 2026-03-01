@@ -17,7 +17,8 @@ from .nodes import (
     validate_sql_node,
     execute_sql_node,
     generate_response_node,
-    clarification_node
+    clarification_node,
+    vote_sql_node,
 )
 
 
@@ -51,6 +52,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("get_schema", get_schema_node)
     workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("generate_sql", generate_sql_node)
+    workflow.add_node("vote_sql", vote_sql_node)
     workflow.add_node("repair_sql", repair_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
@@ -100,15 +102,17 @@ def create_langgraph_sql_workflow():
     )
 
     # SQL generation with retry (LangGraph pattern)
+    # On success: generate_sql → vote_sql (majority voting) → validate_sql
     workflow.add_conditional_edges(
         "generate_sql",
         route_after_sql_generation,
         {
-            "validate": "validate_sql",
+            "validate": "vote_sql",
             "retry": "generate_sql",
             "error": "generate_response"
         }
     )
+    workflow.add_edge("vote_sql", "validate_sql")
     
     # SQL validation with retry (LangGraph pattern)
     workflow.add_conditional_edges(

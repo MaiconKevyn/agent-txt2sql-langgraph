@@ -75,6 +75,7 @@ class OpenAILLMManager:
             timeout=self.config.llm_timeout,
             max_retries=self.config.llm_max_retries,
             api_key=api_key,
+            seed=42,
         )
 
         logger.info("OpenAI LLM initialized", extra={"model": self.config.llm_model})
@@ -177,6 +178,15 @@ Answer in Portuguese, be concise.
         """Simple chat invocation without provider branching (OpenAI only)."""
         return self._llm.invoke(messages)
 
+    def invoke_chat_structured(self, messages: List[BaseMessage], output_schema):
+        """Invoke LLM with structured output schema (Pydantic model).
+
+        Returns an instance of output_schema populated by the LLM, or raises
+        on failure so callers can fall back to text-based parsing.
+        """
+        structured_llm = self._llm.with_structured_output(output_schema)
+        return structured_llm.invoke(messages)
+
     def validate_sql_query(self, sql_query: str) -> Dict[str, Any]:
         if not self._sql_database or not hasattr(self._sql_database, "_engine"):
             return {"is_valid": False, "error": "Database not initialized", "suggestions": []}
@@ -217,6 +227,9 @@ Answer in Portuguese, be concise.
         if not sql_query:
             return ""
         sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
+        # Strip EXPLAIN prefix that LLM occasionally adds
+        if sql_query.upper().startswith("EXPLAIN "):
+            sql_query = sql_query[8:].strip()
         if not sql_query.endswith(";"):
             sql_query += ";"
         return sanitize_sql_for_execution(sql_query)
@@ -250,3 +263,31 @@ Answer in Portuguese, be concise.
 
 def create_openai_llm_manager(config: ApplicationConfig) -> OpenAILLMManager:
     return OpenAILLMManager(config)
+
+
+# ---------------------------------------------------------------------------
+# Global singleton — set by orchestrator, used by all nodes
+# ---------------------------------------------------------------------------
+_llm_manager: Optional[OpenAILLMManager] = None
+
+
+def set_global_llm_manager(manager: "OpenAILLMManager") -> None:
+    """Set the global LLM manager instance (called by orchestrator)."""
+    global _llm_manager
+    _llm_manager = manager
+    logger.info("Global LLM manager updated", extra={
+        "provider": manager.config.llm_provider,
+        "model": manager.config.llm_model,
+    })
+
+
+def get_llm_manager() -> "OpenAILLMManager":
+    """Return the global LLM manager, creating a default instance if needed."""
+    global _llm_manager
+    if _llm_manager is None:
+        logger.warning(
+            "LLM Manager not initialized by orchestrator, using default config",
+            extra={"fallback": True},
+        )
+        _llm_manager = OpenAILLMManager(ApplicationConfig())
+    return _llm_manager

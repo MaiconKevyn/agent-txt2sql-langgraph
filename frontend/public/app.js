@@ -1,5 +1,6 @@
-// App Configuration - Updated for separated interface
-const API_BASE_URL = 'http://localhost:8000';
+// App Configuration
+const API_BASE_URL = '/api';
+const SESSION_STORAGE_KEY = 'chatSessionId';
 
 // State Management
 let isLoading = false;
@@ -33,6 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
+    ensureSessionId();
+
     // Auto-resize textarea
     elements.messageInput.addEventListener('input', autoResizeTextarea);
     
@@ -155,7 +158,10 @@ async function sendMessage() {
             credentials: 'include',
             mode: 'cors',
             cache: 'no-cache',
-            body: JSON.stringify({ question: message })
+            body: JSON.stringify({
+                question: message,
+                session_id: getSessionId()
+            })
         });
         
         if (!response.ok) {
@@ -163,6 +169,9 @@ async function sendMessage() {
         }
         
         const data = await response.json();
+        if (data.session_id) {
+            localStorage.setItem(SESSION_STORAGE_KEY, data.session_id);
+        }
         
         // Remove loading message
         removeLoadingMessage(loadingMessageId);
@@ -196,7 +205,7 @@ async function sendMessage() {
         let errorMessage = 'Erro de conexão com o servidor.';
         
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            errorMessage = 'Não foi possível conectar ao Agent. Verifique se o TXT2SQL Agent está rodando na porta 8001.';
+            errorMessage = 'Não foi possível conectar ao servidor web do DataVisSUS.';
             updateServerStatus(false);
         } else if (error.message.includes('HTTP 5')) {
             errorMessage = 'Erro interno do servidor. Tente novamente em alguns instantes.';
@@ -205,7 +214,7 @@ async function sendMessage() {
         }
         
         addMessage(errorMessage, 'error');
-        showErrorToast('Erro ao conectar com o Agent. Verifique se o TXT2SQL Agent está rodando.');
+        showErrorToast('Erro ao conectar com o servidor do DataVisSUS.');
     }
 }
 
@@ -376,6 +385,7 @@ function hideLoading() {
 async function showSchemaModal() {
     elements.schemaModal.classList.add('show');
     elements.schemaContent.textContent = 'Selecione uma tabela e clique em "Carregar" para visualizar o esquema.';
+    await loadSchemaTables();
 }
 
 async function loadSelectedSchema() {
@@ -452,6 +462,7 @@ function clearChat() {
     if (confirm('Tem certeza que deseja limpar toda a conversa? Esta ação não pode ser desfeita.')) {
         elements.chatMessages.innerHTML = '';
         messageHistory = [];
+        resetSessionId();
         saveMessageHistory();
         
         // Add welcome message back
@@ -584,6 +595,73 @@ function loadMessageHistory() {
     } catch (error) {
         console.warn('Failed to load message history:', error);
         addWelcomeMessage();
+    }
+}
+
+function createSessionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function ensureSessionId() {
+    if (!localStorage.getItem(SESSION_STORAGE_KEY)) {
+        localStorage.setItem(SESSION_STORAGE_KEY, createSessionId());
+    }
+}
+
+function getSessionId() {
+    ensureSessionId();
+    return localStorage.getItem(SESSION_STORAGE_KEY);
+}
+
+function resetSessionId() {
+    localStorage.setItem(SESSION_STORAGE_KEY, createSessionId());
+}
+
+async function loadSchemaTables() {
+    const tableSelect = document.getElementById('tableSelect');
+    if (!tableSelect) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/schema`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'include',
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const selectedValue = tableSelect.value;
+
+        tableSelect.innerHTML = '';
+
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = 'Esquema completo';
+        tableSelect.appendChild(allOption);
+
+        (data.tables || []).forEach((tableName) => {
+            const option = document.createElement('option');
+            option.value = tableName;
+            option.textContent = tableName;
+            tableSelect.appendChild(option);
+        });
+
+        if (selectedValue && (data.tables || []).includes(selectedValue)) {
+            tableSelect.value = selectedValue;
+        }
+    } catch (error) {
+        console.error('Error loading schema tables:', error);
     }
 }
 

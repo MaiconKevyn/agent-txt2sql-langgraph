@@ -20,6 +20,7 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, Any, Optional, List, Tuple
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -30,6 +31,75 @@ sys.path.insert(0, str(project_root))
 load_dotenv(project_root / ".env")
 
 from evaluation.dag import create_evaluation_pipeline
+
+
+def export_ex_zero_failures(
+    dag_results: Dict[str, Any],
+    output_dir: Path
+) -> Optional[Path]:
+    """
+    Generate a text file listing only the ground truths with EX score == 0.
+
+    Args:
+        dag_results: Results returned by dag.execute()
+        output_dir: Directory where the file should be written
+
+    Returns:
+        Path to the generated file, or None if no failures were found/created
+    """
+
+    eval_task = dag_results.get("evaluate_questions")
+
+    if not eval_task or not getattr(eval_task, "success", False):
+        print("⚠️  EX=0 export skipped: evaluate_questions task not available or failed")
+        return None
+
+    detailed_results = eval_task.data.get("detailed_results", []) if eval_task.data else []
+
+    ex_zero_entries: List[Tuple[str, str]] = []
+
+    for item in detailed_results:
+        metrics = item.get("metrics", {})
+        ex_metric = metrics.get("Execution Accuracy (EX)")
+
+        # Skip if metric is missing
+        if ex_metric is None:
+            continue
+
+        score = ex_metric.get("score", 0)
+
+        try:
+            score_float = float(score)
+        except (TypeError, ValueError):
+            score_float = 0.0
+
+        if score_float == 0.0:
+            question_id = item.get("question_id") or item.get("id") or "UNKNOWN_ID"
+            question_text = item.get("question", "").strip()
+            ex_zero_entries.append((str(question_id), question_text))
+
+    if not ex_zero_entries:
+        print("✅ Nenhum ground truth com EX = 0; arquivo não gerado")
+        return None
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_path = output_dir / f"ex_zero_ground_truth_{timestamp}.txt"
+
+    lines = ["Ground truths com EX = 0", "----------------------------------------"]
+    for qid, question in ex_zero_entries:
+        if question:
+            lines.append(f"{qid} | {question} | EX = 0")
+        else:
+            lines.append(f"{qid} | EX = 0")
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    print(f"⚠️  {len(ex_zero_entries)} ground truths com EX = 0")
+    print(f"    Lista salva em: {output_path}")
+
+    return output_path
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -141,6 +211,12 @@ def main():
             print(f"\nSaving DAG visualization: {args.dag_output}")
             dag.visualize(output_path=args.dag_output, show_descriptions=True)
             print(f"✅ DAG visualization saved")
+
+        # Export ground truths com EX = 0
+        export_ex_zero_failures(
+            dag_results=results,
+            output_dir=project_root / "evaluation" / "results"
+        )
 
         # Final status
         print(f"\n{'='*80}")

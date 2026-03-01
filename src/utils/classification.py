@@ -42,7 +42,12 @@ KEYWORDS_PT: Dict[str, Tuple[str, ...]] = {
         "quantos", "quantidade", "numero", "número", "total", "media", "média", "taxa",
         "proporcao", "proporção", "top", "ranking", "mais comuns", "mais comum",
         "listar", "mostrar", "por cidade", "por ano", "por sexo", "distribuicao", "distribuição",
-        "contagem", "contar", "soma", "sum", "avg", "media", "mediana"
+        "contagem", "contar", "soma", "sum", "avg", "media", "mediana",
+        # Common data-query starters (covers MIN/MAX/COUNT/SUM questions)
+        "qual", "quais", "principais", "principal", "menor", "maior",
+        # "registrado/cadastrado" = data in the system (not SCHEMA introspection)
+        "registrado", "registrada", "registrados", "registradas",
+        "cadastrado", "cadastrada", "cadastrados", "cadastradas",
     ),
     # Explanations/definitions
     "CONVERSATIONAL": (
