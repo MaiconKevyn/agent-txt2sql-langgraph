@@ -192,9 +192,11 @@ socioeconomico (long-format — SEMPRE filtrar por metrica):
   ⚠️ SEM WHERE metrica=? → SUM soma TODAS as métricas → resultado sem sentido!
 
 raca_cor:
-  0/99=Sem info, 1=Branca, 2=Preta, 3=Parda, 4=Amarela, 5=Indígena
+  0=Sem informação, 1=Branca, 2=Preta, 3=Parda, 4=Amarela, 5=Indígena, 99=Sem informação
   Filtrar inline: WHERE "RACA_COR" = 5 (sem JOIN)
   Descrição: JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" → SELECT r."DESCRICAO"
+  DISTRIBUIÇÃO/COMPOSIÇÃO (inclui SEM INFORMACAO) → JOIN sem filtro; codes 0 e 99 → 'SEM INFORMACAO'
+  ANÁLISE por raça (taxa, média) → excluir unknowns: WHERE "RACA_COR" NOT IN (0, 99)
 
 JOIN RULES:
   municipio do paciente (residência) — DEFAULT → JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d

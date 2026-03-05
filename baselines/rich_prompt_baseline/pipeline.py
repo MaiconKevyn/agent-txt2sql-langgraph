@@ -238,7 +238,7 @@ def run_batch(
         "baseline": {
             "name": "rich_prompt_baseline",
             "description": (
-                "Single-shot LLM with full context (RULES A-H + TABLE_TEMPLATES + SUS_MAPPINGS "
+                "Single-shot LLM with full context (RULES A-J + TABLE_TEMPLATES + SUS_MAPPINGS "
                 "+ pre-gen hints) but no LangGraph (no table selection, no validation, no repair)"
             ),
             "provider": "openai",

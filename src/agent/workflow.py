@@ -380,25 +380,25 @@ def route_after_sql_execution(
 # WORKFLOW FACTORY FUNCTIONS - Official LangGraph Patterns
 # =============================================================================
 
-def create_sql_agent_workflow():
+def create_sql_agent_workflow(checkpointer=None):
     """Create SQL Agent workflow following official LangGraph tutorial"""
     workflow = create_langgraph_sql_workflow()
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 
-def create_production_sql_agent():
+def create_production_sql_agent(checkpointer=None):
     """Create production-ready SQL agent workflow"""
-    return create_sql_agent_workflow()
+    return create_sql_agent_workflow(checkpointer=checkpointer)
 
 
-def create_development_sql_agent():
+def create_development_sql_agent(checkpointer=None):
     """Create development SQL agent workflow with debugging"""
-    return create_sql_agent_workflow()
+    return create_sql_agent_workflow(checkpointer=checkpointer)
 
 
-def create_testing_sql_agent():
+def create_testing_sql_agent(checkpointer=None):
     """Create testing SQL agent workflow"""
-    return create_sql_agent_workflow()
+    return create_sql_agent_workflow(checkpointer=checkpointer)
 
 
 # =============================================================================

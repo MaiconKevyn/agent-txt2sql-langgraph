@@ -561,5 +561,44 @@ def validate_messages_state(state: MessagesStateTXT2SQL) -> List[str]:
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Conversation history helpers
+# ---------------------------------------------------------------------------
+
+# Prefixes of AIMessages that are internal workflow markers, not real responses
+_WORKFLOW_MSG_PREFIXES = (
+    "Query classified as",
+)
+
+MAX_CONVERSATION_TURNS = 10  # sliding window: keep last N (human, ai) pairs
+
+
+def clean_conversation_messages(
+    messages: List[BaseMessage],
+    max_turns: int = MAX_CONVERSATION_TURNS,
+) -> List[BaseMessage]:
+    """Return only conversation-relevant messages with a sliding window.
+
+    Filters out internal workflow status messages (e.g. classification markers)
+    and keeps at most *max_turns* (human + ai response) pairs so the LLM
+    context window never overflows.
+    """
+    clean: List[BaseMessage] = []
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            clean.append(msg)
+        elif isinstance(msg, AIMessage):
+            content = msg.content
+            if not any(content.startswith(p) for p in _WORKFLOW_MSG_PREFIXES):
+                clean.append(msg)
+        # SystemMessages are kept if present
+
+    # Sliding window: drop oldest pairs when over the limit
+    if len(clean) > max_turns * 2:
+        clean = clean[-(max_turns * 2):]
+
+    return clean
+
+
 # Export factory function
 create_txt2sql_messages_state = create_initial_messages_state

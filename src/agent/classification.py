@@ -1,8 +1,9 @@
 """Query classification node — routes queries to DATABASE / CONVERSATIONAL / SCHEMA."""
 
 import time
+from typing import Optional, Tuple
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 from .llm_manager import OpenAILLMManager, get_llm_manager
 from .state import (
@@ -13,6 +14,7 @@ from .state import (
     add_ai_message,
     update_phase,
     add_error,
+    clean_conversation_messages,
 )
 from ..utils.logging_config import get_nodes_logger
 from ..utils.classification import (
@@ -23,6 +25,46 @@ from ..utils.classification import (
 )
 
 logger = get_nodes_logger()
+
+# Prefixes/words that strongly indicate a follow-up turn in Portuguese
+_FOLLOWUP_PREFIXES = ("e ", "e se ", "e para ", "mas ", "também ", "quais foram", "qual foi")
+_FOLLOWUP_ANAPHORA = ("isso", "disso", "esse", "essa", "esses", "essas", "mesmo", "mesma",
+                      "anterior", "delas", "deles", "tal", "acima", "abaixo")
+
+
+def _extract_prior_context(messages: list) -> Tuple[Optional[str], Optional[str]]:
+    """Return (prior_human_query, prior_ai_final_response) from accumulated messages.
+
+    Uses clean_conversation_messages to strip workflow artifacts, then scans
+    backwards for the most recent (human, ai) pair before the current turn.
+    """
+    # Strip internal markers and apply sliding window, then exclude last message
+    # (the current HumanMessage that triggered this classification)
+    clean = clean_conversation_messages(messages[:-1])
+
+    prior_ai: Optional[str] = None
+    prior_human: Optional[str] = None
+
+    for msg in reversed(clean):
+        if isinstance(msg, AIMessage) and prior_ai is None:
+            prior_ai = msg.content
+        elif isinstance(msg, HumanMessage) and prior_ai is not None:
+            prior_human = msg.content
+            break
+
+    return prior_human, prior_ai
+
+
+def _is_followup(query: str, prior_human: Optional[str]) -> bool:
+    """Heuristic: return True when the query looks like a follow-up turn."""
+    if prior_human is None:
+        return False
+    q = query.lower().strip()
+    if len(q) < 50 and q.startswith(_FOLLOWUP_PREFIXES):
+        return True
+    if any(ref in q for ref in _FOLLOWUP_ANAPHORA):
+        return True
+    return False
 
 
 def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
@@ -70,6 +112,35 @@ def query_classification_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2S
             state["user_query"] = user_query
 
         llm_manager = get_llm_manager()
+
+        # ------------------------------------------------------------------ #
+        # Multi-turn: resolve anaphoric follow-up queries before classifying  #
+        # ------------------------------------------------------------------ #
+        messages_history = state.get("messages", [])
+        prior_human, prior_ai = _extract_prior_context(messages_history)
+
+        if _is_followup(user_query, prior_human):
+            resolve_messages = [
+                SystemMessage(content=(
+                    "Reescreva a PERGUNTA ATUAL como uma pergunta autossuficiente, "
+                    "incorporando o contexto da conversa anterior. "
+                    "Responda APENAS com a pergunta reescrita, sem explicações adicionais."
+                )),
+                HumanMessage(content=(
+                    f"Pergunta anterior: {prior_human}\n"
+                    f"Resposta anterior (resumo): {prior_ai[:300] if prior_ai else ''}\n"
+                    f"Pergunta atual: {user_query}"
+                )),
+            ]
+            resolved_response = llm_manager.invoke_chat(resolve_messages)
+            resolved_query = getattr(resolved_response, "content", user_query).strip()
+            if resolved_query and resolved_query != user_query:
+                logger.info(
+                    "Follow-up resolved",
+                    extra={"original": user_query, "resolved": resolved_query}
+                )
+                user_query = resolved_query
+                state["user_query"] = resolved_query
 
         # Heuristic pre-pass
         heur_route_str, heur_scores = heuristic_route(user_query)

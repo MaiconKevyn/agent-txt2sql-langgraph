@@ -2,6 +2,13 @@
 const API_BASE_URL = '/api';
 const SESSION_STORAGE_KEY = 'chatSessionId';
 
+// Must match MAX_CONVERSATION_TURNS in src/agent/state.py
+// Controls how many (user + assistant) message pairs the AI actually remembers.
+// Visual history in localStorage is aligned to this limit so the user only sees
+// what the AI can still reference.
+const MAX_CONVERSATION_TURNS = 10;
+const MAX_HISTORY_MESSAGES = MAX_CONVERSATION_TURNS * 2; // 20 messages = 10 pairs
+
 // State Management
 let isLoading = false;
 let messageHistory = [];
@@ -135,18 +142,21 @@ function handleKeyDown(e) {
 async function sendMessage() {
     const message = elements.messageInput.value.trim();
     if (!message || isLoading) return;
-    
+
+    // Lock: prevents double-submit during the entire async lifecycle
+    isLoading = true;
+
     // Add user message to chat
     addMessage(message, 'user');
-    
-    // Clear input
+
+    // Clear input and reflect locked state on button
     elements.messageInput.value = '';
     autoResizeTextarea();
     toggleSendButton();
-    
-    // Add loading message to chat instead of overlay
+
+    // Add loading message to chat
     const loadingMessageId = addLoadingMessage();
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/query`, {
             method: 'POST',
@@ -163,47 +173,34 @@ async function sendMessage() {
                 session_id: getSessionId()
             })
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         if (data.session_id) {
             localStorage.setItem(SESSION_STORAGE_KEY, data.session_id);
         }
-        
-        // Remove loading message
+
         removeLoadingMessage(loadingMessageId);
-        
+
         if (data.success) {
-            // Use conversational response from the agent
-            let responseContent = data.response || data.conversational_response || 'Consulta processada com sucesso.';
-            
-            // Add SQL query details if available (commented out)
-            // if (data.sql_query) {
-            //     responseContent += `\n\n**SQL Executado:**\n\`\`\`sql\n${data.sql_query}\n\`\`\``;
-            // }
-            
-            // Results summary removed for cleaner output
-            
+            const responseContent = data.response || data.conversational_response || 'Consulta processada com sucesso.';
             addMessage(responseContent, 'assistant', {
                 executionTime: data.execution_time
             });
         } else {
             addMessage(data.error_message || 'Erro desconhecido', 'error');
         }
-        
-        // Update server status as online since we got a response
+
         updateServerStatus(true);
-        
+
     } catch (error) {
         console.error('Error sending message:', error);
-        // Remove loading message
         removeLoadingMessage(loadingMessageId);
-        
+
         let errorMessage = 'Erro de conexão com o servidor.';
-        
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
             errorMessage = 'Não foi possível conectar ao servidor web do DataVisSUS.';
             updateServerStatus(false);
@@ -212,9 +209,14 @@ async function sendMessage() {
         } else {
             errorMessage = `Erro de conexão: ${error.message}`;
         }
-        
+
         addMessage(errorMessage, 'error');
         showErrorToast('Erro ao conectar com o servidor do DataVisSUS.');
+
+    } finally {
+        // Always unlock, regardless of success or error
+        isLoading = false;
+        toggleSendButton();
     }
 }
 
@@ -565,9 +567,13 @@ function hideErrorToast() {
 
 function saveMessageHistory() {
     try {
-        // Keep only last 50 messages to avoid localStorage limits
-        const recentHistory = messageHistory.slice(-50);
-        localStorage.setItem('chatHistory', JSON.stringify(recentHistory));
+        // Persist only the messages the AI can still reference (aligned with
+        // MAX_CONVERSATION_TURNS on the backend). Errors are excluded so they
+        // don't reappear as stale noise on the next page load.
+        const persistable = messageHistory
+            .filter(m => m.type !== 'error')
+            .slice(-MAX_HISTORY_MESSAGES);
+        localStorage.setItem('chatHistory', JSON.stringify(persistable));
     } catch (error) {
         console.warn('Failed to save message history:', error);
     }
@@ -578,18 +584,26 @@ function loadMessageHistory() {
         const saved = localStorage.getItem('chatHistory');
         if (saved) {
             messageHistory = JSON.parse(saved);
-            
-            // Clear current messages and reload from history
+
             elements.chatMessages.innerHTML = '';
-            
+
+            // If history is at the sliding-window limit, show an informational
+            // separator so the user knows the AI context starts here.
+            if (messageHistory.length >= MAX_HISTORY_MESSAGES) {
+                const separator = document.createElement('div');
+                separator.className = 'context-separator';
+                separator.innerHTML =
+                    '<span><i class="fas fa-brain"></i> Início do contexto da IA</span>';
+                elements.chatMessages.appendChild(separator);
+            }
+
             messageHistory.forEach(messageData => {
                 const messageElement = createMessageElement(messageData);
                 elements.chatMessages.appendChild(messageElement);
             });
-            
+
             scrollToBottom();
         } else {
-            // Add welcome message if no history
             addWelcomeMessage();
         }
     } catch (error) {

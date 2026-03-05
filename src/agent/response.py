@@ -11,6 +11,7 @@ from .state import (
     add_ai_message,
     update_phase,
     add_error,
+    clean_conversation_messages,
 )
 from ..utils.logging_config import get_nodes_logger
 
@@ -34,7 +35,7 @@ def generate_response_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         if query_route == QueryRoute.CONVERSATIONAL:
             result = llm_manager.generate_conversational_response(
                 user_query=user_query,
-                conversation_history=state["messages"],
+                conversation_history=clean_conversation_messages(state["messages"]),
             )
 
             if result["success"]:

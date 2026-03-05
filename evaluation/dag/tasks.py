@@ -788,7 +788,7 @@ def _generate_execution_outputs_file(
         lines.append("")
 
         # EX Metric
-        ex_metric = result['metrics'].get('execution_accuracy', {})
+        ex_metric = result['metrics'].get('Execution Accuracy (EX)', {})
 
         if ex_metric:
             score = ex_metric.get('score', 0.0)
