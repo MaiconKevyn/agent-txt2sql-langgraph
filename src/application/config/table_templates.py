@@ -55,8 +55,12 @@ TABLE_TEMPLATES = {
         - IDADE: integer age (0-130) — SEMPRE usar para filtros/grupos de idade (ver regra 6)
 
         CRITICAL UTI VALUE QUERIES — always include VAL_UTI > 0 filter:
-        - "valor médio de UTI" / "custo de UTI" → AVG("VAL_UTI") WHERE "VAL_UTI" > 0
-        - Without VAL_UTI > 0, the average includes all hospitalizations (most with VAL_UTI = 0)
+        - "valor médio de UTI" / "custo médio UTI" → AVG("VAL_UTI") WHERE "VAL_UTI" > 0
+        - "total gasto em UTI" / "total UTI" / "gasto UTI" → SUM("VAL_UTI") WHERE "VAL_UTI" > 0
+          ❌ NEVER use SUM("VAL_TOT") WHERE "VAL_UTI" > 0 for "gasto em UTI":
+             VAL_TOT = total cost of the entire hospitalization (UTI + all other services)
+             VAL_UTI = cost of UTI care specifically — use this for any UTI cost question
+        - Without VAL_UTI > 0, the aggregate includes all hospitalizations (most with VAL_UTI = 0)
           ✅ SELECT AVG("VAL_UTI") FROM internacoes WHERE "SEXO" = 1 AND "VAL_UTI" > 0
           ❌ SELECT AVG("VAL_UTI") FROM internacoes WHERE "SEXO" = 1  ← includes zeros!
 
@@ -567,11 +571,12 @@ TABLE_TEMPLATES = {
         6=2°grau completo, 7=Superior incompleto, 8=Superior completo,
         9=Especialização/Residência, 10=Mestrado, 11=Doutorado
 
-        ⚠️ CRITICAL: "informado" / "registrado" / "tem nível de instrução" means code != 0:
+        ⚠️ CRITICAL: INSTRU=0 means "Sem informação" (not recorded) — ALWAYS exclude it when
+        grouping by education level, regardless of how the question is phrased:
         - CORRECT: WHERE "INSTRU" IS NOT NULL AND "INSTRU" != 0  → only real education data
-        - WRONG:   JOIN instrucao WHERE "DESCRICAO" IS NOT NULL  → includes code 0 (18M rows!)
-          Code 0 = "Sem informação" — almost ALL patients have this default code.
-          Without "!= 0", the JOIN returns virtually the entire internacoes table.
+        - WRONG:   no filter or JOIN instrucao alone  → includes code 0 (18M rows of unknowns!)
+          Without "!= 0", virtually ALL patients appear under "Sem informação", distorting every
+          count, average, and rate computed per education group.
 
         EXACT QUERY EXAMPLES:
         -- NOTE: count WITH education data → use internacoes directly (NOT instrucao lookup table!)
@@ -591,7 +596,7 @@ TABLE_TEMPLATES = {
         SELECT ins."DESCRICAO", AVG(i."VAL_TOT") AS avg_cost
         FROM internacoes i
         JOIN instrucao ins ON i."INSTRU" = ins."INSTRU"
-        WHERE i."VAL_TOT" IS NOT NULL
+        WHERE i."INSTRU" IS NOT NULL AND i."INSTRU" != 0
         GROUP BY ins."INSTRU", ins."DESCRICAO"
         ORDER BY avg_cost DESC;
 """,
@@ -672,27 +677,42 @@ TABLE_TEMPLATES = {
     "raca_cor": """
         RACA_COR TABLE RULES - RACE/COLOR LOOKUP:
 
-        TWO USAGE PATTERNS:
-        • Para FILTRAR por raça: WHERE "RACA_COR" = 5  (sem JOIN, usar valor inline)
-        • Para DESCRIÇÃO/NOME da raça: JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" → SELECT r."DESCRICAO"
-          Alternativa equivalente: CASE WHEN "RACA_COR" = 1 THEN 'Branca' ... END AS raca_cor
+        RACA_COR VALUE MAPPINGS (7 entries in lookup table):
+        0  = SEM INFORMACAO
+        1  = BRANCA
+        2  = PRETA
+        3  = PARDA
+        4  = AMARELA
+        5  = INDIGENA
+        99 = SEM INFORMACAO
+        (0 and 99 both mean "not recorded")
 
-        ⚠️ CRITICAL: "quantos registros de raça/cor estão cadastrados?" = count FROM internacoes:
-        - CORRECT: SELECT COUNT(*) FROM internacoes WHERE "RACA_COR" IS NOT NULL;  → 18M patient records
-        - WRONG:   SELECT COUNT(*) FROM raca_cor ...  → returns 5 (the 5 lookup code rows, not patients!)
-          The raca_cor table is a tiny lookup dictionary — counting from it gives the number of categories,
-          not the number of patients with recorded race data.
+        ⚠️ INCLUDE or EXCLUDE SEM INFORMACAO? Depends on the question:
+        • DISTRIBUIÇÃO / COMPOSIÇÃO total → INCLUDE (no filter): shows all patients including unknowns
+          "distribuição por raça", "composição racial", "quantas internações por raça"
+          → JOIN raca_cor (groups 0 and 99 together as 'SEM INFORMACAO' automatically)
+        • ANÁLISE por raça (taxa, média, correlação) → EXCLUDE unknowns: WHERE "RACA_COR" NOT IN (0, 99)
+          "taxa de mortalidade por raça", "custo médio por raça"
 
-        RACA_COR VALUES (memorize — only 6 values):
-        - 0 or 99 = Sem informação (exclude from analysis)
-        - 1 = Branca
-        - 2 = Preta
-        - 3 = Parda
-        - 4 = Amarela
-        - 5 = Indígena
+        THREE USAGE PATTERNS:
+        1. FILTRAR por raça específica → use internacoes."RACA_COR" inline (no JOIN needed):
+           WHERE "RACA_COR" = 5  — use the code directly
 
-        ✅ CORRECT PATTERNS (no JOIN needed):
-        -- Group with readable labels:
+        2. MOSTRAR DESCRIÇÃO/NOME → JOIN raca_cor table (it has the DESCRICAO column):
+           JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" → SELECT r."DESCRICAO"
+           Alternativa para análise (exclui unknowns): CASE WHEN "RACA_COR" = 1 THEN 'Branca' ... END
+
+        3. CONTAR CATEGORIAS cadastradas → use the raca_cor lookup table (not internacoes):
+           The raca_cor table has 7 registered categories; querying it gives the catalogue count.
+           Do NOT use COUNT(DISTINCT "RACA_COR") FROM internacoes — that counts only codes
+           actually present in patient records, which may differ from the registered catalogue.
+
+        ⚠️ CRITICAL: "quantos PACIENTES/REGISTROS têm raça cadastrada?" → query internacoes:
+          CORRECT: SELECT COUNT(*) FROM internacoes WHERE "RACA_COR" IS NOT NULL;  → ~18M records
+          This is DIFFERENT from counting categories (7) — do not confuse the two.
+
+        ✅ CORRECT PATTERNS:
+        -- ANÁLISE por raça (exclui unknowns — CASE WHEN inline):
         SELECT
           CASE
             WHEN "RACA_COR" = 1 THEN 'Branca'
@@ -703,15 +723,20 @@ TABLE_TEMPLATES = {
           END AS raca_cor,
           COUNT(*) AS total
         FROM internacoes
-        WHERE "RACA_COR" NOT IN (0, 99)
+        WHERE "RACA_COR" NOT IN (0, 99)   -- exclude unknowns for analysis
         GROUP BY "RACA_COR"
         ORDER BY total DESC;
 
         -- Filter by specific race:
         SELECT COUNT(*) FROM internacoes WHERE "RACA_COR" = 5;  -- indigenous
 
-        ❌ WRONG (unnecessary JOIN):
-        SELECT rc."DESCRICAO", COUNT(*) FROM internacoes i JOIN raca_cor rc ON i."RACA_COR" = rc."RACA_COR" ...
+        -- DISTRIBUIÇÃO completa (inclui SEM INFORMACAO — use JOIN, sem filtro):
+        SELECT r."DESCRICAO", COUNT(*) AS total
+        FROM internacoes i
+        JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR"
+        -- NO WHERE filter: codes 0 and 99 both map to 'SEM INFORMACAO' in the lookup
+        GROUP BY r."DESCRICAO"
+        ORDER BY total DESC;
 """,
 
     "etnia": """

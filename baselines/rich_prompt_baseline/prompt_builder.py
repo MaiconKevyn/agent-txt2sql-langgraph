@@ -2,7 +2,7 @@
 Rich Prompt Builder for the Rich Prompt Baseline.
 
 Injects the same context as the LangGraph agent's generate_sql_node:
-  - RULES A-H (domain-specific SQL generation rules)
+  - RULES A-J (domain-specific SQL generation rules)
   - SUS_MAPPINGS (critical column value mappings for sihrd5)
   - ALL_PREGENERATION_HINTS (table-specific warnings for all 4 problematic tables)
   - TABLE_DESCRIPTIONS (schema metadata via context_loader)
@@ -27,6 +27,8 @@ CRITICAL RULES \u2014 READ THESE FIRST, THEY OVERRIDE ALL ELSE
 
 RULE A \u2014 UTI/ICU: WHERE "VAL_UTI" > 0 to count or filter UTI.
 For AVG/SUM on UTI values: also require WHERE "VAL_UTI" > 0 (excludes non-ICU zeros).
+"total gasto em UTI" / "custo UTI" \u2192 SUM("VAL_UTI") WHERE "VAL_UTI" > 0
+\u274c NEVER SUM("VAL_TOT") WHERE "VAL_UTI" > 0 \u2014 VAL_TOT is the full hospitalization cost, NOT just UTI.
 "obst\u00e9tricas"/"obst\u00e9trico" = ESPEC = 2 (NEVER ESPEC BETWEEN 74 AND 83).
 \u2705 WHERE "ESPEC" = 2 AND "VAL_UTI" > 0
 
@@ -99,6 +101,30 @@ Filtering by named disease \u2192 JOIN cid c ON i."DIAG_PRINC"=c."CID" WHERE c."
 Category (no specific name) \u2192 WHERE "DIAG_PRINC" LIKE 'J%' (J=Respiratory, I=Cardiovascular, C=Cancer, K=Digestive)
 For cause of death by disease \u2192 JOIN cid ON i."CID_MORTE"=c."CID" (see RULE B)
 
+RULE I \u2014 COUNT rows vs COUNT DISTINCT values:
+"Quantos X diferentes existem cadastrados/registrados?" \u2192 COUNT(*) rows in the table (total registros).
+COUNT(DISTINCT col) only when asking "quantos valores \u00fanicos de COLUNA" or "quantas categorias distintas".
+\u2705 "Quantos procedimentos diferentes existem?" \u2192 SELECT COUNT(*) FROM procedimentos
+\u274c SELECT COUNT(DISTINCT "NOME_PROC") \u2192 WRONG for "how many procedures exist"
+
+RULE J \u2014 PER-GROUP TOP-N: \u26a0\ufe0f MANDATORY ROW_NUMBER WHEN QUESTION ASKS top-N FOR MULTIPLE GROUPS.
+Triggers: "de cada", "por cada", "por faixa", "por grupo", OR when question lists MULTIPLE explicit segments.
+\u274c NEVER use plain LIMIT for per-group queries \u2014 LIMIT limits the entire result, not per group.
+\u2705 GENERIC PATTERN \u2014 top-N per categorical group:
+  SELECT group_desc, value_desc, sub.cnt FROM (
+    SELECT i."GROUP_COL", i."VALUE_COL", COUNT(*) AS cnt,
+           ROW_NUMBER() OVER (PARTITION BY i."GROUP_COL" ORDER BY COUNT(*) DESC, i."VALUE_COL" ASC) AS rn
+    FROM internacoes i WHERE i."VALUE_COL" IS NOT NULL GROUP BY i."GROUP_COL", i."VALUE_COL"
+  ) sub JOIN lookup_table lt ON sub."GROUP_COL" = lt."GROUP_COL"
+  WHERE sub.rn = 1 ORDER BY lt."DESCRICAO";
+  \u26a0\ufe0f outer SELECT uses subquery alias (sub.col), NEVER inner alias (i.col)!
+  \u26a0\ufe0f Add tiebreaker in ROW_NUMBER ORDER BY for deterministic results.
+\u2705 GENERIC PATTERN \u2014 top-N per computed segment (age ranges, bins):
+  PARTITION BY CASE expression; use EXACT labels from user's question.
+  WHERE rn <= N; ORDER BY segment_label, rn.
+Age groups: when question states boundaries, use EXACT labels from the question.
+When NOT specified \u2192 use natural labels ('Menor', 'Adulto', 'Idoso').
+
 \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 """
 
@@ -143,9 +169,11 @@ socioeconomico (long-format \u2014 SEMPRE filtrar por metrica):
   \u26a0\ufe0f SEM WHERE metrica=? \u2192 SUM soma TODAS as m\u00e9tricas \u2192 resultado sem sentido!
 
 raca_cor:
-  0/99=Sem info, 1=Branca, 2=Preta, 3=Parda, 4=Amarela, 5=Ind\u00edgena
+  0=Sem informa\u00e7\u00e3o, 1=Branca, 2=Preta, 3=Parda, 4=Amarela, 5=Ind\u00edgena, 99=Sem informa\u00e7\u00e3o
   Filtrar inline: WHERE "RACA_COR" = 5 (sem JOIN)
   Descri\u00e7\u00e3o: JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" \u2192 SELECT r."DESCRICAO"
+  DISTRIBUI\u00c7\u00c3O/COMPOSI\u00c7\u00c3O (inclui SEM INFORMACAO) \u2192 JOIN sem filtro; codes 0 e 99 \u2192 'SEM INFORMACAO'
+  AN\u00c1LISE por ra\u00e7a (taxa, m\u00e9dia) \u2192 excluir unknowns: WHERE "RACA_COR" NOT IN (0, 99)
 
 JOIN RULES:
   munic\u00edpio do paciente (resid\u00eancia) \u2014 DEFAULT \u2192 JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
@@ -216,6 +244,8 @@ def build_user_prompt(question: str) -> str:
     """
     Build user prompt with all TABLE_TEMPLATES (rules + few-shot examples for all tables).
     In the LangGraph agent, only selected tables' templates are injected; here we inject all.
+
+    Mirrors the agent's ROW_NUMBER reminder for per-group top-N queries (RULE J).
     """
     from src.application.config.table_templates import TABLE_TEMPLATES
 
@@ -223,11 +253,23 @@ def build_user_prompt(question: str) -> str:
         f"=== {name.upper()} ===\n{tmpl}"
         for name, tmpl in TABLE_TEMPLATES.items()
     )
-    return (
+
+    prompt = (
         "TABLE-SPECIFIC RULES AND EXAMPLES:\n"
         + all_templates
         + f"\n\nUSER QUERY: {question}\n\nGenerate the SQL query:"
     )
+
+    # Mirror the agent's per-group top-N reminder (sql_generation.py ROW_NUMBER reminder block)
+    _topn_triggers = ("de cada", "por cada", "por faixa", "por grupo")
+    if any(t in question.lower() for t in _topn_triggers):
+        prompt += (
+            "\n\n\u26a0\ufe0f MANDATORY CONSTRAINT FOR THIS QUERY: You MUST use "
+            "ROW_NUMBER() OVER (PARTITION BY ...) \u2014 do NOT use global LIMIT. "
+            "See the SQL pattern in RULE J and TABLE-SPECIFIC WARNINGS above and follow it exactly."
+        )
+
+    return prompt
 
 
 def build_prompts(question: str, schema_context: str) -> Tuple[str, str]:

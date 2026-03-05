@@ -1578,3 +1578,29 @@ body {
     transform: translate3d(0, 0, 0);
     -webkit-overflow-scrolling: touch;
 }
+/* AI context window separator */
+.context-separator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 1rem;
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.75rem;
+}
+
+.context-separator::before,
+.context-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color, #e2e8f0);
+}
+
+.context-separator span {
+    white-space: nowrap;
+    padding: 0 0.5rem;
+}
+
+.context-separator i {
+    font-size: 0.7rem;
+}

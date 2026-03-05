@@ -1,0 +1,7 @@
+Ground truths com EX = 0
+----------------------------------------
+GT089 | Quais são os 3 diagnósticos principais mais comuns entre pacientes com mais de 60 anos no estado de MS e no estado do RS? | EX = 0
+GT090 | Qual é a taxa de mortalidade por nível de instrução no estado do RS, considerando apenas grupos com mais de 1000 internações? | EX = 0
+GT091 | Quais são os 3 procedimentos mais comuns entre internações que resultaram em óbito para cada faixa etária: menor de 18, 18 a 64, e 65 ou mais? | EX = 0
+GT093 | Quais são os 3 hospitais com maior custo médio de UTI por estado (MA e RS)? | EX = 0
+GT107 | Em qual ano ocorreu o maior número de mortes em cada estado (MA e RS)? | EX = 0

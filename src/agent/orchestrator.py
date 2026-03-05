@@ -11,6 +11,10 @@ import os
 # Load environment variables for LangSmith tracing
 load_dotenv()
 
+import sqlite3
+
+from langgraph.checkpoint.sqlite import SqliteSaver
+
 from .workflow import (
     create_production_sql_agent,
     create_development_sql_agent,
@@ -67,6 +71,8 @@ class LangGraphOrchestrator:
         
         # State
         self._workflow = None
+        self._memory = None       # SqliteSaver checkpointer
+        self._memory_conn = None  # underlying SQLite connection (kept open)
         self._llm_manager = None
         self._current_model = None
         self._session_count = 0
@@ -100,16 +106,23 @@ class LangGraphOrchestrator:
                 "model": self.app_config.llm_model
             })
 
+            # Persistent SQLite checkpointer for multi-turn conversation
+            os.makedirs("data", exist_ok=True)
+            self._memory_conn = sqlite3.connect(
+                "data/chatbot_memory.db", check_same_thread=False
+            )
+            self._memory = SqliteSaver(self._memory_conn)
+
             # Now create workflow (nodes will use injected manager)
             if self.environment == "production":
-                self._workflow = create_production_sql_agent()
+                self._workflow = create_production_sql_agent(checkpointer=self._memory)
             elif self.environment == "development":
-                self._workflow = create_development_sql_agent()
+                self._workflow = create_development_sql_agent(checkpointer=self._memory)
             elif self.environment == "testing":
-                self._workflow = create_testing_sql_agent()
+                self._workflow = create_testing_sql_agent(checkpointer=self._memory)
             else:
                 # Default to production
-                self._workflow = create_production_sql_agent()
+                self._workflow = create_production_sql_agent(checkpointer=self._memory)
 
             # Track current model
             self._current_model = ModelConfig(
@@ -272,6 +285,11 @@ class LangGraphOrchestrator:
                 langsmith_config["tags"] = tags
             if metadata:
                 langsmith_config["metadata"] = metadata
+
+            # Wire session_id as thread_id for MemorySaver (enables multi-turn memory)
+            if "configurable" not in langsmith_config:
+                langsmith_config["configurable"] = {}
+            langsmith_config["configurable"]["thread_id"] = session_id
             
             # Add default metadata for tracking
             default_metadata = {
@@ -802,6 +820,14 @@ class LangGraphOrchestrator:
             except Exception as e:
                 self.logger.error("Interactive session error", extra={"error": str(e)})
                 print(f"\n Erro interno: {str(e)}")
+
+    def __del__(self):
+        """Close SQLite connection on garbage collection."""
+        try:
+            if self._memory_conn is not None:
+                self._memory_conn.close()
+        except Exception:
+            pass
 
     def __str__(self) -> str:
         """String representation of orchestrator"""

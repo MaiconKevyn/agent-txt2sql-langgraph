@@ -267,6 +267,8 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
 
         RULE A — UTI/ICU: WHERE "VAL_UTI" > 0 to count or filter UTI.
         For AVG/SUM on UTI values: also require WHERE "VAL_UTI" > 0 (excludes non-ICU zeros).
+        "total gasto em UTI" / "custo UTI" → SUM("VAL_UTI") WHERE "VAL_UTI" > 0
+        ❌ NEVER SUM("VAL_TOT") WHERE "VAL_UTI" > 0 — VAL_TOT is the full hospitalization cost, NOT just UTI.
         "obstétricas"/"obstétrico" = ESPEC = 2 (NEVER ESPEC BETWEEN 74 AND 83).
         ✅ WHERE "ESPEC" = 2 AND "VAL_UTI" > 0
 

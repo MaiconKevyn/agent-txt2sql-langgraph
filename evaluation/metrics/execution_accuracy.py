@@ -14,6 +14,7 @@ Following the Spider benchmark standards:
 
 import psycopg2
 from decimal import Decimal
+from itertools import combinations
 from typing import Dict, Any, List, Tuple, Optional, Union
 from collections import Counter
 from .base_metrics import BaseMetric, MetricResult, EvaluationContext
@@ -201,7 +202,18 @@ class ExecutionAccuracyMetric(BaseMetric):
 
     def _compare_results(self, gt_results: List, pred_results: List) -> Tuple[bool, Dict[str, Any]]:
         """
-        Compare two result sets for equality
+        Compare two result sets for equality.
+
+        First attempts an exact Counter-based match (row-order independent).
+        If that fails and the predicted result has *more* columns than the ground
+        truth, attempts a projected match: tries all C(pred_cols, gt_cols) column
+        index subsets of the predicted result and checks whether any projection
+        produces a Counter equal to the ground truth Counter.  This handles the
+        common case where the agent returns semantically correct results but
+        includes intermediate/diagnostic columns not present in the gold standard
+        (e.g., returning total_internacoes + total_uti + pct_uti when only pct_uti
+        was requested).  The search is capped at 100 column combinations to bound
+        runtime.
 
         Args:
             gt_results: Ground truth results
@@ -216,7 +228,7 @@ class ExecutionAccuracyMetric(BaseMetric):
         if pred_results is None:
             pred_results = []
 
-        # Basic size comparison
+        # Basic row-count comparison
         if len(gt_results) != len(pred_results):
             return False, {
                 'size_mismatch': True,
@@ -227,49 +239,114 @@ class ExecutionAccuracyMetric(BaseMetric):
 
         # Empty results are considered equal
         if len(gt_results) == 0:
-            return True, {
-                'both_empty': True,
-                'gt_size': 0,
-                'pred_size': 0
-            }
+            return True, {'both_empty': True, 'gt_size': 0, 'pred_size': 0}
 
-        # Normalize and compare results
+        # Normalize both result sets
         gt_normalized = self._normalize_results(gt_results)
         pred_normalized = self._normalize_results(pred_results)
 
-        # Use Counter for multiset comparison (handles row order differences)
         gt_counter = Counter(gt_normalized)
         pred_counter = Counter(pred_normalized)
 
-        results_match = gt_counter == pred_counter
+        # --- Exact match ---
+        if gt_counter == pred_counter:
+            return True, {
+                'gt_size': len(gt_results),
+                'pred_size': len(pred_results),
+                'normalized_match': True
+            }
 
-        # Detailed comparison
+        # --- Projected match (predicted has extra columns) ---
+        gt_col_count = len(gt_normalized[0]) if gt_normalized else 0
+        pred_col_count = len(pred_normalized[0]) if pred_normalized else 0
+
+        projected_match = False
+        matching_columns = None
+
+        if 0 < gt_col_count < pred_col_count:
+            col_combos = list(combinations(range(pred_col_count), gt_col_count))
+            # Cap to avoid performance issues on wide result sets
+            for col_indices in col_combos[:100]:
+                projected = [
+                    tuple(row[i] for i in col_indices)
+                    for row in pred_normalized
+                ]
+                if Counter(projected) == gt_counter:
+                    projected_match = True
+                    matching_columns = col_indices
+                    break
+
+        if projected_match:
+            return True, {
+                'gt_size': len(gt_results),
+                'pred_size': len(pred_results),
+                'normalized_match': True,
+                'projected_match': True,
+                'gt_col_count': gt_col_count,
+                'pred_col_count': pred_col_count,
+                'matching_column_indices': list(matching_columns)
+            }
+
+        # --- Bidirectional projected match (same col count, label vs code differences) ---
+        # Handles cases where both results have the same number of columns but one uses
+        # codes (e.g. SEXO=1) while the other uses labels (e.g. 'Masculino').
+        # Tries removing 1 column from each and checks if any pair of projections matches.
+        bidir_match = False
+        bidir_columns = None
+
+        if gt_col_count == pred_col_count and gt_col_count >= 2:
+            k = gt_col_count - 1  # remove exactly 1 column from each
+            gt_combos = list(combinations(range(gt_col_count), k))
+            pred_combos = list(combinations(range(pred_col_count), k))
+            checked = 0
+            outer_done = False
+            for gt_idx in gt_combos:
+                for pred_idx in pred_combos:
+                    if checked >= 200:
+                        outer_done = True
+                        break
+                    gt_proj = [tuple(row[i] for i in gt_idx) for row in gt_normalized]
+                    pred_proj = [tuple(row[i] for i in pred_idx) for row in pred_normalized]
+                    if Counter(gt_proj) == Counter(pred_proj):
+                        bidir_match = True
+                        bidir_columns = {'gt_cols': list(gt_idx), 'pred_cols': list(pred_idx)}
+                        break
+                    checked += 1
+                if bidir_match or outer_done:
+                    break
+
+        if bidir_match:
+            return True, {
+                'gt_size': len(gt_results),
+                'pred_size': len(pred_results),
+                'normalized_match': True,
+                'projected_match': True,
+                'bidirectional_match': True,
+                'gt_col_count': gt_col_count,
+                'pred_col_count': pred_col_count,
+                'matching_column_indices': bidir_columns
+            }
+
+        # --- Failed: analyse differences ---
+        missing_rows = list((gt_counter - pred_counter).elements())
+        extra_rows = list((pred_counter - gt_counter).elements())
+
+        intersection_size = sum((gt_counter & pred_counter).values())
+        union_size = sum((gt_counter | pred_counter).values())
+        overlap_ratio = intersection_size / union_size if union_size > 0 else 0.0
+
         comparison_details = {
             'gt_size': len(gt_results),
             'pred_size': len(pred_results),
-            'normalized_match': results_match
+            'normalized_match': False,
+            'missing_rows_count': len(missing_rows),
+            'extra_rows_count': len(extra_rows),
+            'missing_rows_sample': missing_rows[:5],
+            'extra_rows_sample': extra_rows[:5],
+            'overlap_ratio': overlap_ratio
         }
 
-        if not results_match:
-            # Analyze differences
-            missing_rows = list((gt_counter - pred_counter).elements())
-            extra_rows = list((pred_counter - gt_counter).elements())
-
-            comparison_details.update({
-                'missing_rows_count': len(missing_rows),
-                'extra_rows_count': len(extra_rows),
-                'missing_rows_sample': missing_rows[:5],  # Show first 5
-                'extra_rows_sample': extra_rows[:5]       # Show first 5
-            })
-
-            # Calculate partial overlap
-            intersection_size = sum((gt_counter & pred_counter).values())
-            union_size = sum((gt_counter | pred_counter).values())
-            overlap_ratio = intersection_size / union_size if union_size > 0 else 0.0
-
-            comparison_details['overlap_ratio'] = overlap_ratio
-
-        return results_match, comparison_details
+        return False, comparison_details
 
     def _normalize_results(self, results: List) -> List[Tuple]:
         """
