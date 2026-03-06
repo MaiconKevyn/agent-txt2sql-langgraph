@@ -1,147 +1,71 @@
-"""Result synthesizer — combines multi-query results into a final natural language response."""
+"""Result synthesizer — formats verified multi-query outputs into a final answer."""
 
-import ast
 import time
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from .llm_manager import get_llm_manager
 from .state import (
-    MessagesStateTXT2SQL,
     ExecutionPhase,
+    MessagesStateTXT2SQL,
     add_ai_message,
-    update_phase,
     add_error,
+    update_phase,
 )
 from ..utils.logging_config import get_nodes_logger
 
 logger = get_nodes_logger()
 
-
-def _parse_result_rows(result_raw: str) -> Optional[List]:
-    """
-    Parse the string returned by LangChain's sql_db_query tool into a list of tuples.
-
-    The tool typically returns strings of the form:
-      "[(val1, val2), (val3, val4)]"
-    or a single-column result like:
-      "[(val1,), (val2,)]"
-    or even a plain scalar like "42".
-
-    Returns None if parsing fails (caller falls back to SQL re-execution).
-    """
-    if not result_raw:
-        return []
-    text = result_raw.strip()
-    try:
-        parsed = ast.literal_eval(text)
-        if isinstance(parsed, list):
-            # Normalise each element to a tuple
-            rows = []
-            for item in parsed:
-                if isinstance(item, tuple):
-                    rows.append(item)
-                else:
-                    rows.append((item,))
-            return rows
-        # Single scalar value
-        return [(parsed,)]
-    except Exception:
-        return None
-
-
-def _collect_leaf_rows(sub_query_results: List[Dict[str, Any]]) -> Optional[List]:
-    """
-    Identify leaf sub-queries (not depended upon by any other) and concatenate
-    their parsed result rows.  Returns None if parsing fails for any leaf.
-    """
-    # Find all IDs that appear as a dependency of some other sub-query
-    # (sub_query_results are plain dicts from _make_result, not SubQuery objects)
-    # We inspect the original SubQuery objects via the plan — but since we only
-    # have dicts here, we derive depends_on from what was stored.  The dicts do
-    # NOT store depends_on, so we treat ALL successful results as leaves when
-    # there is no dependency metadata available (safe fallback: concatenate all).
-    successful = [r for r in sub_query_results if r.get("success") and r.get("result")]
-    if not successful:
-        return None
-
-    all_rows: List = []
-    for r in successful:
-        rows = _parse_result_rows(r["result"])
-        if rows is None:
-            return None  # parsing failure — fall back to SQL re-execution
-        all_rows.extend(rows)
-
-    return all_rows if all_rows else None
-
-
 _SYSTEM_PROMPT = """\
 Você é um assistente especializado em dados de saúde pública brasileira (DATASUS/SIH-RS).
-Sua tarefa: sintetizar os resultados de múltiplas consultas SQL em uma resposta única,
-clara e direta em português.
+Sua tarefa: sintetizar um resultado tabular já verificado em uma resposta curta, clara e direta em português.
 
 Diretrizes:
-- Seja conciso. Apresente os números de forma organizada.
-- Se alguma sub-consulta falhou, mencione brevemente.
-- Responda APENAS com a resposta final para o usuário — sem explicar estrutura técnica,
-  sem mencionar "sub-queries" ou "SQL" na resposta.
+- Use apenas os dados fornecidos.
+- Não mencione SQL, planner, subconsultas, merge ou validação.
+- Se houver múltiplas linhas, organize a resposta de forma objetiva.
 """
 
 
+def _format_rows_for_prompt(rows: List[Any], max_rows: int = 25) -> str:
+    if not rows:
+        return "[sem linhas]"
+    display_rows = rows[:max_rows]
+    lines = [f"Linha {idx}: {list(row)}" for idx, row in enumerate(display_rows, 1)]
+    if len(rows) > max_rows:
+        lines.append(f"... ({len(rows) - max_rows} linhas adicionais omitidas)")
+    return "\n".join(lines)
+
+
 def result_synthesizer_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
-    """
-    Synthesize results from multiple sub-queries into a single natural language response.
-    Sets state["final_response"], state["success"], state["completed"].
-    """
+    """Generate the final natural-language answer from verified merged rows."""
     start_time = time.time()
 
     try:
-        llm_manager = get_llm_manager()
+        merged_rows = state.get("merged_rows")
         user_query = state.get("user_query", "")
-        sub_query_results: List[Dict[str, Any]] = state.get("sub_query_results", [])
+        query_plan = state.get("query_plan")
+        verifier_outcome = state.get("verifier_outcome") or {}
 
-        if not sub_query_results:
+        if not verifier_outcome.get("passed") or merged_rows is None:
+            error_msg = "Result synthesizer recebeu multi-query sem rows verificadas."
+            state = add_error(state, error_msg, "sql_execution_error", ExecutionPhase.RESPONSE_FORMATTING)
             state["final_response"] = (
-                "Não foi possível executar as consultas necessárias para responder à pergunta."
+                "Não foi possível consolidar a resposta automaticamente. Tente reformular a pergunta."
             )
             state["success"] = False
             state["completed"] = True
             state = update_phase(state, ExecutionPhase.RESPONSE_FORMATTING, time.time() - start_time)
             return state
 
-        # Build context block — cap each result at 3000 chars to avoid context overflow
-        _MAX_RESULT_CHARS = 3000
-        results_text = ""
-        any_success = False
-        for r in sub_query_results:
-            results_text += f"\n--- Sub-consulta [{r['id']}]: {r['description']} ---\n"
-            if r.get("sql"):
-                results_text += f"SQL executada: {r['sql']}\n"
-            if r.get("success") and r.get("result"):
-                raw = r["result"]
-                truncated = raw[:_MAX_RESULT_CHARS] + (
-                    f"\n... [truncado — {len(raw) - _MAX_RESULT_CHARS} chars omitidos]"
-                    if len(raw) > _MAX_RESULT_CHARS else ""
-                )
-                results_text += f"Resultado:\n{truncated}\n"
-                any_success = True
-            else:
-                results_text += f"Erro: {r.get('error', 'desconhecido')}\n"
-
-        if not any_success:
-            state["final_response"] = (
-                "Não foi possível obter resultados das consultas. Por favor, reformule a pergunta."
-            )
-            state["success"] = False
-            state["completed"] = True
-            state = update_phase(state, ExecutionPhase.RESPONSE_FORMATTING, time.time() - start_time)
-            return state
-
+        llm_manager = get_llm_manager()
         human_prompt = (
             f"Pergunta original do usuário: {user_query}\n\n"
-            f"Resultados das consultas executadas:\n{results_text}\n\n"
-            "Sintetize os resultados em uma resposta clara e objetiva para o usuário:"
+            f"Tipo de plano: {query_plan.plan_type if query_plan else 'multi'}\n"
+            f"Estratégia de merge: {query_plan.merge_strategy if query_plan else 'unknown'}\n\n"
+            f"Linhas finais verificadas:\n{_format_rows_for_prompt(merged_rows)}\n\n"
+            "Responda ao usuário de forma clara e objetiva:"
         )
 
         response = llm_manager.invoke_chat([
@@ -149,29 +73,25 @@ def result_synthesizer_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL
             HumanMessage(content=human_prompt),
         ])
 
-        final_response = (
-            response.content.strip() if hasattr(response, "content") else str(response)
-        )
+        final_response = response.content.strip() if hasattr(response, "content") else str(response)
 
         state["final_response"] = final_response
         state["success"] = True
         state["completed"] = True
+        state["final_result_rows"] = merged_rows
 
-        # Expose first successful SQL for evaluation / logging
-        for r in sub_query_results:
-            if r.get("success") and r.get("sql"):
-                state["generated_sql"] = r["sql"]
-                state["validated_sql"] = r["sql"]
-                break
-
-        # Store parsed result rows for EX evaluation (avoids re-executing partial SQL)
-        state["final_result_rows"] = _collect_leaf_rows(sub_query_results)
+        if state.get("final_sql_query"):
+            state["generated_sql"] = state["final_sql_query"]
+            state["validated_sql"] = state["final_sql_query"]
+        else:
+            state["generated_sql"] = ""
+            state["validated_sql"] = ""
 
         state = add_ai_message(state, final_response)
 
         logger.info("Result synthesizer complete", extra={
-            "n_results": len(sub_query_results),
-            "any_success": any_success,
+            "plan_type": query_plan.plan_type if query_plan else None,
+            "row_count": len(merged_rows),
         })
 
         state = update_phase(state, ExecutionPhase.RESPONSE_FORMATTING, time.time() - start_time)

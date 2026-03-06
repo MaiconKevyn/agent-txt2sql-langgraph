@@ -34,6 +34,7 @@ from .execution import execute_sql_node, repair_sql_node  # noqa: F401  # step 6
 from .response import generate_response_node           # noqa: F401  # step 7
 from .nodes_misc import reasoning_node, clarification_node  # noqa: F401
 from .vote_sql import vote_sql_node                    # noqa: F401  # step 4b (voting)
+from .plan_gate import plan_gate_node                 # noqa: F401
 
 # Internal helpers exposed for backward compatibility (tests, evaluation scripts)
 from .schema_utils import (  # noqa: F401
@@ -60,6 +61,7 @@ from .sql_generation import _build_pregeneration_hints  # noqa: F401
 from .response import _generate_formatted_response, _generate_fallback_response  # noqa: F401
 from .query_planner import query_planner_node  # noqa: F401
 from .multi_executor import multi_sql_executor_node  # noqa: F401
+from .multi_verifier import multi_verifier_node  # noqa: F401
 from .result_synthesizer import result_synthesizer_node  # noqa: F401
 
 __all__ = [
@@ -74,9 +76,11 @@ __all__ = [
     "generate_response_node",
     "clarification_node",
     "vote_sql_node",
+    "plan_gate_node",
     "get_llm_manager",
     "set_global_llm_manager",
     "query_planner_node",
     "multi_sql_executor_node",
+    "multi_verifier_node",
     "result_synthesizer_node",
 ]

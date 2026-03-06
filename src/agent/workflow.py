@@ -21,7 +21,9 @@ from .nodes import (
     vote_sql_node,
 )
 from .query_planner import query_planner_node
+from .plan_gate import plan_gate_node
 from .multi_executor import multi_sql_executor_node
+from .multi_verifier import multi_verifier_node
 from .result_synthesizer import result_synthesizer_node
 
 
@@ -53,6 +55,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("classify_query", query_classification_node)
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
+    workflow.add_node("plan_gate", plan_gate_node)
     workflow.add_node("query_planner", query_planner_node)
     workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("generate_sql", generate_sql_node)
@@ -64,6 +67,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("clarification", clarification_node)
     # Multi-query path
     workflow.add_node("multi_sql_executor", multi_sql_executor_node)
+    workflow.add_node("multi_verifier", multi_verifier_node)
     workflow.add_node("result_synthesizer", result_synthesizer_node)
     
     # Entry point
@@ -90,8 +94,17 @@ def create_langgraph_sql_workflow():
         "get_schema",
         route_after_schema,
         {
-            "query_planner": "query_planner",
+            "plan_gate": "plan_gate",
             "generate_response": "generate_response",
+        }
+    )
+
+    workflow.add_conditional_edges(
+        "plan_gate",
+        route_after_plan_gate,
+        {
+            "query_planner": "query_planner",
+            "generate_sql": "generate_sql",
         }
     )
 
@@ -106,7 +119,15 @@ def create_langgraph_sql_workflow():
     )
 
     # Multi-query path
-    workflow.add_edge("multi_sql_executor", "result_synthesizer")
+    workflow.add_edge("multi_sql_executor", "multi_verifier")
+    workflow.add_conditional_edges(
+        "multi_verifier",
+        route_after_multi_verifier,
+        {
+            "result_synthesizer": "result_synthesizer",
+            "generate_sql": "generate_sql",
+        }
+    )
     workflow.add_edge("result_synthesizer", END)
 
     workflow.add_edge("reasoning", "generate_sql")
@@ -215,17 +236,25 @@ def route_after_classification(
 
 def route_after_schema(
     state: MessagesStateTXT2SQL
-) -> Literal["query_planner", "generate_response"]:
+) -> Literal["plan_gate", "generate_response"]:
     """
     Route after schema analysis.
 
     SCHEMA queries skip SQL generation entirely.
-    All other DATABASE queries go to the query planner which decides
-    single vs multi strategy.
+    All other DATABASE queries go to the deterministic plan gate first.
     """
     if state.get("query_route") == QueryRoute.SCHEMA:
         return "generate_response"
-    return "query_planner"
+    return "plan_gate"
+
+
+def route_after_plan_gate(
+    state: MessagesStateTXT2SQL
+) -> Literal["query_planner", "generate_sql"]:
+    """Route after deterministic plan gate."""
+    if state.get("multi_query_allowed") and not state.get("force_single_query"):
+        return "query_planner"
+    return "generate_sql"
 
 
 def route_after_query_planner(
@@ -242,6 +271,15 @@ def route_after_query_planner(
     if state.get("is_multi_query") and not state.get("force_single_query"):
         return "multi"
     return "generate_sql"
+
+
+def route_after_multi_verifier(
+    state: MessagesStateTXT2SQL
+) -> Literal["result_synthesizer", "generate_sql"]:
+    """Fallback to single-query when multi verification fails."""
+    if state.get("single_fallback_active"):
+        return "generate_sql"
+    return "result_synthesizer"
 
 
 def route_after_sql_generation(

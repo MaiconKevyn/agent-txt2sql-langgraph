@@ -1,7 +1,7 @@
 from typing import TypedDict, Optional, List, Dict, Any, Annotated, Sequence
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
@@ -60,11 +60,21 @@ class SubQuery:
     """A single SQL sub-query as part of a multi-query plan."""
     id: str
     description: str
+    purpose: str = "final_output"
+    output_role: str = "output"
+    expected_result_kind: str = "rowset"
+    expected_max_rows: Optional[int] = None
+    required_constraints: List[str] = field(default_factory=list)
+    selected_tables: List[str] = field(default_factory=list)
+    bind_keys: List[str] = field(default_factory=list)
     sql: Optional[str] = None
+    validated_sql: Optional[str] = None
     result_raw: Optional[str] = None
+    parsed_rows: Optional[List[Any]] = None
     success: bool = False
     error: Optional[str] = None
     depends_on: List[str] = field(default_factory=list)
+    repair_attempts: int = 0
 
 
 @dataclass
@@ -72,6 +82,13 @@ class QueryPlan:
     """Execution plan decided by the query planner node."""
     strategy: str  # "single" or "multi"
     reasoning: str
+    plan_type: str = "single_default"
+    merge_strategy: str = "none"
+    output_nodes: List[str] = field(default_factory=list)
+    required_constraints: List[Dict[str, Any]] = field(default_factory=list)
+    expected_output_shape: Dict[str, Any] = field(default_factory=dict)
+    verifier_checks: List[str] = field(default_factory=list)
+    fallback_policy: Dict[str, Any] = field(default_factory=dict)
     sub_queries: List[SubQuery] = field(default_factory=list)
 
 
@@ -166,6 +183,17 @@ class MessagesStateTXT2SQL(TypedDict):
     sub_query_results: List[Dict[str, Any]]
     is_multi_query: bool
     force_single_query: bool  # when True, planner always returns single (evaluation mode)
+    plan_type: Optional[str]
+    execution_mode: str
+    multi_query_allowed: bool
+    allowed_multi_plan_types: List[str]
+    merged_rows: Optional[List]
+    merged_rows_source: Optional[str]
+    verifier_outcome: Optional[Dict[str, Any]]
+    single_fallback_active: bool
+    single_fallback_reason: Optional[str]
+    final_sql_query: Optional[str]
+    failure_taxonomy: List[str]
     final_result_rows: Optional[List]  # raw DB rows for multi-query EX comparison
 
 
@@ -257,8 +285,26 @@ def create_initial_messages_state(
         sub_query_results=[],
         is_multi_query=False,
         force_single_query=force_single_query,
+        plan_type=None,
+        execution_mode="single",
+        multi_query_allowed=False,
+        allowed_multi_plan_types=[],
+        merged_rows=None,
+        merged_rows_source=None,
+        verifier_outcome=None,
+        single_fallback_active=False,
+        single_fallback_reason=None,
+        final_sql_query=None,
+        failure_taxonomy=[],
         final_result_rows=None,
     )
+
+
+def serialize_query_plan(query_plan: Optional[QueryPlan]) -> Optional[Dict[str, Any]]:
+    """Convert QueryPlan dataclasses into a JSON-serializable dict."""
+    if not query_plan:
+        return None
+    return asdict(query_plan)
 
 
 def add_system_message(
@@ -490,7 +536,11 @@ def state_to_legacy_format(state: MessagesStateTXT2SQL) -> Dict[str, Any]:
     """
     
     # Extract SQL and results
-    sql_query = state.get("validated_sql") or state.get("generated_sql", "")
+    sql_query = (
+        state.get("final_sql_query")
+        or state.get("validated_sql")
+        or state.get("generated_sql", "")
+    )
     results = []
     row_count = 0
     execution_time = state.get("execution_time_total", 0.0)
@@ -500,6 +550,10 @@ def state_to_legacy_format(state: MessagesStateTXT2SQL) -> Dict[str, Any]:
         results = exec_result.results
         row_count = exec_result.row_count
         execution_time = exec_result.execution_time
+    elif state.get("final_result_rows") is not None:
+        final_rows = state.get("final_result_rows") or []
+        results = [{"result": list(row) if isinstance(row, tuple) else row} for row in final_rows]
+        row_count = len(final_rows)
     
     # Get response text
     response_text = (
@@ -548,6 +602,23 @@ def state_to_legacy_format(state: MessagesStateTXT2SQL) -> Dict[str, Any]:
             "error_count": len(state.get("errors", [])),
             "tables_used": state.get("selected_tables", []),
             "schema_context_length": len(state.get("schema_context", "")),
+            "multi_query": {
+                "is_multi_query": state.get("is_multi_query", False),
+                "plan_type": state.get("plan_type"),
+                "execution_mode": state.get("execution_mode"),
+                "multi_query_allowed": state.get("multi_query_allowed", False),
+                "allowed_multi_plan_types": state.get("allowed_multi_plan_types", []),
+                "query_plan": serialize_query_plan(state.get("query_plan")),
+                "sub_query_results": state.get("sub_query_results", []),
+                "merged_rows": state.get("merged_rows"),
+                "merged_rows_source": state.get("merged_rows_source"),
+                "merge_strategy": state.get("query_plan").merge_strategy if state.get("query_plan") else None,
+                "verifier_outcome": state.get("verifier_outcome"),
+                "single_fallback_active": state.get("single_fallback_active", False),
+                "single_fallback_reason": state.get("single_fallback_reason"),
+                "final_sql_query": state.get("final_sql_query"),
+                "failure_taxonomy": state.get("failure_taxonomy", []),
+            },
             **state.get("response_metadata", {})
         }
     }

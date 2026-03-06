@@ -324,9 +324,16 @@ def _evaluate_questions_sequential(
         # Generate prediction with agent
         start_time = time.time()
         agent_result = {}
+        agent_success = False
+        stored_rows = None
+        agent_metadata = {}
+        multi_metadata = {}
 
         try:
             agent_result = agent.process_query(question_data['question'])
+            agent_metadata = agent_result.get('metadata', {}) if isinstance(agent_result, dict) else {}
+            multi_metadata = agent_metadata.get('multi_query', {}) if isinstance(agent_metadata, dict) else {}
+            stored_rows = agent_result.get('final_result_rows') if isinstance(agent_result, dict) else None
 
             # Extract SQL
             if isinstance(agent_result, dict):
@@ -339,7 +346,7 @@ def _evaluate_questions_sequential(
             execution_time = time.time() - start_time
             agent_stats['total_time'] += execution_time
 
-            if agent_success and predicted_sql.strip():
+            if agent_success and (predicted_sql.strip() or stored_rows is not None):
                 agent_stats['success_count'] += 1
             else:
                 agent_stats['failure_count'] += 1
@@ -350,6 +357,9 @@ def _evaluate_questions_sequential(
             agent_stats['failure_count'] += 1
             agent_stats['total_time'] += execution_time
             predicted_sql = ""
+            stored_rows = None
+            multi_metadata = {}
+            agent_metadata = {}
 
         # Evaluate with metrics
         context = EvaluationContext(
@@ -366,13 +376,14 @@ def _evaluate_questions_sequential(
             'question': question_data['question'],
             'ground_truth_sql': question_data['query'],
             'predicted_sql': predicted_sql,
-            'agent_success': bool(predicted_sql.strip()),
+            'agent_success': agent_success,
             'agent_execution_time': execution_time,
+            'evaluation_source': 'merged_rows' if stored_rows is not None else 'sql_query',
+            'stored_rows': stored_rows,
+            'agent_metadata': agent_metadata,
+            'multi_query': multi_metadata,
             'metrics': {}
         }
-
-        # Check if multi-query stored result rows are available
-        stored_rows = agent_result.get('final_result_rows') if isinstance(agent_result, dict) else None
 
         for metric in metrics:
             try:
@@ -467,9 +478,16 @@ def _evaluate_questions_parallel(
 
         start_time = time.time()
         agent_result_dict = {}
+        agent_success = False
+        stored_rows = None
+        agent_metadata = {}
+        multi_metadata = {}
 
         try:
             agent_result_dict = agent.process_query(question_data['question'])
+            agent_metadata = agent_result_dict.get('metadata', {}) if isinstance(agent_result_dict, dict) else {}
+            multi_metadata = agent_metadata.get('multi_query', {}) if isinstance(agent_metadata, dict) else {}
+            stored_rows = agent_result_dict.get('final_result_rows') if isinstance(agent_result_dict, dict) else None
 
             # Extract SQL
             if isinstance(agent_result_dict, dict):
@@ -484,7 +502,7 @@ def _evaluate_questions_parallel(
             # Update stats (thread-safe)
             with stats_lock:
                 agent_stats['total_time'] += execution_time
-                if agent_success and predicted_sql.strip():
+                if agent_success and (predicted_sql.strip() or stored_rows is not None):
                     agent_stats['success_count'] += 1
                 else:
                     agent_stats['failure_count'] += 1
@@ -496,6 +514,9 @@ def _evaluate_questions_parallel(
                 agent_stats['failure_count'] += 1
                 agent_stats['total_time'] += execution_time
             predicted_sql = ""
+            stored_rows = None
+            multi_metadata = {}
+            agent_metadata = {}
 
         # Evaluate with metrics
         context = EvaluationContext(
@@ -512,12 +533,14 @@ def _evaluate_questions_parallel(
             'question': question_data['question'],
             'ground_truth_sql': question_data['query'],
             'predicted_sql': predicted_sql,
-            'agent_success': bool(predicted_sql.strip()),
+            'agent_success': agent_success,
             'agent_execution_time': execution_time,
+            'evaluation_source': 'merged_rows' if stored_rows is not None else 'sql_query',
+            'stored_rows': stored_rows,
+            'agent_metadata': agent_metadata,
+            'multi_query': multi_metadata,
             'metrics': {}
         }
-
-        stored_rows = agent_result_dict.get('final_result_rows') if isinstance(agent_result_dict, dict) else None
 
         for metric in metrics:
             try:
@@ -699,6 +722,17 @@ def generate_report(
     summary = aggregate_results['summary']
     metrics = aggregate_results['metrics']
     difficulties = aggregate_results['difficulty_breakdown']
+    detailed_results = evaluate_questions.get('detailed_results', [])
+    multi_count = sum(
+        1
+        for r in detailed_results
+        if ((r.get('multi_query') or {}).get('query_plan') or {}).get('strategy') == 'multi'
+    )
+    multi_eval_count = sum(1 for r in detailed_results if r.get('evaluation_source') == 'merged_rows')
+    fallback_count = sum(
+        1 for r in detailed_results
+        if (r.get('multi_query') or {}).get('single_fallback_active')
+    )
 
     report_lines = []
     report_lines.append("="*80)
@@ -713,6 +747,9 @@ def generate_report(
     report_lines.append(f"Agent Success Rate: {summary['agent_success_rate']:.1%}")
     report_lines.append(f"Total Execution Time: {summary['total_execution_time']:.1f}s")
     report_lines.append(f"Avg Time per Question: {summary['avg_execution_time']:.2f}s")
+    report_lines.append(f"Multi Plans Triggered: {multi_count}")
+    report_lines.append(f"EX Evaluated via merged_rows: {multi_eval_count}")
+    report_lines.append(f"Single Fallbacks Triggered: {fallback_count}")
     report_lines.append("")
 
     # Metrics
@@ -813,8 +850,17 @@ def _generate_execution_outputs_file(
             lines.append("  [No results available]")
         lines.append("")
 
-        # Predicted SQL
-        if result['agent_success']:
+        multi_meta = result.get('multi_query') or {}
+        if multi_meta:
+            lines.append("Multi-Query Metadata:")
+            lines.append(f"  plan_type: {multi_meta.get('plan_type')}")
+            lines.append(f"  execution_mode: {multi_meta.get('execution_mode')}")
+            lines.append(f"  merge_strategy: {multi_meta.get('merge_strategy')}")
+            lines.append(f"  fallback_reason: {multi_meta.get('single_fallback_reason')}")
+            lines.append("")
+
+        # Predicted SQL / merged rows
+        if result['agent_success'] and result.get('predicted_sql', '').strip():
             lines.append("Predicted SQL:")
             lines.append("  " + result['predicted_sql'])
             lines.append("")
@@ -836,6 +882,20 @@ def _generate_execution_outputs_file(
                     lines.append(f"  Total rows: {len(pred_results)}")
             else:
                 lines.append("  [No results available]")
+        elif result['agent_success'] and result.get('stored_rows') is not None:
+            lines.append("Predicted SQL:")
+            lines.append("  [multi-query without final SQL; EX evaluated on merged_rows]")
+            lines.append("")
+            lines.append("Predicted Results:")
+            stored_rows = result.get('stored_rows') or []
+            if not stored_rows:
+                lines.append("  [Empty result set]")
+            else:
+                for idx, row in enumerate(stored_rows[:10], 1):
+                    lines.append(f"  Row {idx}: {list(row)}")
+                if len(stored_rows) > 10:
+                    lines.append(f"  ... ({len(stored_rows) - 10} more rows)")
+                lines.append(f"  Total rows: {len(stored_rows)}")
         else:
             lines.append("Predicted SQL:")
             lines.append("  [AGENT FAILED - No SQL generated]")
