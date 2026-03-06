@@ -166,6 +166,7 @@ class MessagesStateTXT2SQL(TypedDict):
     sub_query_results: List[Dict[str, Any]]
     is_multi_query: bool
     force_single_query: bool  # when True, planner always returns single (evaluation mode)
+    final_result_rows: Optional[List]  # raw DB rows for multi-query EX comparison
 
 
 def create_initial_messages_state(
@@ -256,6 +257,7 @@ def create_initial_messages_state(
         sub_query_results=[],
         is_multi_query=False,
         force_single_query=force_single_query,
+        final_result_rows=None,
     )
 
 
@@ -519,6 +521,7 @@ def state_to_legacy_format(state: MessagesStateTXT2SQL) -> Dict[str, Any]:
         "error_message": state.get("current_error"),
         "response": response_text,
         "timestamp": state["timestamp"].isoformat(),
+        "final_result_rows": state.get("final_result_rows"),
         "metadata": {
             # Enhanced metadata with LangGraph info
             "langgraph_v3": True,

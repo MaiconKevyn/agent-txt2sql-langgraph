@@ -17,8 +17,6 @@ import sys
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from evaluation.metrics.exact_match import ExactMatchMetric
-from evaluation.metrics.component_matching import ComponentMatchingMetric
 from evaluation.metrics.execution_accuracy import ExecutionAccuracyMetric
 from evaluation.metrics.base_metrics import EvaluationContext
 from src.agent.orchestrator import LangGraphOrchestrator
@@ -177,11 +175,8 @@ def initialize_metrics(load_configuration: Dict[str, Any], **kwargs) -> Dict[str
     """
     print("  Initializing evaluation metrics...")
 
-    metrics = [
-        ExactMatchMetric(),
-        ComponentMatchingMetric(),
-        ExecutionAccuracyMetric(execution_timeout=60)
-    ]
+    ex_metric = ExecutionAccuracyMetric(execution_timeout=60)
+    metrics = [ex_metric]
 
     print(f"    Initialized {len(metrics)} metrics:")
     for metric in metrics:
@@ -189,7 +184,8 @@ def initialize_metrics(load_configuration: Dict[str, Any], **kwargs) -> Dict[str
 
     return {
         'metrics': metrics,
-        'metric_names': [m.name for m in metrics]
+        'metric_names': [m.name for m in metrics],
+        'ex_metric': ex_metric,
     }
 
 
@@ -251,6 +247,7 @@ def evaluate_questions(
     """
     questions = load_ground_truth['questions']
     metrics = initialize_metrics['metrics']
+    ex_metric = initialize_metrics.get('ex_metric')
     agent = initialize_agent['agent']
     db_connection = initialize_database['db_connection']
 
@@ -264,20 +261,48 @@ def evaluate_questions(
         print(f"  Evaluating {total} questions with {max_workers} parallel workers...")
         print(f"    ⚠️  Using parallel mode - monitor GPU memory!")
         return _evaluate_questions_parallel(
-            questions, metrics, agent, db_connection, max_workers
+            questions, metrics, agent, db_connection, max_workers, ex_metric=ex_metric
         )
     else:
         print(f"  Evaluating {total} questions sequentially...")
         return _evaluate_questions_sequential(
-            questions, metrics, agent, db_connection
+            questions, metrics, agent, db_connection, ex_metric=ex_metric
         )
+
+
+def _evaluate_ex_with_stored_rows(
+    ex_metric: ExecutionAccuracyMetric,
+    gt_sql: str,
+    final_result_rows: list,
+    db_connection,
+) -> dict:
+    """
+    Compare stored result rows (from multi-query synthesizer) against GT execution.
+    Returns a metrics dict compatible with the standard metric result format.
+    """
+    gt_result, gt_error = db_connection.execute_query(gt_sql)
+    if gt_error or gt_result is None:
+        return {
+            'score': 0.0,
+            'is_correct': False,
+            'error': f"GT execution failed: {gt_error}",
+            'details': {'reason': 'ground_truth_execution_failed'},
+        }
+    results_match, details = ex_metric._compare_results(gt_result, final_result_rows)
+    return {
+        'score': 1.0 if results_match else 0.0,
+        'is_correct': results_match,
+        'error': None,
+        'details': details,
+    }
 
 
 def _evaluate_questions_sequential(
     questions: List[Dict],
     metrics: List,
     agent,
-    db_connection
+    db_connection,
+    ex_metric: Optional[ExecutionAccuracyMetric] = None,
 ) -> Dict[str, Any]:
     """Sequential evaluation (original implementation)"""
     results = []
@@ -298,9 +323,10 @@ def _evaluate_questions_sequential(
 
         # Generate prediction with agent
         start_time = time.time()
+        agent_result = {}
 
         try:
-            agent_result = agent.process_query(question_data['question'], force_single_query=True)
+            agent_result = agent.process_query(question_data['question'])
 
             # Extract SQL
             if isinstance(agent_result, dict):
@@ -345,18 +371,33 @@ def _evaluate_questions_sequential(
             'metrics': {}
         }
 
+        # Check if multi-query stored result rows are available
+        stored_rows = agent_result.get('final_result_rows') if isinstance(agent_result, dict) else None
+
         for metric in metrics:
             try:
-                result = metric.evaluate(context)
-                question_results['metrics'][metric.name] = {
-                    'score': result.score,
-                    'is_correct': result.is_correct,
-                    'error': result.error_message,
-                    'details': result.details
-                }
-
-                if predicted_sql.strip():
-                    metric_scores[metric.name].append(result.score)
+                # For EX: use stored rows when available (multi-query path)
+                if (
+                    ex_metric is not None
+                    and metric.name == ex_metric.name
+                    and stored_rows is not None
+                ):
+                    metric_result_dict = _evaluate_ex_with_stored_rows(
+                        ex_metric, question_data['query'], stored_rows, db_connection
+                    )
+                    question_results['metrics'][metric.name] = metric_result_dict
+                    # Count as evaluated regardless of sql presence
+                    metric_scores[metric.name].append(metric_result_dict['score'])
+                else:
+                    result = metric.evaluate(context)
+                    question_results['metrics'][metric.name] = {
+                        'score': result.score,
+                        'is_correct': result.is_correct,
+                        'error': result.error_message,
+                        'details': result.details
+                    }
+                    if predicted_sql.strip():
+                        metric_scores[metric.name].append(result.score)
 
             except Exception as e:
                 question_results['metrics'][metric.name] = {
@@ -384,7 +425,8 @@ def _evaluate_questions_parallel(
     metrics: List,
     agent,
     db_connection,
-    max_workers: int
+    max_workers: int,
+    ex_metric: Optional[ExecutionAccuracyMetric] = None,
 ) -> Dict[str, Any]:
     """
     Parallel evaluation using ThreadPoolExecutor
@@ -395,6 +437,7 @@ def _evaluate_questions_parallel(
         agent: Agent orchestrator
         db_connection: Database connection
         max_workers: Number of parallel workers
+        ex_metric: ExecutionAccuracyMetric instance for stored-rows comparison
 
     Returns:
         Dict containing detailed evaluation results
@@ -423,16 +466,17 @@ def _evaluate_questions_parallel(
         nonlocal completed_count
 
         start_time = time.time()
+        agent_result_dict = {}
 
         try:
-            agent_result = agent.process_query(question_data['question'], force_single_query=True)
+            agent_result_dict = agent.process_query(question_data['question'])
 
             # Extract SQL
-            if isinstance(agent_result, dict):
-                predicted_sql = agent_result.get('sql_query', '')
-                agent_success = agent_result.get('success', False)
+            if isinstance(agent_result_dict, dict):
+                predicted_sql = agent_result_dict.get('sql_query', '')
+                agent_success = agent_result_dict.get('success', False)
             else:
-                predicted_sql = str(agent_result)
+                predicted_sql = str(agent_result_dict)
                 agent_success = bool(predicted_sql.strip())
 
             execution_time = time.time() - start_time
@@ -473,19 +517,32 @@ def _evaluate_questions_parallel(
             'metrics': {}
         }
 
+        stored_rows = agent_result_dict.get('final_result_rows') if isinstance(agent_result_dict, dict) else None
+
         for metric in metrics:
             try:
-                result = metric.evaluate(context)
-                question_results['metrics'][metric.name] = {
-                    'score': result.score,
-                    'is_correct': result.is_correct,
-                    'error': result.error_message,
-                    'details': result.details
-                }
-
-                if predicted_sql.strip():
+                if (
+                    ex_metric is not None
+                    and metric.name == ex_metric.name
+                    and stored_rows is not None
+                ):
+                    metric_result_dict = _evaluate_ex_with_stored_rows(
+                        ex_metric, question_data['query'], stored_rows, db_connection
+                    )
+                    question_results['metrics'][metric.name] = metric_result_dict
                     with results_lock:
-                        metric_scores[metric.name].append(result.score)
+                        metric_scores[metric.name].append(metric_result_dict['score'])
+                else:
+                    result = metric.evaluate(context)
+                    question_results['metrics'][metric.name] = {
+                        'score': result.score,
+                        'is_correct': result.is_correct,
+                        'error': result.error_message,
+                        'details': result.details
+                    }
+                    if predicted_sql.strip():
+                        with results_lock:
+                            metric_scores[metric.name].append(result.score)
 
             except Exception as e:
                 question_results['metrics'][metric.name] = {

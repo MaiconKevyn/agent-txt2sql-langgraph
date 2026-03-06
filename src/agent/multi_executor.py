@@ -19,6 +19,8 @@ from ..utils.sql_safety import is_select_only
 
 logger = get_nodes_logger()
 
+MAX_SUB_QUERIES = 4  # hard ceiling — LLM is not allowed to exceed this
+
 _ERROR_INDICATORS = [
     "does not exist",
     "syntax error",
@@ -123,6 +125,15 @@ def multi_sql_executor_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL
         query_tool = next((t for t in tools if t.name == "sql_db_query"), None)
         if not query_tool:
             raise ValueError("sql_db_query tool not found in LLM manager.")
+
+        # Hard cap: truncate if LLM returned more than MAX_SUB_QUERIES
+        if len(query_plan.sub_queries) > MAX_SUB_QUERIES:
+            logger.warning(
+                "LLM returned too many sub-queries; truncating to %d",
+                MAX_SUB_QUERIES,
+                extra={"original_count": len(query_plan.sub_queries)},
+            )
+            query_plan.sub_queries = query_plan.sub_queries[:MAX_SUB_QUERIES]
 
         ordered_sqs = _topological_sort(query_plan.sub_queries)
         sub_query_results = []

@@ -1,7 +1,8 @@
 """Result synthesizer — combines multi-query results into a final natural language response."""
 
+import ast
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -16,6 +17,64 @@ from .state import (
 from ..utils.logging_config import get_nodes_logger
 
 logger = get_nodes_logger()
+
+
+def _parse_result_rows(result_raw: str) -> Optional[List]:
+    """
+    Parse the string returned by LangChain's sql_db_query tool into a list of tuples.
+
+    The tool typically returns strings of the form:
+      "[(val1, val2), (val3, val4)]"
+    or a single-column result like:
+      "[(val1,), (val2,)]"
+    or even a plain scalar like "42".
+
+    Returns None if parsing fails (caller falls back to SQL re-execution).
+    """
+    if not result_raw:
+        return []
+    text = result_raw.strip()
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            # Normalise each element to a tuple
+            rows = []
+            for item in parsed:
+                if isinstance(item, tuple):
+                    rows.append(item)
+                else:
+                    rows.append((item,))
+            return rows
+        # Single scalar value
+        return [(parsed,)]
+    except Exception:
+        return None
+
+
+def _collect_leaf_rows(sub_query_results: List[Dict[str, Any]]) -> Optional[List]:
+    """
+    Identify leaf sub-queries (not depended upon by any other) and concatenate
+    their parsed result rows.  Returns None if parsing fails for any leaf.
+    """
+    # Find all IDs that appear as a dependency of some other sub-query
+    # (sub_query_results are plain dicts from _make_result, not SubQuery objects)
+    # We inspect the original SubQuery objects via the plan — but since we only
+    # have dicts here, we derive depends_on from what was stored.  The dicts do
+    # NOT store depends_on, so we treat ALL successful results as leaves when
+    # there is no dependency metadata available (safe fallback: concatenate all).
+    successful = [r for r in sub_query_results if r.get("success") and r.get("result")]
+    if not successful:
+        return None
+
+    all_rows: List = []
+    for r in successful:
+        rows = _parse_result_rows(r["result"])
+        if rows is None:
+            return None  # parsing failure — fall back to SQL re-execution
+        all_rows.extend(rows)
+
+    return all_rows if all_rows else None
+
 
 _SYSTEM_PROMPT = """\
 Você é um assistente especializado em dados de saúde pública brasileira (DATASUS/SIH-RS).
@@ -51,7 +110,8 @@ def result_synthesizer_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL
             state = update_phase(state, ExecutionPhase.RESPONSE_FORMATTING, time.time() - start_time)
             return state
 
-        # Build context block
+        # Build context block — cap each result at 3000 chars to avoid context overflow
+        _MAX_RESULT_CHARS = 3000
         results_text = ""
         any_success = False
         for r in sub_query_results:
@@ -59,7 +119,12 @@ def result_synthesizer_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL
             if r.get("sql"):
                 results_text += f"SQL executada: {r['sql']}\n"
             if r.get("success") and r.get("result"):
-                results_text += f"Resultado:\n{r['result']}\n"
+                raw = r["result"]
+                truncated = raw[:_MAX_RESULT_CHARS] + (
+                    f"\n... [truncado — {len(raw) - _MAX_RESULT_CHARS} chars omitidos]"
+                    if len(raw) > _MAX_RESULT_CHARS else ""
+                )
+                results_text += f"Resultado:\n{truncated}\n"
                 any_success = True
             else:
                 results_text += f"Erro: {r.get('error', 'desconhecido')}\n"
@@ -98,6 +163,9 @@ def result_synthesizer_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL
                 state["generated_sql"] = r["sql"]
                 state["validated_sql"] = r["sql"]
                 break
+
+        # Store parsed result rows for EX evaluation (avoids re-executing partial SQL)
+        state["final_result_rows"] = _collect_leaf_rows(sub_query_results)
 
         state = add_ai_message(state, final_response)
 

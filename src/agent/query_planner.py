@@ -19,31 +19,38 @@ from ..utils.logging_config import get_nodes_logger
 logger = get_nodes_logger()
 
 _SYSTEM_PROMPT = """\
-You are a query decomposition expert for a Brazilian healthcare database (DATASUS/SIH-RS).
-Your task: decide if a natural-language question can be answered by a SINGLE SQL query or
-needs to be DECOMPOSED into multiple independent (or sequentially dependent) sub-queries.
+You are a query planner for a Brazilian healthcare SQL agent (DATASUS/SIH-RS).
+Decide: answer with a SINGLE SQL query or decompose into N sub-queries.
 
-Rules:
-1. Default to "single" unless the question CLEARLY requires multiple SQL operations.
-2. Use "multi" ONLY when:
-   - The question asks about 2+ distinct geographic regions separately
-     (e.g., "quantas mortes no RS E no MA?" — one query per state).
-   - Step 2 mathematically depends on the specific numeric output of Step 1
-     (e.g., "find the top hospital, then count its patients by year").
-3. Do NOT use "multi" just because the query is complex — GROUP BY, CTEs,
-   window functions, and UNION handle complexity within a single query.
-4. For "multi", list each sub-query with a unique id (sq1, sq2, …) and its description.
-5. Sub-queries that depend on prior results must list the dependency id in "depends_on".
+BIAS TOWARD SINGLE. Only use "multi" when a sub-query genuinely needs data from a previous
+result, or when the question explicitly asks for separate outputs that cannot be expressed as
+a single GROUP BY / CTE / UNION ALL.
 
-Respond ONLY with valid JSON — no markdown, no extra text:
+HARD LIMITS:
+- max 4 sub-queries
+- no circular depends_on
+- if unsure: single
+
+WHEN MULTI GENUINELY HELPS:
+- "Find the top hospital, then show its year-by-year cost trend" → sq1 finds hospital ID,
+  sq2 uses that specific ID for trend (sq2 depends_on sq1).
+- "For each of the 5 regions, show the top procedure separately" when each region needs an
+  independent ranked query with its own LIMIT 1 that cannot collapse into one result set.
+- Multi-year growth: sq1=2019 aggregation, sq2=2020 aggregation → synthesizer computes delta.
+
+WHEN SINGLE IS ALWAYS CORRECT:
+- Multi-region statistics → GROUP BY uf / estado handles this.
+- Top-N from combined set → ORDER BY + LIMIT in one query.
+- Any question solvable by CTE / window function (ROW_NUMBER, RANK) / UNION ALL in one pass.
+- Intersection of ranked sets → CTE + WHERE id IN (SELECT …) — single query.
+
+Respond ONLY with valid JSON (no markdown):
 {
   "strategy": "single" | "multi",
   "reasoning": "<one sentence>",
-  "sub_queries": [
-    {"id": "sq1", "description": "<what this query fetches>", "depends_on": []}
-  ]
+  "sub_queries": [{"id": "sq1", "description": "...", "depends_on": []}]
 }
-For "single", sub_queries must contain exactly ONE item with id="sq1".
+For "single": exactly one item with id="sq1".
 """
 
 
