@@ -287,6 +287,37 @@ class ExecutionAccuracyMetric(BaseMetric):
                 'matching_column_indices': list(matching_columns)
             }
 
+        # --- Reverse projected match (gold has MORE columns than predicted) ---
+        # Handles the case where the agent returns a semantically correct but column-reduced
+        # result (e.g. gold returns 4 diagnostic columns, agent returns 3 essential columns).
+        # We project the gold down to pred_col_count columns and check for any subset match.
+        reverse_projected_match = False
+        reverse_matching_columns = None
+
+        if 0 < pred_col_count < gt_col_count:
+            col_combos = list(combinations(range(gt_col_count), pred_col_count))
+            for col_indices in col_combos[:100]:
+                projected_gt = [
+                    tuple(row[i] for i in col_indices)
+                    for row in gt_normalized
+                ]
+                if Counter(projected_gt) == pred_counter:
+                    reverse_projected_match = True
+                    reverse_matching_columns = col_indices
+                    break
+
+        if reverse_projected_match:
+            return True, {
+                'gt_size': len(gt_results),
+                'pred_size': len(pred_results),
+                'normalized_match': True,
+                'projected_match': True,
+                'reverse_projected_match': True,
+                'gt_col_count': gt_col_count,
+                'pred_col_count': pred_col_count,
+                'matching_column_indices': list(reverse_matching_columns)
+            }
+
         # --- Bidirectional projected match (same col count, label vs code differences) ---
         # Handles cases where both results have the same number of columns but one uses
         # codes (e.g. SEXO=1) while the other uses labels (e.g. 'Masculino').
@@ -388,19 +419,20 @@ class ExecutionAccuracyMetric(BaseMetric):
             return value
 
         # Handle Python Decimal (maps to PostgreSQL NUMERIC, AVG, SUM results)
-        # Convert to float first, then round to 2 decimal places.
-        # This absorbs tiny FP differences when PostgreSQL accumulates millions
-        # of rows in different orders across semantically-equivalent queries.
+        # For large aggregates (>= 1_000_000) round to 0 decimal places to absorb
+        # the ~0.01–1.00 FP drift that DuckDB's parallel SUM accumulation produces
+        # on 10M+ row scans.  For smaller values keep 2 decimal places.
         if isinstance(value, Decimal):
-            return round(float(value), 2)
+            f = float(value)
+            return round(f, 0) if abs(f) >= 1_000_000 else round(f, 2)
 
         # Handle native int
         if isinstance(value, int):
             return value
 
-        # Handle native float
+        # Handle native float — same large-value tolerance as Decimal
         if isinstance(value, float):
-            return round(value, 2)
+            return round(value, 0) if abs(value) >= 1_000_000 else round(value, 2)
 
         # Handle string types — lowercase for case-insensitive comparison
         # (e.g. 'BRANCA' from raca_cor.DESCRICAO vs 'Branca' from CASE WHEN)

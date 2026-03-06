@@ -150,14 +150,112 @@ def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> s
 
     # Query-keyword-based hints (trigger on question phrasing, not just tables)
     q_lower = user_query.lower()
-    per_group_triggers = ["de cada", "por cada", "por grupo", "por faixa", "por nacionalidade"]
-    # Also detect explicit multi-age-group queries: "menos de X anos, entre X e Y anos..."
     import re as _re
-    # Per-group hint ONLY when asking for TOP-N (not for simple aggregates like AVG/SUM per group)
+
+    # ── Per-group triggers (dimension-level): ordering matters — most specific first ──────────
+    # These are categorical dimensions that imply PARTITION BY in ranking queries.
+    per_named_group_triggers = [
+        "por estado", "em cada estado", "de cada estado", "para cada estado",
+        "por especialidade", "em cada especialidade", "de cada especialidade",
+        "por hospital", "em cada hospital", "de cada hospital", "para cada hospital",
+        "por município", "em cada município", "de cada município",
+        "por cidade", "em cada cidade",
+        "por raça", "por sexo", "por vínculo", "por faixa etária",
+        "por ano", "em cada ano", "de cada ano",
+        "por mês", "em cada mês",
+    ]
+    per_computed_group_triggers = ["de cada", "por cada", "por grupo", "por faixa", "por nacionalidade"]
+    per_group_triggers = per_named_group_triggers + per_computed_group_triggers
+
+    # ── Top-N / ranking context ───────────────────────────────────────────────────────────────
     top_n_context = (
-        any(t in q_lower for t in ["principais", "top", "mais comuns", "mais frequentes", "mais realizados"])
+        any(t in q_lower for t in ["principais", "top", "mais comuns", "mais frequentes", "mais realizados",
+                                    "maior", "maior valor", "maior custo", "maior número",
+                                    "maior volume", "maior quantidade", "maior taxa",
+                                    "menor", "menor custo", "menor valor",
+                                    "mais alto", "mais baixo", "primeiro", "líderes"])
         or bool(_re.search(r"\b\d+\s+principais\b", q_lower))
+        or bool(_re.search(r"\btop[\s\-]?\d+\b", q_lower))
     )
+
+    # ── B: Count vs listagem ──────────────────────────────────────────────────────────────────
+    count_triggers = ["quantos", "número de", "total de", "quantidade de", "proporção de", "quantas"]
+    if any(t in q_lower for t in count_triggers):
+        hints.append(
+            "📊 COUNT SEMANTICS ALERT: a pergunta pede QUANTIDADE (não listagem). "
+            "✅ Use COUNT(*) ou COUNT(DISTINCT entidade) no SELECT. "
+            "❌ NÃO retorne linhas individuais ou uma lista de entidades — isso viola a intenção da pergunta. "
+            "Exemplo: 'Quantos hospitais nunca tiveram óbito?' → "
+            "SELECT COUNT(*) AS total FROM (SELECT DISTINCT ...) sub"
+        )
+
+    # ── F: Anti-join pattern ──────────────────────────────────────────────────────────────────
+    antijoin_triggers = ["nunca", "nenhum", "nenhuma", "sem registro", "não aparecem", "não tiveram",
+                         "nunca tiveram", "que não", "ausentes", "jamais"]
+    if any(t in q_lower for t in antijoin_triggers):
+        hints.append(
+            "🔗 ANTI-JOIN ALERT: a pergunta expressa AUSÊNCIA ('nunca', 'sem', 'não tiveram'). "
+            "✅ PREFIRA NOT EXISTS (mais seguro e performático que NOT IN): "
+            "  SELECT ... FROM tabela_a a "
+            "  WHERE NOT EXISTS (SELECT 1 FROM tabela_b b WHERE b.fk = a.pk AND <condição>). "
+            "Alternativa: LEFT JOIN ... ON ... WHERE b.pk IS NULL. "
+            "❌ EVITE NOT IN com subquery — falha silenciosamente quando a subquery retorna NULL."
+        )
+
+    # ── E: Pivot / side-by-side comparison ───────────────────────────────────────────────────
+    pivot_triggers = ["lado a lado", "comparando", "comparar", "versus", "vs.", " x ", "para cada estado",
+                      "comparação entre", "entre os estados", "nos estados"]
+    # Only fire when exactly 2 specific groups are named (not "por estado" which could be many states)
+    two_group_pattern = bool(_re.search(
+        r"\b(estado|estados?)\s+(?:do\s+)?(\w{2})\s+e\s+(?:do\s+)?(\w{2})\b",
+        q_lower
+    ))
+    if two_group_pattern and any(t in q_lower for t in pivot_triggers + ["comparando", "lado"]):
+        state_match = _re.search(
+            r"\b(?:estado|estados?)?\s*(?:do\s+)?([A-Z]{2})\s+e\s+(?:do\s+)?([A-Z]{2})\b",
+            user_query
+        )
+        g1, g2 = (state_match.group(1), state_match.group(2)) if state_match else ("A", "B")
+        hints.append(
+            f"↔️ PIVOT / SIDE-BY-SIDE ALERT: a pergunta pede comparação direta entre grupos "
+            f"({g1} vs {g2}). "
+            "✅ Use CASE WHEN pivot para retornar UMA linha por categoria com colunas separadas por grupo: "
+            f"  SELECT categoria, "
+            f"    ROUND(AVG(CASE WHEN grupo = '{g1}' THEN valor END), 2) AS media_{g1}, "
+            f"    ROUND(AVG(CASE WHEN grupo = '{g2}' THEN valor END), 2) AS media_{g2} "
+            "  FROM ... GROUP BY categoria HAVING COUNT(CASE WHEN grupo = 'X' THEN 1 END) > N; "
+            "❌ NÃO retorne formato longo (linhas separadas por estado) — a pergunta pede formato LARGO."
+        )
+
+    # ── H: Global average vs local average ───────────────────────────────────────────────────
+    global_avg_triggers = ["acima da média", "abaixo da média", "média nacional", "média estadual",
+                           "acima da média nacional", "abaixo da média estadual", "duas vezes acima",
+                           "superior à média", "inferior à média"]
+    if any(t in q_lower for t in global_avg_triggers):
+        hints.append(
+            "📐 GLOBAL vs LOCAL AVERAGE ALERT: a pergunta compara com uma MÉDIA DE REFERÊNCIA. "
+            "✅ Compute a média de referência sobre o UNIVERSO COMPLETO (antes de filtros locais), "
+            "geralmente como CTE separada: "
+            "  WITH media_ref AS (SELECT SUM(caso) * 100.0 / COUNT(*) AS taxa FROM tabela_fato [WHERE condição_global]), "
+            "  por_entidade AS (SELECT entidade, SUM(caso) * 100.0 / COUNT(*) AS taxa_local FROM tabela_fato GROUP BY entidade HAVING ...) "
+            "  SELECT e.entidade, e.taxa_local FROM por_entidade e, media_ref m "
+            "  WHERE e.taxa_local > m.taxa_ref; "
+            "❌ NÃO compute AVG() sobre o conjunto já filtrado — isso dá média do subgrupo, não a referência global."
+        )
+
+    # ── C: Aggregation-first principle ───────────────────────────────────────────────────────
+    agg_on_cnes_triggers = ["hospitais com mais de", "hospitais que nunca", "hospitais sem",
+                            "hospitais acima", "hospitais abaixo", "hospitais com maior", "hospitais com menor"]
+    if any(t in q_lower for t in agg_on_cnes_triggers):
+        hints.append(
+            "🏥 AGGREGATION-FIRST ALERT: para agregar internações por hospital, "
+            "✅ agrupe DIRETAMENTE na tabela 'internacoes' por \"CNES\" (não faça JOIN na tabela hospital primeiro): "
+            "  SELECT \"CNES\", COUNT(*) AS total FROM internacoes GROUP BY \"CNES\" HAVING ... "
+            "Isso evita perder hospitais que existem em 'internacoes' mas não na tabela 'hospital'. "
+            "❌ Não: SELECT h.\"CNES\" FROM hospital h JOIN internacoes i ON ... GROUP BY h.\"CNES\" HAVING ..."
+        )
+
+    # ── Multi-age-group top-N (original logic, unchanged) ────────────────────────────────────
     has_multi_age = (
         bool(_re.search(r"menos de\s+\d+\s+anos", q_lower))
         and ("entre" in q_lower or "acima de" in q_lower or "mais de" in q_lower)
@@ -193,15 +291,34 @@ def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> s
             f"  ) sub WHERE rn <= {n_str} ORDER BY faixa_etaria, rn;"
         )
     elif top_n_context and any(t in q_lower for t in per_group_triggers):
+        # Detect the named dimension (state, specialty, hospital, …) for a more targeted hint
+        named_dim = "group_col"
+        named_dim_col = "group_key"
+        if any(t in q_lower for t in ["por estado", "em cada estado", "de cada estado"]):
+            named_dim, named_dim_col = "estado", "mu.estado"
+        elif any(t in q_lower for t in ["por especialidade", "em cada especialidade"]):
+            named_dim, named_dim_col = "especialidade", "e.\"DESCRICAO\""
+        elif any(t in q_lower for t in ["por hospital", "em cada hospital"]):
+            named_dim, named_dim_col = "hospital (CNES)", "i.\"CNES\""
+        elif any(t in q_lower for t in ["por município", "em cada município"]):
+            named_dim, named_dim_col = "município", "mu.nome"
+        elif any(t in q_lower for t in ["por ano", "em cada ano"]):
+            named_dim, named_dim_col = "ano", "EXTRACT(YEAR FROM i.\"DT_INTER\")"
+        elif any(t in q_lower for t in ["por mês", "em cada mês"]):
+            named_dim, named_dim_col = "mês", "EXTRACT(MONTH FROM i.\"DT_INTER\")"
+
         hints.append(
-            "🚨 PER-GROUP TOP-N ALERT: pergunta pede top-N POR GRUPO ('de cada', 'por grupo', 'por faixa'). "
-            "OBRIGATÓRIO: usar ROW_NUMBER() OVER (PARTITION BY group_col ORDER BY COUNT(*) DESC, tiebreaker_col ASC) AS rn, "
+            f"🚨 PER-{named_dim.upper()} TOP-N ALERT: pergunta pede top-N POR {named_dim.upper()} "
+            f"(PARTITION BY = {named_dim_col}). "
+            "OBRIGATÓRIO: usar ROW_NUMBER() OVER (PARTITION BY <dim> ORDER BY <métrica> DESC, <tiebreaker> ASC) AS rn, "
             "depois WHERE rn <= N (ou rn = 1 para o principal). "
             "NUNCA usar LIMIT global — LIMIT limita o total de linhas, NÃO por grupo. "
-            "TIEBREAKER OBRIGATÓRIO: sempre adicionar segunda coluna no ORDER BY do ROW_NUMBER para resultado determinístico: "
-            "ex: ORDER BY COUNT(*) DESC, i.\"VALUE_COL\" ASC. "
-            "PADRÃO CORRETO: SELECT ... FROM (SELECT ..., ROW_NUMBER() OVER (PARTITION BY group_col ORDER BY COUNT(*) DESC, value_col ASC) AS rn "
-            "FROM internacoes WHERE value_col IS NOT NULL GROUP BY group_col, value_col) sub WHERE sub.rn = 1 ORDER BY group_col;"
+            f"PADRÃO CORRETO para esta pergunta:\n"
+            f"  SELECT {named_dim_col}, <valor_col>, <metrica>\n"
+            f"  FROM (SELECT {named_dim_col}, <valor_col>, <metrica>,\n"
+            f"               ROW_NUMBER() OVER (PARTITION BY {named_dim_col} ORDER BY <metrica> DESC, <tiebreaker> ASC) AS rn\n"
+            f"        FROM internacoes i [JOINs necessários] GROUP BY {named_dim_col}, <valor_col>) sub\n"
+            f"  WHERE rn <= N ORDER BY {named_dim_col}, rn;"
         )
 
     if not hints:
@@ -345,6 +462,35 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
           ⚠️ Use the EXACT boundaries and labels stated in the user's question (see TABLE-SPECIFIC WARNINGS).
         Age groups: when question EXPLICITLY states boundaries, use those EXACT labels.
         When NOT specified → use natural labels ('Menor', 'Adulto', 'Idoso').
+
+        RULE K — ANTI-JOIN (absence pattern):
+        When question says "nunca tiveram", "sem", "não aparece", "jamais" → use NOT EXISTS, not NOT IN.
+        ✅ SELECT COUNT(*) FROM (SELECT DISTINCT "CNES" FROM internacoes i WHERE NOT EXISTS
+              (SELECT 1 FROM internacoes d WHERE d."CNES" = i."CNES" AND d."MORTE" = true)) sub
+        ❌ NOT IN (SELECT "CNES" FROM internacoes WHERE "MORTE" = true)  ← breaks on NULLs
+
+        RULE L — PIVOT FORMAT (side-by-side comparison):
+        When question explicitly compares two named groups side-by-side ("X vs Y", "comparar X com Y", "lado a lado"):
+        ✅ Return WIDE format: SELECT categoria, AVG(CASE WHEN grp='A' THEN val END) AS media_A, AVG(CASE WHEN grp='B' THEN val END) AS media_B FROM ... GROUP BY categoria
+        ❌ Do NOT return long format (one row per category+group = double the rows)
+
+        RULE M — AGGREGATION-FIRST (count facts, not dimension rows):
+        When counting/aggregating events by entity (hospital, municipality, specialty):
+        ✅ GROUP BY directly on the fact table (internacoes) by the FK key, THEN join for labels:
+           SELECT h_info.nome, sub.total FROM (SELECT "CNES", COUNT(*) AS total FROM internacoes GROUP BY "CNES") sub JOIN hospital h_info ...
+        ❌ Do NOT: JOIN hospital first then GROUP BY — this drops CNES values that exist in internacoes but not in hospital
+
+        RULE N — GLOBAL vs LOCAL AVERAGE:
+        When filtering entities above/below an average, compute the reference from the FULL dataset:
+        ✅ WITH ref AS (SELECT SUM(CASE WHEN MORTE THEN 1 ELSE 0 END)*100.0/COUNT(*) AS taxa FROM internacoes [WHERE full_scope_filter])
+           ...HAVING local_taxa > (SELECT taxa FROM ref)
+        ❌ Do NOT use AVG(per_group_rate) FROM already-filtered-subgroup — that computes avg-of-avgs (wrong denominator)
+
+        RULE O — DESCRIPTION vs CODE:
+        When question asks "quais métodos", "quais diagnósticos", "quais níveis de instrução" → JOIN lookup table and return DESCRICAO, not raw code.
+        instrucao level → JOIN instrucao ins ON i."INSTRU" = ins."INSTRU" → SELECT ins."DESCRICAO"
+        método contraceptivo → JOIN contraceptivos c ON i."CONTRACEP1" = c."CONTRACEPTIVO" → SELECT c."DESCRICAO"
+        raça/cor description → JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" → SELECT r."DESCRICAO"
 
         DISEASE LOOKUP: table is "cid" (NOT "cid10"). NEVER hardcode CID codes (e.g. DIAG_PRINC = 'J18' is WRONG).
         Displaying diagnosis name → ALWAYS JOIN cid c ON i."DIAG_PRINC"=c."CID" → SELECT c."CD_DESCRICAO"

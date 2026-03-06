@@ -249,6 +249,80 @@ TABLE_TEMPLATES = {
         GROUP BY p."NOME_PROC"
         ORDER BY total DESC
         LIMIT 10;
+
+        -- Q: "Quais os 3 diagnósticos mais comuns por especialidade médica?"
+        -- PATTERN: top-N per named dimension → ROW_NUMBER PARTITION BY dimension, never LIMIT global
+        SELECT especialidade, diagnostico, total_internacoes
+        FROM (
+            SELECT e."DESCRICAO" AS especialidade, c."CD_DESCRICAO" AS diagnostico,
+                   COUNT(*) AS total_internacoes,
+                   ROW_NUMBER() OVER (PARTITION BY e."DESCRICAO" ORDER BY COUNT(*) DESC, c."CD_DESCRICAO" ASC) AS rn
+            FROM internacoes i
+            JOIN especialidade e ON i."ESPEC" = e."ESPEC"
+            JOIN cid c ON i."DIAG_PRINC" = c."CID"
+            GROUP BY e."DESCRICAO", c."CD_DESCRICAO"
+        ) sub
+        WHERE rn <= 3
+        ORDER BY especialidade, rn;
+
+        -- Q: "Quais hospitais com mais de 500 internações nunca registraram óbito?"
+        -- PATTERN: absence/anti-join → NOT EXISTS (safer than NOT IN)
+        -- PATTERN: aggregate on fact table first, then filter — do NOT join hospital first
+        SELECT "CNES", COUNT(*) AS total_internacoes
+        FROM internacoes
+        GROUP BY "CNES"
+        HAVING COUNT(*) > 500
+          AND NOT EXISTS (
+              SELECT 1 FROM internacoes d WHERE d."CNES" = internacoes."CNES" AND d."MORTE" = true
+          )
+        ORDER BY total_internacoes DESC;
+
+        -- Q: "Qual a média de dias de internação comparando os pacientes do estado A vs estado B?"
+        -- PATTERN: side-by-side comparison → CASE WHEN pivot (wide format), not long format
+        SELECT e."DESCRICAO" AS especialidade,
+               ROUND(AVG(CASE WHEN mu.estado = 'SC' THEN i."DIAS_PERM" END), 2) AS media_SC,
+               ROUND(AVG(CASE WHEN mu.estado = 'PR' THEN i."DIAS_PERM" END), 2) AS media_PR,
+               COUNT(CASE WHEN mu.estado = 'SC' THEN 1 END) AS total_SC,
+               COUNT(CASE WHEN mu.estado = 'PR' THEN 1 END) AS total_PR
+        FROM internacoes i
+        JOIN especialidade e ON i."ESPEC" = e."ESPEC"
+        JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+        WHERE mu.estado IN ('SC', 'PR')
+        GROUP BY e."DESCRICAO"
+        HAVING COUNT(CASE WHEN mu.estado = 'SC' THEN 1 END) > 100
+           AND COUNT(CASE WHEN mu.estado = 'PR' THEN 1 END) > 100
+        ORDER BY especialidade;
+
+        -- Q: "Quais municípios têm taxa de mortalidade acima da média estadual (mínimo 500 internações)?"
+        -- PATTERN: global reference CTE + compare local rate vs reference rate
+        WITH media_estado AS (
+            SELECT SUM(CASE WHEN i."MORTE" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS taxa_ref
+            FROM internacoes i JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+            WHERE mu.estado = 'SP'
+        ),
+        por_municipio AS (
+            SELECT mu.nome, COUNT(*) AS total, SUM(CASE WHEN i."MORTE" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS taxa
+            FROM internacoes i JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+            WHERE mu.estado = 'SP'
+            GROUP BY mu.nome HAVING COUNT(*) > 500
+        )
+        SELECT pm.nome, pm.total, ROUND(pm.taxa, 2) AS taxa_mortalidade
+        FROM por_municipio pm, media_estado me
+        WHERE pm.taxa > me.taxa_ref
+        ORDER BY pm.taxa DESC LIMIT 10;
+
+        -- Q: "Qual o nível de instrução com maior taxa de mortalidade no estado do PA?"
+        -- PATTERN: JOIN lookup table for description (not raw code), compute rate in SELECT
+        SELECT ins."DESCRICAO", COUNT(*) AS total_internacoes,
+               SUM(CASE WHEN i."MORTE" = true THEN 1 ELSE 0 END) AS total_mortes,
+               ROUND(SUM(CASE WHEN i."MORTE" = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) AS taxa_mortalidade
+        FROM internacoes i
+        JOIN instrucao ins ON i."INSTRU" = ins."INSTRU"
+        JOIN municipios mu ON i."MUNIC_RES" = mu.codigo_6d
+        WHERE mu.estado = 'PA' AND i."INSTRU" IS NOT NULL AND i."INSTRU" != 0
+        GROUP BY ins."DESCRICAO"
+        HAVING COUNT(*) > 1000
+        ORDER BY taxa_mortalidade DESC;
 """,
 
     "atendimentos": """
