@@ -58,6 +58,9 @@ from .table_selection import (  # noqa: F401
 )
 from .sql_generation import _build_pregeneration_hints  # noqa: F401
 from .response import _generate_formatted_response, _generate_fallback_response  # noqa: F401
+from .query_planner import query_planner_node  # noqa: F401
+from .multi_executor import multi_sql_executor_node  # noqa: F401
+from .result_synthesizer import result_synthesizer_node  # noqa: F401
 
 __all__ = [
     "query_classification_node",
@@ -73,4 +76,7 @@ __all__ = [
     "vote_sql_node",
     "get_llm_manager",
     "set_global_llm_manager",
+    "query_planner_node",
+    "multi_sql_executor_node",
+    "result_synthesizer_node",
 ]

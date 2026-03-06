@@ -20,6 +20,9 @@ from .nodes import (
     clarification_node,
     vote_sql_node,
 )
+from .query_planner import query_planner_node
+from .multi_executor import multi_sql_executor_node
+from .result_synthesizer import result_synthesizer_node
 
 
 def create_langgraph_sql_workflow():
@@ -50,6 +53,7 @@ def create_langgraph_sql_workflow():
     workflow.add_node("classify_query", query_classification_node)
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
+    workflow.add_node("query_planner", query_planner_node)
     workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("generate_sql", generate_sql_node)
     workflow.add_node("vote_sql", vote_sql_node)
@@ -58,6 +62,9 @@ def create_langgraph_sql_workflow():
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("generate_response", generate_response_node)
     workflow.add_node("clarification", clarification_node)
+    # Multi-query path
+    workflow.add_node("multi_sql_executor", multi_sql_executor_node)
+    workflow.add_node("result_synthesizer", result_synthesizer_node)
     
     # Entry point
     workflow.add_edge(START, "classify_query")
@@ -77,18 +84,31 @@ def create_langgraph_sql_workflow():
     
     # Database workflow path
     workflow.add_edge("list_tables", "get_schema")
-    
-    # Conditional reasoning path
+
+    # After schema: go to query planner or direct response (SCHEMA queries)
     workflow.add_conditional_edges(
         "get_schema",
         route_after_schema,
         {
-            "reasoning": "reasoning",
-            "generate_sql": "generate_sql",
-            "generate_response": "generate_response"
+            "query_planner": "query_planner",
+            "generate_response": "generate_response",
         }
     )
-    
+
+    # Query planner decides single vs multi path
+    workflow.add_conditional_edges(
+        "query_planner",
+        route_after_query_planner,
+        {
+            "generate_sql": "generate_sql",      # single-query: existing pipeline
+            "multi": "multi_sql_executor",        # multi-query: new path
+        }
+    )
+
+    # Multi-query path
+    workflow.add_edge("multi_sql_executor", "result_synthesizer")
+    workflow.add_edge("result_synthesizer", END)
+
     workflow.add_edge("reasoning", "generate_sql")
     
     # Conditional repair routing (re-planning support)
@@ -195,21 +215,30 @@ def route_after_classification(
 
 def route_after_schema(
     state: MessagesStateTXT2SQL
-) -> Literal["reasoning", "generate_sql", "generate_response"]:
+) -> Literal["query_planner", "generate_response"]:
     """
-    Route after schema analysis to decide if reasoning is needed.
-    
-    Skip reasoning for simple queries to save latency.
+    Route after schema analysis.
+
+    SCHEMA queries skip SQL generation entirely.
+    All other DATABASE queries go to the query planner which decides
+    single vs multi strategy.
     """
-    classification = state.get("classification")
-    
-    # Default to reasoning if no classification
-    if not classification:
-        return "reasoning"
-        
-    # Schema queries bypass reasoning
     if state.get("query_route") == QueryRoute.SCHEMA:
         return "generate_response"
+    return "query_planner"
+
+
+def route_after_query_planner(
+    state: MessagesStateTXT2SQL
+) -> Literal["generate_sql", "multi"]:
+    """
+    Route after query planner based on strategy decision.
+
+    "single" → existing generate_sql → validate → execute pipeline.
+    "multi"  → multi_sql_executor → result_synthesizer → END.
+    """
+    if state.get("is_multi_query"):
+        return "multi"
     return "generate_sql"
 
 

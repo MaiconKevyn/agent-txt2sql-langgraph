@@ -1,7 +1,7 @@
 from typing import TypedDict, Optional, List, Dict, Any, Annotated, Sequence
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
@@ -53,6 +53,26 @@ class ToolCallResult:
     success: bool
     execution_time: float
     error_message: Optional[str] = None
+
+
+@dataclass
+class SubQuery:
+    """A single SQL sub-query as part of a multi-query plan."""
+    id: str
+    description: str
+    sql: Optional[str] = None
+    result_raw: Optional[str] = None
+    success: bool = False
+    error: Optional[str] = None
+    depends_on: List[str] = field(default_factory=list)
+
+
+@dataclass
+class QueryPlan:
+    """Execution plan decided by the query planner node."""
+    strategy: str  # "single" or "multi"
+    reasoning: str
+    sub_queries: List[SubQuery] = field(default_factory=list)
 
 
 @dataclass
@@ -141,6 +161,11 @@ class MessagesStateTXT2SQL(TypedDict):
     needs_clarification: bool
     clarification_question: Optional[str]
 
+    # Multi-query planning
+    query_plan: Optional[QueryPlan]
+    sub_query_results: List[Dict[str, Any]]
+    is_multi_query: bool
+
 
 def create_initial_messages_state(
     user_query: str,
@@ -222,7 +247,12 @@ def create_initial_messages_state(
         
         # Clarification
         needs_clarification=False,
-        clarification_question=None
+        clarification_question=None,
+
+        # Multi-query planning
+        query_plan=None,
+        sub_query_results=[],
+        is_multi_query=False,
     )
 
 
