@@ -300,7 +300,7 @@ def _evaluate_questions_sequential(
         start_time = time.time()
 
         try:
-            agent_result = agent.process_query(question_data['question'])
+            agent_result = agent.process_query(question_data['question'], force_single_query=True)
 
             # Extract SQL
             if isinstance(agent_result, dict):
@@ -425,7 +425,7 @@ def _evaluate_questions_parallel(
         start_time = time.time()
 
         try:
-            agent_result = agent.process_query(question_data['question'])
+            agent_result = agent.process_query(question_data['question'], force_single_query=True)
 
             # Extract SQL
             if isinstance(agent_result, dict):

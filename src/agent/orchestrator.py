@@ -241,7 +241,8 @@ class LangGraphOrchestrator:
         config: dict = None,
         run_name: str = None,
         tags: List[str] = None,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
+        force_single_query: bool = False,
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Process a user query using the LangGraph workflow
@@ -331,7 +332,8 @@ class LangGraphOrchestrator:
                     workflow=self._workflow,
                     user_query=user_query,
                     session_id=session_id,
-                    config=langsmith_config
+                    config=langsmith_config,
+                    force_single_query=force_single_query,
                 )
                 
                 # Calculate execution time

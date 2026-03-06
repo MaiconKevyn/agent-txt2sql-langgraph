@@ -165,12 +165,14 @@ class MessagesStateTXT2SQL(TypedDict):
     query_plan: Optional[QueryPlan]
     sub_query_results: List[Dict[str, Any]]
     is_multi_query: bool
+    force_single_query: bool  # when True, planner always returns single (evaluation mode)
 
 
 def create_initial_messages_state(
     user_query: str,
     session_id: str,
-    max_retries: int = 5
+    max_retries: int = 5,
+    force_single_query: bool = False,
 ) -> MessagesStateTXT2SQL:
     """
     Create initial state following LangGraph MessagesState pattern
@@ -253,6 +255,7 @@ def create_initial_messages_state(
         query_plan=None,
         sub_query_results=[],
         is_multi_query=False,
+        force_single_query=force_single_query,
     )
 
 

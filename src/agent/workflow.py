@@ -236,8 +236,10 @@ def route_after_query_planner(
 
     "single" → existing generate_sql → validate → execute pipeline.
     "multi"  → multi_sql_executor → result_synthesizer → END.
+
+    force_single_query=True bypasses multi-query (used in evaluation mode).
     """
-    if state.get("is_multi_query"):
+    if state.get("is_multi_query") and not state.get("force_single_query"):
         return "multi"
     return "generate_sql"
 
@@ -504,7 +506,8 @@ def execute_sql_workflow(
     session_id: str = None,
     config: dict = None,
     max_retries: int = 3,
-    llm_manager = None
+    llm_manager = None,
+    force_single_query: bool = False,
 ) -> dict:
     """
     Execute SQL workflow with proper error handling and adaptive recursion limit
@@ -530,11 +533,12 @@ def execute_sql_workflow(
 
         initial_state = create_initial_messages_state(
             user_query=user_query,
-            session_id=session_id
+            session_id=session_id,
+            force_single_query=force_single_query,
         )
 
         config = config or {}
-        
+
         # Inject LLM manager into config if provided
         if llm_manager:
             if "configurable" not in config:
