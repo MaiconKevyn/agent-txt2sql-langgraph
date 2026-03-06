@@ -4,51 +4,51 @@ TEXT-TO-SQL EVALUATION REPORT
 
 OVERALL SUMMARY
 --------------------------------------------------------------------------------
-Total Questions: 108
-Agent Success Rate: 100.0%
-Total Execution Time: 745.1s
-Avg Time per Question: 6.90s
+Total Questions: 135
+Agent Success Rate: 98.5%
+Total Execution Time: 1218.8s
+Avg Time per Question: 9.03s
 
 METRICS PERFORMANCE
 --------------------------------------------------------------------------------
 
 Exact Match (EM):
-  Average Score: 0.176
-  Accuracy (≥0.8): 17.6%
-  Perfect Matches: 19/108
+  Average Score: 0.105
+  Accuracy (≥0.8): 10.5%
+  Perfect Matches: 14/133
 
 Component Matching (CM):
-  Average Score: 0.779
-  Accuracy (≥0.8): 59.3%
-  Perfect Matches: 35/108
+  Average Score: 0.696
+  Accuracy (≥0.8): 48.9%
+  Perfect Matches: 33/133
 
 Execution Accuracy (EX):
-  Average Score: 0.954
-  Accuracy (≥0.8): 95.4%
-  Perfect Matches: 103/108
+  Average Score: 0.910
+  Accuracy (≥0.8): 91.0%
+  Perfect Matches: 121/133
 
 DIFFICULTY BREAKDOWN
 --------------------------------------------------------------------------------
 
 EASY:
-  Questions: 43
-  Agent Success: 43/43 (100.0%)
-  Exact Match (EM): 0.279 (27.9%)
-  Component Matching (CM): 0.874 (74.4%)
+  Questions: 45
+  Agent Success: 45/45 (100.0%)
+  Exact Match (EM): 0.178 (17.8%)
+  Component Matching (CM): 0.864 (68.9%)
   Execution Accuracy (EX): 1.000 (100.0%)
 
 HARD:
-  Questions: 20
-  Agent Success: 20/20 (100.0%)
-  Exact Match (EM): 0.100 (10.0%)
-  Component Matching (CM): 0.581 (30.0%)
-  Execution Accuracy (EX): 0.750 (75.0%)
+  Questions: 45
+  Agent Success: 44/45 (97.8%)
+  Exact Match (EM): 0.068 (6.8%)
+  Component Matching (CM): 0.430 (15.9%)
+  Execution Accuracy (EX): 0.727 (72.7%)
 
 MEDIUM:
   Questions: 45
-  Agent Success: 45/45 (100.0%)
-  Exact Match (EM): 0.111 (11.1%)
-  Component Matching (CM): 0.776 (57.8%)
+  Agent Success: 44/45 (97.8%)
+  Exact Match (EM): 0.068 (6.8%)
+  Component Matching (CM): 0.791 (61.4%)
   Execution Accuracy (EX): 1.000 (100.0%)
 
 ================================================================================

@@ -2,9 +2,9 @@
 Rich Prompt Builder for the Rich Prompt Baseline.
 
 Injects the same context as the LangGraph agent's generate_sql_node:
-  - RULES A-J (domain-specific SQL generation rules)
+  - RULES A-O (domain-specific SQL generation rules, mirrors sql_generation.py exactly)
   - SUS_MAPPINGS (critical column value mappings for sihrd5)
-  - ALL_PREGENERATION_HINTS (table-specific warnings for all 4 problematic tables)
+  - Dynamic pre-generation hints via _build_pregeneration_hints (same function as agent)
   - TABLE_DESCRIPTIONS (schema metadata via context_loader)
   - TABLE_TEMPLATES (per-table rules + few-shot examples)
 
@@ -14,13 +14,13 @@ This allows isolating the architectural impact of LangGraph from prompt engineer
 """
 from __future__ import annotations
 
-from typing import Tuple
+from typing import List, Tuple
 
 
 # ---------------------------------------------------------------------------
-# RULES A-H — extracted literally from src/agent/nodes.py lines 765-787
+# RULES A-O — mirrors src/agent/sql_generation.py generate_sql_node system prompt exactly
 # ---------------------------------------------------------------------------
-RULES_AH = """
+RULES_AO = """
 \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 CRITICAL RULES \u2014 READ THESE FIRST, THEY OVERRIDE ALL ELSE
 \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -78,20 +78,62 @@ COUNT(DISTINCT col) only when asking "quantos valores \u00fanicos de COLUNA" or 
 RULE J \u2014 PER-GROUP TOP-N: \u26a0\ufe0f MANDATORY ROW_NUMBER WHEN QUESTION ASKS top-N FOR MULTIPLE GROUPS.
 Triggers: "de cada", "por cada", "por faixa", "por grupo", OR when question lists MULTIPLE explicit segments.
 \u274c NEVER use plain LIMIT for per-group queries \u2014 LIMIT limits the entire result, not per group.
-\u2705 GENERIC PATTERN \u2014 top-N per categorical group:
-  SELECT group_desc, value_desc, sub.cnt FROM (
+\u2705 GENERIC PATTERN \u2014 top-N per categorical group (e.g. top-1 per sex):
+  SELECT group_col_desc, value_col_desc, sub.cnt FROM (
     SELECT i."GROUP_COL", i."VALUE_COL", COUNT(*) AS cnt,
            ROW_NUMBER() OVER (PARTITION BY i."GROUP_COL" ORDER BY COUNT(*) DESC, i."VALUE_COL" ASC) AS rn
     FROM internacoes i WHERE i."VALUE_COL" IS NOT NULL GROUP BY i."GROUP_COL", i."VALUE_COL"
-  ) sub JOIN lookup_table lt ON sub."GROUP_COL" = lt."GROUP_COL"
+  ) sub
+  JOIN lookup_table lt ON sub."GROUP_COL" = lt."GROUP_COL"
   WHERE sub.rn = 1 ORDER BY lt."DESCRICAO";
-  \u26a0\ufe0f outer SELECT uses subquery alias (sub.col), NEVER inner alias (i.col)!
-  \u26a0\ufe0f Add tiebreaker in ROW_NUMBER ORDER BY for deterministic results.
-\u2705 GENERIC PATTERN \u2014 top-N per computed segment (age ranges, bins):
-  PARTITION BY CASE expression; use EXACT labels from user's question.
-  WHERE rn <= N; ORDER BY segment_label, rn.
-Age groups: when question states boundaries, use EXACT labels from the question.
+  \u26a0\ufe0f outer SELECT must use subquery alias (sub.col), NEVER inner alias (i.col)!
+  \u26a0\ufe0f Add secondary ORDER BY tiebreaker in ROW_NUMBER for deterministic results.
+\u2705 GENERIC PATTERN \u2014 top-N per computed group (age/range segments):
+  SELECT group_label, value_desc, sub.cnt FROM (
+    SELECT CASE WHEN i."GROUP_MEASURE" < threshold1 THEN 'Label_A'
+                WHEN i."GROUP_MEASURE" BETWEEN threshold1 AND threshold2 THEN 'Label_B'
+                ELSE 'Label_C' END AS group_label,
+           i."VALUE_COL", COUNT(*) AS cnt,
+           ROW_NUMBER() OVER (
+             PARTITION BY CASE WHEN i."GROUP_MEASURE" < threshold1 THEN 'Label_A'
+                               WHEN i."GROUP_MEASURE" BETWEEN threshold1 AND threshold2 THEN 'Label_B'
+                               ELSE 'Label_C' END
+             ORDER BY COUNT(*) DESC
+           ) AS rn
+    FROM internacoes i GROUP BY group_label, i."VALUE_COL"
+  ) sub WHERE rn <= N ORDER BY group_label, rn;
+  \u26a0\ufe0f Use the EXACT boundaries and labels stated in the user's question (see TABLE-SPECIFIC WARNINGS).
+Age groups: when question EXPLICITLY states boundaries, use those EXACT labels.
 When NOT specified \u2192 use natural labels ('Menor', 'Adulto', 'Idoso').
+
+RULE K \u2014 ANTI-JOIN (absence pattern):
+When question says "nunca tiveram", "sem", "n\u00e3o aparece", "jamais" \u2192 use NOT EXISTS, not NOT IN.
+\u2705 SELECT COUNT(*) FROM (SELECT DISTINCT "CNES" FROM internacoes i WHERE NOT EXISTS
+      (SELECT 1 FROM internacoes d WHERE d."CNES" = i."CNES" AND d."MORTE" = true)) sub
+\u274c NOT IN (SELECT "CNES" FROM internacoes WHERE "MORTE" = true)  \u2190 breaks on NULLs
+
+RULE L \u2014 PIVOT FORMAT (side-by-side comparison):
+When question explicitly compares two named groups side-by-side ("X vs Y", "comparar X com Y", "lado a lado"):
+\u2705 Return WIDE format: SELECT categoria, AVG(CASE WHEN grp='A' THEN val END) AS media_A, AVG(CASE WHEN grp='B' THEN val END) AS media_B FROM ... GROUP BY categoria
+\u274c Do NOT return long format (one row per category+group = double the rows)
+
+RULE M \u2014 AGGREGATION-FIRST (count facts, not dimension rows):
+When counting/aggregating events by entity (hospital, municipality, specialty):
+\u2705 GROUP BY directly on the fact table (internacoes) by the FK key, THEN join for labels:
+   SELECT h_info.nome, sub.total FROM (SELECT "CNES", COUNT(*) AS total FROM internacoes GROUP BY "CNES") sub JOIN hospital h_info ...
+\u274c Do NOT: JOIN hospital first then GROUP BY \u2014 this drops CNES values that exist in internacoes but not in hospital
+
+RULE N \u2014 GLOBAL vs LOCAL AVERAGE:
+When filtering entities above/below an average, compute the reference from the FULL dataset:
+\u2705 WITH ref AS (SELECT SUM(CASE WHEN MORTE THEN 1 ELSE 0 END)*100.0/COUNT(*) AS taxa FROM internacoes [WHERE full_scope_filter])
+   ...HAVING local_taxa > (SELECT taxa FROM ref)
+\u274c Do NOT use AVG(per_group_rate) FROM already-filtered-subgroup \u2014 that computes avg-of-avgs (wrong denominator)
+
+RULE O \u2014 DESCRIPTION vs CODE:
+When question asks "quais m\u00e9todos", "quais diagn\u00f3sticos", "quais n\u00edveis de instru\u00e7\u00e3o" \u2192 JOIN lookup table and return DESCRICAO, not raw code.
+instrucao level \u2192 JOIN instrucao ins ON i."INSTRU" = ins."INSTRU" \u2192 SELECT ins."DESCRICAO"
+m\u00e9todo contraceptivo \u2192 JOIN contraceptivos c ON i."CONTRACEP1" = c."CONTRACEPTIVO" \u2192 SELECT c."DESCRICAO"
+ra\u00e7a/cor description \u2192 JOIN raca_cor r ON i."RACA_COR" = r."RACA_COR" \u2192 SELECT r."DESCRICAO"
 
 DISEASE LOOKUP: table is "cid" (NOT "cid10"). NEVER hardcode CID codes (e.g. DIAG_PRINC = 'J18' is WRONG).
 Displaying diagnosis name \u2192 ALWAYS JOIN cid c ON i."DIAG_PRINC"=c."CID" \u2192 SELECT c."CD_DESCRICAO"
@@ -101,36 +143,12 @@ Filtering by named disease \u2192 JOIN cid c ON i."DIAG_PRINC"=c."CID" WHERE c."
 Category (no specific name) \u2192 WHERE "DIAG_PRINC" LIKE 'J%' (J=Respiratory, I=Cardiovascular, C=Cancer, K=Digestive)
 For cause of death by disease \u2192 JOIN cid ON i."CID_MORTE"=c."CID" (see RULE B)
 
-RULE I \u2014 COUNT rows vs COUNT DISTINCT values:
-"Quantos X diferentes existem cadastrados/registrados?" \u2192 COUNT(*) rows in the table (total registros).
-COUNT(DISTINCT col) only when asking "quantos valores \u00fanicos de COLUNA" or "quantas categorias distintas".
-\u2705 "Quantos procedimentos diferentes existem?" \u2192 SELECT COUNT(*) FROM procedimentos
-\u274c SELECT COUNT(DISTINCT "NOME_PROC") \u2192 WRONG for "how many procedures exist"
-
-RULE J \u2014 PER-GROUP TOP-N: \u26a0\ufe0f MANDATORY ROW_NUMBER WHEN QUESTION ASKS top-N FOR MULTIPLE GROUPS.
-Triggers: "de cada", "por cada", "por faixa", "por grupo", OR when question lists MULTIPLE explicit segments.
-\u274c NEVER use plain LIMIT for per-group queries \u2014 LIMIT limits the entire result, not per group.
-\u2705 GENERIC PATTERN \u2014 top-N per categorical group:
-  SELECT group_desc, value_desc, sub.cnt FROM (
-    SELECT i."GROUP_COL", i."VALUE_COL", COUNT(*) AS cnt,
-           ROW_NUMBER() OVER (PARTITION BY i."GROUP_COL" ORDER BY COUNT(*) DESC, i."VALUE_COL" ASC) AS rn
-    FROM internacoes i WHERE i."VALUE_COL" IS NOT NULL GROUP BY i."GROUP_COL", i."VALUE_COL"
-  ) sub JOIN lookup_table lt ON sub."GROUP_COL" = lt."GROUP_COL"
-  WHERE sub.rn = 1 ORDER BY lt."DESCRICAO";
-  \u26a0\ufe0f outer SELECT uses subquery alias (sub.col), NEVER inner alias (i.col)!
-  \u26a0\ufe0f Add tiebreaker in ROW_NUMBER ORDER BY for deterministic results.
-\u2705 GENERIC PATTERN \u2014 top-N per computed segment (age ranges, bins):
-  PARTITION BY CASE expression; use EXACT labels from user's question.
-  WHERE rn <= N; ORDER BY segment_label, rn.
-Age groups: when question states boundaries, use EXACT labels from the question.
-When NOT specified \u2192 use natural labels ('Menor', 'Adulto', 'Idoso').
-
 \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 """
 
 
 # ---------------------------------------------------------------------------
-# SUS_MAPPINGS — extracted from _enhance_sus_schema_context() in nodes.py
+# SUS_MAPPINGS \u2014 extracted from _enhance_sus_schema_context() in schema_node.py
 # ---------------------------------------------------------------------------
 SUS_MAPPINGS = """
 CRITICAL COLUMN VALUE MAPPINGS (sihrd5 \u2014 override DDL if conflicting):
@@ -190,51 +208,25 @@ JOIN RULES:
 
 
 # ---------------------------------------------------------------------------
-# Pre-generation hints — extracted from _build_pregeneration_hints() in nodes.py
-# All 4 hints included (not selective, since no table selection step here)
+# All table names — used to fire all applicable dynamic hints (no table selection step)
 # ---------------------------------------------------------------------------
-ALL_PREGENERATION_HINTS = """
-\u26a0\ufe0f TABLE-SPECIFIC WARNINGS \u2014 apply where relevant to the query:
-  \U0001f6a8 SOCIOECONOMICO ALERT: long-format table. MANDATORY: add WHERE metrica = '<metric>' in EVERY query. \
-Options: 'populacao_total', 'idhm', 'mortalidade_infantil_1ano', 'bolsa_familia_total', \
-'esgotamento_sanitario_domicilio', 'taxa_envelhecimento'. Omitting it produces WRONG aggregations.
-
-  \U0001f6a8 TEMPO ALERT: NEVER join tempo table on computed expression. \
-Use EXTRACT(YEAR/MONTH FROM DT_INTER) directly \u2014 NO JOIN. \
-\u2705 WHERE EXTRACT(YEAR FROM "DT_INTER") = 2020  \
-\u274c JOIN tempo t ON EXTRACT(YEAR FROM i."DT_INTER") = t.ano \u2192 CARTESIAN PRODUCT
-
-  \U0001f6a8 ATENDIMENTOS ALERT: junction table pattern MANDATORY. \
-internacoes i \u2192 JOIN atendimentos a ON i."N_AIH" = a."N_AIH" \
-\u2192 JOIN procedimentos p ON a."PROC_REA" = p."PROC_REA". \
-NEVER reference a."NOME_PROC" \u2014 that column is in procedimentos, not atendimentos.
-
-  \U0001f6a8 ESPECIALIDADE ALERT: join on ESPEC code. \
-JOIN especialidade e ON i."ESPEC" = e."ESPEC" \u2192 SELECT e."DESCRICAO". \
-For UTI: use WHERE "VAL_UTI" > 0 (NOT ESPEC BETWEEN 74 AND 83).
-
-  \U0001f6a8 HOSPITAL ALERT: hospital table has only CNES, MUNIC_MOV, GESTAO, NATUREZA, NAT_JUR \u2014 NO patient counts. \
-To count PATIENTS by municipality: COUNT(i."N_AIH") from internacoes (NOT COUNT(DISTINCT h."CNES") which counts hospitals). \
-\u2705 'munic\u00edpios que atendem mais pacientes' \u2192 \
-SELECT mu.nome, COUNT(i."N_AIH") FROM internacoes i \
-JOIN hospital h ON i."CNES" = h."CNES" \
-JOIN municipios mu ON h."MUNIC_MOV" = mu.codigo_6d \
-GROUP BY mu.nome ORDER BY COUNT(i."N_AIH") DESC. \
-\u274c COUNT(DISTINCT h."CNES") \u2192 conta hospitais, N\u00c3O pacientes.
-"""
+_ALL_TABLES = [
+    "internacoes", "municipios", "hospital", "cid", "especialidade",
+    "socioeconomico", "atendimentos", "procedimentos", "tempo",
+    "raca_cor", "instrucao", "contraceptivos", "vincprev",
+]
 
 
 def build_system_prompt(schema_context: str) -> str:
     """
-    Build rich system prompt identical in content to generate_sql_node in nodes.py,
+    Build rich system prompt identical in content to generate_sql_node in sql_generation.py,
     but without table selection (all tables included in schema_context).
     """
     return (
         "You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.\n"
-        + RULES_AH
+        + RULES_AO
         + "\nCORE: Use double quotes for all columns: \"COLUMN_NAME\". Return ONLY the SQL query.\n"
         + SUS_MAPPINGS
-        + ALL_PREGENERATION_HINTS
         + "\nDATABASE SCHEMA:\n"
         + schema_context
     )
@@ -242,31 +234,48 @@ def build_system_prompt(schema_context: str) -> str:
 
 def build_user_prompt(question: str) -> str:
     """
-    Build user prompt with all TABLE_TEMPLATES (rules + few-shot examples for all tables).
-    In the LangGraph agent, only selected tables' templates are injected; here we inject all.
+    Build user prompt with all TABLE_TEMPLATES (rules + few-shot examples for all tables)
+    plus dynamic pre-generation hints — exactly the same function used by the agent.
 
-    Mirrors the agent's ROW_NUMBER reminder for per-group top-N queries (RULE J).
+    In the LangGraph agent, only selected tables' templates are injected and hints are
+    table-filtered; here we inject all templates and pass all table names so every
+    applicable keyword-based hint fires.
     """
     from src.application.config.table_templates import TABLE_TEMPLATES
+    from src.agent.sql_generation import _build_pregeneration_hints
 
     all_templates = "\n\n".join(
         f"=== {name.upper()} ===\n{tmpl}"
         for name, tmpl in TABLE_TEMPLATES.items()
     )
 
+    # Generate dynamic hints with all tables available (same function as agent)
+    dynamic_hints = _build_pregeneration_hints(_ALL_TABLES, question)
+
     prompt = (
-        "TABLE-SPECIFIC RULES AND EXAMPLES:\n"
+        (dynamic_hints + "\n" if dynamic_hints else "")
+        + "TABLE-SPECIFIC RULES AND EXAMPLES:\n"
         + all_templates
         + f"\n\nUSER QUERY: {question}\n\nGenerate the SQL query:"
     )
 
-    # Mirror the agent's per-group top-N reminder (sql_generation.py ROW_NUMBER reminder block)
-    _topn_triggers = ("de cada", "por cada", "por faixa", "por grupo")
-    if any(t in question.lower() for t in _topn_triggers):
+    # Mirror the agent's per-group top-N mandatory reminder (highest-attention final message)
+    per_named_group_triggers = [
+        "por estado", "em cada estado", "de cada estado", "para cada estado",
+        "por especialidade", "em cada especialidade", "de cada especialidade",
+        "por hospital", "em cada hospital", "de cada hospital", "para cada hospital",
+        "por munic\u00edpio", "em cada munic\u00edpio", "de cada munic\u00edpio",
+        "por cidade", "em cada cidade",
+        "por ra\u00e7a", "por sexo", "por v\u00ednculo", "por faixa et\u00e1ria",
+        "por ano", "em cada ano", "de cada ano",
+        "por m\u00eas", "em cada m\u00eas",
+        "de cada", "por cada", "por grupo", "por faixa", "por nacionalidade",
+    ]
+    if dynamic_hints and ("TOP-N" in dynamic_hints or "MULTI-AGE" in dynamic_hints):
         prompt += (
             "\n\n\u26a0\ufe0f MANDATORY CONSTRAINT FOR THIS QUERY: You MUST use "
             "ROW_NUMBER() OVER (PARTITION BY ...) \u2014 do NOT use global LIMIT. "
-            "See the SQL pattern in RULE J and TABLE-SPECIFIC WARNINGS above and follow it exactly."
+            "See the SQL pattern in the TABLE-SPECIFIC WARNINGS above and follow it exactly."
         )
 
     return prompt
