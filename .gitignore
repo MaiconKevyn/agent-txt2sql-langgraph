@@ -39,6 +39,7 @@ venv.bak/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Environment variables
 .env
