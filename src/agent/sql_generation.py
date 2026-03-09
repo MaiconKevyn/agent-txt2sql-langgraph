@@ -40,8 +40,8 @@ class SQLOutput(BaseModel):
 # Self-consistency: N-candidate generation
 # ---------------------------------------------------------------------------
 
-N_SQL_CANDIDATES = 1
-TEMPERATURE_CANDIDATES = 0.8
+N_SQL_CANDIDATES = 3
+TEMPERATURE_CANDIDATES = 0.1
 
 
 def _generate_sql_candidates(
@@ -321,6 +321,34 @@ def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> s
             f"  WHERE rn <= N ORDER BY {named_dim_col}, rn;"
         )
 
+    # ── I: Two named states top-N ("no estado de X e no estado de Y") ──────────────────────────
+    # Covers: "3 diagnósticos... no estado de MS e no estado do RS" (not caught by "por estado")
+    if top_n_context and not any("PER-ESTADO" in h for h in hints):
+        two_state_match = _re.search(
+            r"no\s+estado\s+(?:de\s+|do\s+|da\s+)?([A-Z]{2})\b.*?\bno\s+estado\s+(?:de\s+|do\s+|da\s+)?([A-Z]{2})\b",
+            user_query,
+        )
+        if two_state_match:
+            g1, g2 = two_state_match.group(1), two_state_match.group(2)
+            limit_m = _re.search(r"\b(\d+)\s+(?:principais|diagnósticos|hospitais|procedimentos|municípios|cidades)", q_lower)
+            n_str = limit_m.group(1) if limit_m else "N"
+            hints.append(
+                f"🚨 PER-ESTADO TOP-{n_str} (dois estados) ALERT: pergunta pede top-{n_str} "
+                f"SEPARADAMENTE para cada estado ({g1} e {g2}). "
+                "OBRIGATÓRIO: usar ROW_NUMBER() OVER (PARTITION BY mu.estado ORDER BY <métrica> DESC) AS rn, "
+                "depois WHERE rn <= N. "
+                f"NUNCA usar WHERE estado IN ('{g1}', '{g2}') com LIMIT global — "
+                "isso retorna o ranking combinado, NÃO o top por estado. "
+                f"PADRÃO CORRETO:\n"
+                f"  SELECT mu.estado, <col>, <metrica> FROM (\n"
+                f"    SELECT mu.estado, <col>, <metrica>,\n"
+                f"           ROW_NUMBER() OVER (PARTITION BY mu.estado ORDER BY <metrica> DESC) AS rn\n"
+                f"    FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d\n"
+                f"    WHERE mu.estado IN ('{g1}', '{g2}') [AND outros filtros]\n"
+                f"    GROUP BY mu.estado, <col>\n"
+                f"  ) sub WHERE rn <= {n_str} ORDER BY mu.estado, rn;"
+            )
+
     if not hints:
         return ""
 
@@ -332,51 +360,37 @@ def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> s
 
 
 # ---------------------------------------------------------------------------
-# Node function
+# Shared message-builder (used by generate_sql_node AND multi_executor)
 # ---------------------------------------------------------------------------
 
-def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+def build_sql_generation_messages(
+    user_query: str,
+    schema_context: str,
+    selected_tables: List[str],
+) -> tuple:
     """
-    Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
+    Build the full (formatted_messages, pregeneration_hints) for SQL generation.
 
-    Generates SQL queries using ChatPromptTemplate with dynamic table-specific rules
-    Following official LangGraph SQL agent patterns with enhanced prompt templates
+    Applies the same RULES A-O system prompt, table-specific templates, and
+    pre-generation hints that generate_sql_node uses.  Extracted so that the
+    multi-query executor can reuse the identical prompt for each sub-query.
+
+    Returns:
+        (formatted_messages: list, pregeneration_hints: str)
     """
-    start_time = time.time()
+    schema_context = _enhance_sus_schema_context(schema_context)
 
-    logger.info("SQL generation node started", extra={
-        "user_query": state['user_query'][:100]
-    })
+    if len(selected_tables) > 1:
+        table_rules = build_multi_table_prompt(selected_tables)
+    else:
+        table_rules = build_table_specific_prompt(selected_tables)
 
-    try:
-        llm_manager = get_llm_manager()
-        user_query = state["user_query"]
-        schema_context = state.get("schema_context", "")
-        selected_tables = state.get("selected_tables", [])
+    pregeneration_hints = _build_pregeneration_hints(selected_tables, user_query)
+    if pregeneration_hints:
+        table_rules = pregeneration_hints + "\n" + table_rules
 
-        # Enrich schema with value mappings (single source of truth)
-        schema_context = _enhance_sus_schema_context(schema_context)
-
-        logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
-
-        if len(selected_tables) > 1:
-            table_rules = build_multi_table_prompt(selected_tables)
-            logger.debug("Multi-table rules applied", extra={"tables": selected_tables})
-        else:
-            table_rules = build_table_specific_prompt(selected_tables)
-            logger.debug("Table-specific rules applied", extra={"tables": selected_tables})
-
-        # Inject preventive hints for known failure patterns
-        pregeneration_hints = _build_pregeneration_hints(selected_tables, user_query)
-        if pregeneration_hints:
-            table_rules = pregeneration_hints + "\n" + table_rules
-            logger.info(
-                "Pre-generation hints injected",
-                extra={"tables": selected_tables, "hints_length": len(pregeneration_hints)},
-            )
-
-        sql_prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
+    sql_prompt_template = ChatPromptTemplate.from_messages([
+        ("system", """You are a PostgreSQL expert assistant for Brazilian healthcare (SIH-RS) data analysis.
 
         ══════════════════════════════════════════════════════════
         CRITICAL RULES — READ THESE FIRST, THEY OVERRIDE ALL ELSE
@@ -507,31 +521,75 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         DATABASE SCHEMA:
         {schema_context}"""),
 
-            ("system", "{table_specific_rules}"),
+        ("system", "{table_specific_rules}"),
 
-            ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
-        ])
+        ("human", "USER QUERY: {user_query}\n\nGenerate the SQL query:")
+    ])
 
-        formatted_messages = sql_prompt_template.format_messages(
-            schema_context=schema_context,
-            table_specific_rules=table_rules,
-            user_query=user_query,
+    formatted_messages = sql_prompt_template.format_messages(
+        schema_context=schema_context,
+        table_specific_rules=table_rules,
+        user_query=user_query,
+    )
+
+    import re as _re_check
+    if pregeneration_hints and (
+        _re_check.search(r"TOP-[N\d]", pregeneration_hints) or "MULTI-AGE" in pregeneration_hints
+    ):
+        from langchain_core.messages import HumanMessage as _HumanMessage
+        reminder = (
+            "⚠️ MANDATORY CONSTRAINT FOR THIS QUERY: You MUST use "
+            "ROW_NUMBER() OVER (PARTITION BY ...) — do NOT use global LIMIT. "
+            "See the SQL pattern in the TABLE-SPECIFIC WARNINGS above and follow it exactly."
         )
+        formatted_messages = list(formatted_messages) + [_HumanMessage(content=reminder)]
 
-        # For per-group top-N queries, append a critical reminder as a final human message
-        # (most recent position → highest LLM attention)
-        if pregeneration_hints and ("TOP-N" in pregeneration_hints or "MULTI-AGE" in pregeneration_hints):
-            from langchain_core.messages import HumanMessage as _HumanMessage
-            reminder = (
-                "⚠️ MANDATORY CONSTRAINT FOR THIS QUERY: You MUST use "
-                "ROW_NUMBER() OVER (PARTITION BY ...) — do NOT use global LIMIT. "
-                "See the SQL pattern in the TABLE-SPECIFIC WARNINGS above and follow it exactly."
+    return formatted_messages, pregeneration_hints
+
+
+# ---------------------------------------------------------------------------
+# Node function
+# ---------------------------------------------------------------------------
+
+def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
+    """
+    Generate SQL Node - Using ChatPromptTemplate with Table-Specific Rules
+
+    Generates SQL queries using ChatPromptTemplate with dynamic table-specific rules
+    Following official LangGraph SQL agent patterns with enhanced prompt templates
+    """
+    start_time = time.time()
+
+    logger.info("SQL generation node started", extra={
+        "user_query": state['user_query'][:100]
+    })
+
+    try:
+        llm_manager = get_llm_manager()
+        user_query = state["user_query"]
+        schema_context = state.get("schema_context", "")
+        selected_tables = state.get("selected_tables", [])
+
+        # Inject CoT reasoning plan if reasoning_node produced one
+        reasoning_plan = state.get("reasoning_plan")
+        if reasoning_plan:
+            user_query = (
+                f"{user_query}\n\n"
+                f"[PLANO DE RACIOCÍNIO PRÉ-GERADO]\n"
+                f"{reasoning_plan}\n"
+                f"Siga este plano ao gerar o SQL."
             )
-            formatted_messages = list(formatted_messages) + [_HumanMessage(content=reminder)]
+
+        logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
+
+        formatted_messages, pregeneration_hints = build_sql_generation_messages(
+            user_query=user_query,
+            schema_context=schema_context,
+            selected_tables=selected_tables,
+        )
 
         logger.debug("Template prepared", extra={
             "message_count": len(formatted_messages),
-            "rules_length": len(table_rules),
         })
 
         # Primary path: structured output

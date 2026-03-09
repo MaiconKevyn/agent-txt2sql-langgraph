@@ -20,6 +20,11 @@ from .nodes import (
     clarification_node,
     vote_sql_node,
 )
+from .query_planner import query_planner_node
+from .plan_gate import plan_gate_node
+from .multi_executor import multi_sql_executor_node
+from .multi_verifier import multi_verifier_node
+from .result_synthesizer import result_synthesizer_node
 
 
 def create_langgraph_sql_workflow():
@@ -50,6 +55,8 @@ def create_langgraph_sql_workflow():
     workflow.add_node("classify_query", query_classification_node)
     workflow.add_node("list_tables", list_tables_node)
     workflow.add_node("get_schema", get_schema_node)
+    workflow.add_node("plan_gate", plan_gate_node)
+    workflow.add_node("query_planner", query_planner_node)
     workflow.add_node("reasoning", reasoning_node)
     workflow.add_node("generate_sql", generate_sql_node)
     workflow.add_node("vote_sql", vote_sql_node)
@@ -58,6 +65,10 @@ def create_langgraph_sql_workflow():
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("generate_response", generate_response_node)
     workflow.add_node("clarification", clarification_node)
+    # Multi-query path
+    workflow.add_node("multi_sql_executor", multi_sql_executor_node)
+    workflow.add_node("multi_verifier", multi_verifier_node)
+    workflow.add_node("result_synthesizer", result_synthesizer_node)
     
     # Entry point
     workflow.add_edge(START, "classify_query")
@@ -77,18 +88,50 @@ def create_langgraph_sql_workflow():
     
     # Database workflow path
     workflow.add_edge("list_tables", "get_schema")
-    
-    # Conditional reasoning path
+
+    # After schema: go to query planner or direct response (SCHEMA queries)
     workflow.add_conditional_edges(
         "get_schema",
         route_after_schema,
         {
-            "reasoning": "reasoning",
-            "generate_sql": "generate_sql",
-            "generate_response": "generate_response"
+            "plan_gate": "plan_gate",
+            "generate_response": "generate_response",
         }
     )
-    
+
+    workflow.add_conditional_edges(
+        "plan_gate",
+        route_after_plan_gate,
+        {
+            "query_planner": "query_planner",
+            "reasoning": "reasoning",
+            "generate_sql": "generate_sql",
+        }
+    )
+
+    # Query planner decides single vs multi path
+    workflow.add_conditional_edges(
+        "query_planner",
+        route_after_query_planner,
+        {
+            "generate_sql": "generate_sql",      # single-query: existing pipeline
+            "reasoning": "reasoning",             # complex single-query: CoT before generation
+            "multi": "multi_sql_executor",        # multi-query: new path
+        }
+    )
+
+    # Multi-query path
+    workflow.add_edge("multi_sql_executor", "multi_verifier")
+    workflow.add_conditional_edges(
+        "multi_verifier",
+        route_after_multi_verifier,
+        {
+            "result_synthesizer": "result_synthesizer",
+            "generate_sql": "generate_sql",
+        }
+    )
+    workflow.add_edge("result_synthesizer", END)
+
     workflow.add_edge("reasoning", "generate_sql")
     
     # Conditional repair routing (re-planning support)
@@ -195,22 +238,58 @@ def route_after_classification(
 
 def route_after_schema(
     state: MessagesStateTXT2SQL
-) -> Literal["reasoning", "generate_sql", "generate_response"]:
+) -> Literal["plan_gate", "generate_response"]:
     """
-    Route after schema analysis to decide if reasoning is needed.
-    
-    Skip reasoning for simple queries to save latency.
+    Route after schema analysis.
+
+    SCHEMA queries skip SQL generation entirely.
+    All other DATABASE queries go to the deterministic plan gate first.
     """
-    classification = state.get("classification")
-    
-    # Default to reasoning if no classification
-    if not classification:
-        return "reasoning"
-        
-    # Schema queries bypass reasoning
     if state.get("query_route") == QueryRoute.SCHEMA:
         return "generate_response"
+    return "plan_gate"
+
+
+# Plan types that benefit from CoT pre-planning before SQL generation.
+_COMPLEX_PLAN_TYPES_FOR_COT = {"global_local_avg", "single_cte", "set_intersection", "pivot_compare", "single_window"}
+
+
+def route_after_plan_gate(
+    state: MessagesStateTXT2SQL
+) -> Literal["query_planner", "reasoning", "generate_sql"]:
+    """Route after deterministic plan gate."""
+    if state.get("multi_query_allowed") and not state.get("force_single_query"):
+        return "query_planner"
+    if state.get("plan_type") in _COMPLEX_PLAN_TYPES_FOR_COT:
+        return "reasoning"
     return "generate_sql"
+
+
+def route_after_query_planner(
+    state: MessagesStateTXT2SQL
+) -> Literal["generate_sql", "reasoning", "multi"]:
+    """
+    Route after query planner based on strategy decision.
+
+    "single" → (reasoning if complex else generate_sql) → validate → execute pipeline.
+    "multi"  → multi_sql_executor → result_synthesizer → END.
+
+    force_single_query=True bypasses multi-query (used in evaluation mode).
+    """
+    if state.get("is_multi_query") and not state.get("force_single_query"):
+        return "multi"
+    if state.get("plan_type") in _COMPLEX_PLAN_TYPES_FOR_COT:
+        return "reasoning"
+    return "generate_sql"
+
+
+def route_after_multi_verifier(
+    state: MessagesStateTXT2SQL
+) -> Literal["result_synthesizer", "generate_sql"]:
+    """Fallback to single-query when multi verification fails."""
+    if state.get("single_fallback_active"):
+        return "generate_sql"
+    return "result_synthesizer"
 
 
 def route_after_sql_generation(
@@ -475,7 +554,8 @@ def execute_sql_workflow(
     session_id: str = None,
     config: dict = None,
     max_retries: int = 3,
-    llm_manager = None
+    llm_manager = None,
+    force_single_query: bool = True,
 ) -> dict:
     """
     Execute SQL workflow with proper error handling and adaptive recursion limit
@@ -501,11 +581,12 @@ def execute_sql_workflow(
 
         initial_state = create_initial_messages_state(
             user_query=user_query,
-            session_id=session_id
+            session_id=session_id,
+            force_single_query=force_single_query,
         )
 
         config = config or {}
-        
+
         # Inject LLM manager into config if provided
         if llm_manager:
             if "configurable" not in config:
