@@ -107,6 +107,13 @@ def classify_plan_type(user_query: str) -> Tuple[str, str]:
     if _ENTITY_DISCOVERY_PATTERN.search(query) and _BIND_PATTERN.search(query):
         return "bind_then_query", "A pergunta pede descobrir uma entidade e depois detalhá-la."
 
+    # Two named states + ranking ("3 X no estado A e no estado B") → per-group top-N
+    _two_state_re = re.compile(
+        r"no\s+estado\s+(?:de\s+|do\s+|da\s+)?[A-Z]{2}\b.*?\bno\s+estado\s+(?:de\s+|do\s+|da\s+)?[A-Z]{2}\b",
+    )
+    if _two_state_re.search(query) and _RANKING_PATTERN.search(query):
+        return "single_window", "Top-N por estado nomeado deve usar ROW_NUMBER OVER PARTITION BY em SQL única."
+
     if _SINGLE_CTE_PATTERN.search(query):
         return "single_cte", "Comparações temporais e lógica global devem permanecer em uma única SQL."
 

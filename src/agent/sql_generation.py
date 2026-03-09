@@ -40,8 +40,8 @@ class SQLOutput(BaseModel):
 # Self-consistency: N-candidate generation
 # ---------------------------------------------------------------------------
 
-N_SQL_CANDIDATES = 1
-TEMPERATURE_CANDIDATES = 0.8
+N_SQL_CANDIDATES = 3
+TEMPERATURE_CANDIDATES = 0.1
 
 
 def _generate_sql_candidates(
@@ -321,6 +321,34 @@ def _build_pregeneration_hints(selected_tables: List[str], user_query: str) -> s
             f"  WHERE rn <= N ORDER BY {named_dim_col}, rn;"
         )
 
+    # ── I: Two named states top-N ("no estado de X e no estado de Y") ──────────────────────────
+    # Covers: "3 diagnósticos... no estado de MS e no estado do RS" (not caught by "por estado")
+    if top_n_context and not any("PER-ESTADO" in h for h in hints):
+        two_state_match = _re.search(
+            r"no\s+estado\s+(?:de\s+|do\s+|da\s+)?([A-Z]{2})\b.*?\bno\s+estado\s+(?:de\s+|do\s+|da\s+)?([A-Z]{2})\b",
+            user_query,
+        )
+        if two_state_match:
+            g1, g2 = two_state_match.group(1), two_state_match.group(2)
+            limit_m = _re.search(r"\b(\d+)\s+(?:principais|diagnósticos|hospitais|procedimentos|municípios|cidades)", q_lower)
+            n_str = limit_m.group(1) if limit_m else "N"
+            hints.append(
+                f"🚨 PER-ESTADO TOP-{n_str} (dois estados) ALERT: pergunta pede top-{n_str} "
+                f"SEPARADAMENTE para cada estado ({g1} e {g2}). "
+                "OBRIGATÓRIO: usar ROW_NUMBER() OVER (PARTITION BY mu.estado ORDER BY <métrica> DESC) AS rn, "
+                "depois WHERE rn <= N. "
+                f"NUNCA usar WHERE estado IN ('{g1}', '{g2}') com LIMIT global — "
+                "isso retorna o ranking combinado, NÃO o top por estado. "
+                f"PADRÃO CORRETO:\n"
+                f"  SELECT mu.estado, <col>, <metrica> FROM (\n"
+                f"    SELECT mu.estado, <col>, <metrica>,\n"
+                f"           ROW_NUMBER() OVER (PARTITION BY mu.estado ORDER BY <metrica> DESC) AS rn\n"
+                f"    FROM internacoes i JOIN municipios mu ON i.\"MUNIC_RES\" = mu.codigo_6d\n"
+                f"    WHERE mu.estado IN ('{g1}', '{g2}') [AND outros filtros]\n"
+                f"    GROUP BY mu.estado, <col>\n"
+                f"  ) sub WHERE rn <= {n_str} ORDER BY mu.estado, rn;"
+            )
+
     if not hints:
         return ""
 
@@ -504,7 +532,10 @@ def build_sql_generation_messages(
         user_query=user_query,
     )
 
-    if pregeneration_hints and ("TOP-N" in pregeneration_hints or "MULTI-AGE" in pregeneration_hints):
+    import re as _re_check
+    if pregeneration_hints and (
+        _re_check.search(r"TOP-[N\d]", pregeneration_hints) or "MULTI-AGE" in pregeneration_hints
+    ):
         from langchain_core.messages import HumanMessage as _HumanMessage
         reminder = (
             "⚠️ MANDATORY CONSTRAINT FOR THIS QUERY: You MUST use "
@@ -538,6 +569,16 @@ def generate_sql_node(state: MessagesStateTXT2SQL) -> MessagesStateTXT2SQL:
         user_query = state["user_query"]
         schema_context = state.get("schema_context", "")
         selected_tables = state.get("selected_tables", [])
+
+        # Inject CoT reasoning plan if reasoning_node produced one
+        reasoning_plan = state.get("reasoning_plan")
+        if reasoning_plan:
+            user_query = (
+                f"{user_query}\n\n"
+                f"[PLANO DE RACIOCÍNIO PRÉ-GERADO]\n"
+                f"{reasoning_plan}\n"
+                f"Siga este plano ao gerar o SQL."
+            )
 
         logger.info("Tables selected for SQL generation", extra={"tables": selected_tables})
 

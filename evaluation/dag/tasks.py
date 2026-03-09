@@ -407,8 +407,7 @@ def _evaluate_questions_sequential(
                         'error': result.error_message,
                         'details': result.details
                     }
-                    if predicted_sql.strip():
-                        metric_scores[metric.name].append(result.score)
+                    metric_scores[metric.name].append(result.score)
 
             except Exception as e:
                 question_results['metrics'][metric.name] = {
@@ -563,9 +562,8 @@ def _evaluate_questions_parallel(
                         'error': result.error_message,
                         'details': result.details
                     }
-                    if predicted_sql.strip():
-                        with results_lock:
-                            metric_scores[metric.name].append(result.score)
+                    with results_lock:
+                        metric_scores[metric.name].append(result.score)
 
             except Exception as e:
                 question_results['metrics'][metric.name] = {
@@ -666,22 +664,22 @@ def aggregate_results(evaluate_questions: Dict[str, Any], **kwargs) -> Dict[str,
         if r['agent_success']:
             difficulties[diff]['agent_success'] += 1
 
-            # Collect metric stats per difficulty
-            for metric_name, metric_result in r['metrics'].items():
-                if metric_name not in difficulties[diff]['metrics']:
-                    difficulties[diff]['metrics'][metric_name] = {
-                        'correct': 0,
-                        'total': 0,
-                        'scores': []
-                    }
+        # Collect metric stats for ALL queries (failures count as score=0)
+        for metric_name, metric_result in r['metrics'].items():
+            if metric_name not in difficulties[diff]['metrics']:
+                difficulties[diff]['metrics'][metric_name] = {
+                    'correct': 0,
+                    'total': 0,
+                    'scores': []
+                }
 
-                difficulties[diff]['metrics'][metric_name]['total'] += 1
-                difficulties[diff]['metrics'][metric_name]['scores'].append(
-                    metric_result['score']
-                )
+            difficulties[diff]['metrics'][metric_name]['total'] += 1
+            difficulties[diff]['metrics'][metric_name]['scores'].append(
+                metric_result['score']
+            )
 
-                if metric_result['is_correct']:
-                    difficulties[diff]['metrics'][metric_name]['correct'] += 1
+            if metric_result['is_correct']:
+                difficulties[diff]['metrics'][metric_name]['correct'] += 1
 
     print(f"    Aggregated {len(results)} results")
     print(f"    Metrics:")

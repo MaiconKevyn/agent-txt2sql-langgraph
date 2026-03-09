@@ -104,6 +104,7 @@ def create_langgraph_sql_workflow():
         route_after_plan_gate,
         {
             "query_planner": "query_planner",
+            "reasoning": "reasoning",
             "generate_sql": "generate_sql",
         }
     )
@@ -114,6 +115,7 @@ def create_langgraph_sql_workflow():
         route_after_query_planner,
         {
             "generate_sql": "generate_sql",      # single-query: existing pipeline
+            "reasoning": "reasoning",             # complex single-query: CoT before generation
             "multi": "multi_sql_executor",        # multi-query: new path
         }
     )
@@ -248,28 +250,36 @@ def route_after_schema(
     return "plan_gate"
 
 
+# Plan types that benefit from CoT pre-planning before SQL generation.
+_COMPLEX_PLAN_TYPES_FOR_COT = {"global_local_avg", "single_cte", "set_intersection", "pivot_compare", "single_window"}
+
+
 def route_after_plan_gate(
     state: MessagesStateTXT2SQL
-) -> Literal["query_planner", "generate_sql"]:
+) -> Literal["query_planner", "reasoning", "generate_sql"]:
     """Route after deterministic plan gate."""
     if state.get("multi_query_allowed") and not state.get("force_single_query"):
         return "query_planner"
+    if state.get("plan_type") in _COMPLEX_PLAN_TYPES_FOR_COT:
+        return "reasoning"
     return "generate_sql"
 
 
 def route_after_query_planner(
     state: MessagesStateTXT2SQL
-) -> Literal["generate_sql", "multi"]:
+) -> Literal["generate_sql", "reasoning", "multi"]:
     """
     Route after query planner based on strategy decision.
 
-    "single" → existing generate_sql → validate → execute pipeline.
+    "single" → (reasoning if complex else generate_sql) → validate → execute pipeline.
     "multi"  → multi_sql_executor → result_synthesizer → END.
 
     force_single_query=True bypasses multi-query (used in evaluation mode).
     """
     if state.get("is_multi_query") and not state.get("force_single_query"):
         return "multi"
+    if state.get("plan_type") in _COMPLEX_PLAN_TYPES_FOR_COT:
+        return "reasoning"
     return "generate_sql"
 
 
@@ -545,7 +555,7 @@ def execute_sql_workflow(
     config: dict = None,
     max_retries: int = 3,
     llm_manager = None,
-    force_single_query: bool = False,
+    force_single_query: bool = True,
 ) -> dict:
     """
     Execute SQL workflow with proper error handling and adaptive recursion limit
